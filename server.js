@@ -46,24 +46,42 @@ async function abrirPaginaLogada() {
 
   await page.goto(process.env.SIMPLES_DENTAL_URL);
 
-  // TODO: trocar pelo seletor de algo que só aparece DEPOIS do login
-  // (ex: o menu lateral da agenda, o nome do usuário no topo, etc.)
-  const jaLogado = await page
-    .locator('TODO_SELETOR_TELA_INTERNA')
+  // Se a sessão salva ainda for válida, o Simples Dental pula direto pra
+  // agenda (ou pra tela de seleção de clínica). Confirmamos checando se
+  // ainda estamos na tela de login.
+  const aindaNaTelaDeLogin = await page
+    .locator('input[type="email"]')
     .first()
     .isVisible()
     .catch(() => false);
 
-  if (!jaLogado) {
-    // TODO: ajustar os três seletores abaixo conforme a tela real de login
-    await page.fill('TODO_SELETOR_CAMPO_USUARIO', process.env.SIMPLES_DENTAL_USER);
-    await page.fill('TODO_SELETOR_CAMPO_SENHA', process.env.SIMPLES_DENTAL_PASS);
-    await page.click('TODO_SELETOR_BOTAO_ENTRAR');
+  if (aindaNaTelaDeLogin) {
+    await page.fill('input[type="email"]', process.env.SIMPLES_DENTAL_USER);
+    await page.fill('input[type="password"]', process.env.SIMPLES_DENTAL_PASS);
+    await page.getByRole('button', { name: 'ENTRAR NO SISTEMA' }).click();
     await page.waitForLoadState('networkidle');
-
-    // Salva a sessão logada para reaproveitar nas próximas chamadas
-    await context.storageState({ path: AUTH_FILE });
   }
+
+  // Depois do login, o Simples Dental pode pedir pra escolher a clínica
+  // (quando o usuário tem acesso a mais de uma). Se essa tela aparecer,
+  // clicamos em "ACESSAR" no card da clínica configurada.
+  const nomeClinica = process.env.SIMPLES_DENTAL_CLINICA || 'ALINE BENTIVEGNA';
+  const telaSelecaoClinica = await page
+    .getByText('Selecionar clínica')
+    .isVisible()
+    .catch(() => false);
+
+  if (telaSelecaoClinica) {
+    const cartaoClinica = page.locator('div').filter({ hasText: nomeClinica }).last();
+    await cartaoClinica.getByRole('button', { name: 'ACESSAR' }).click();
+    await page.waitForLoadState('networkidle');
+  }
+
+  // Confirma que chegamos de fato na agenda antes de seguir
+  await page.waitForURL('**/simples/agenda**', { timeout: 15000 }).catch(() => {});
+
+  // Salva a sessão logada para reaproveitar nas próximas chamadas
+  await context.storageState({ path: AUTH_FILE });
 
   return { context, page };
 }
@@ -72,15 +90,21 @@ async function verificarDisponibilidade() {
   const { context, page } = await abrirPaginaLogada();
 
   try {
-    // TODO: navegar até a tela de agenda e extrair os horários livres.
-    // Exemplo de como deve ficar (ajustar os seletores reais depois):
-    //
-    // await page.click('TODO_SELETOR_MENU_AGENDA');
+    // Neste primeiro momento, ainda não sabemos o padrão exato de HTML que
+    // diferencia um horário livre de um horário ocupado na grade da agenda.
+    // Por enquanto, confirmamos que chegamos na agenda e tiramos um print --
+    // isso já valida toda a parte difícil (login + seleção de clínica).
+    const chegouNaAgenda = page.url().includes('/simples/agenda');
+
+    const nomePrint = `agenda-${Date.now()}.png`;
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
+
+    // TODO: depois de confirmar o print, trocar isso pela extração real dos
+    // horários livres, algo como:
     // const horarios = await page.locator('TODO_SELETOR_HORARIOS_LIVRES').allTextContents();
+    const horarios = [];
 
-    const horarios = []; // placeholder até definirmos os seletores reais
-
-    return { horarios };
+    return { chegouNaAgenda, print: nomePrint, horarios };
   } catch (erro) {
     // Tira um print exatamente do momento do erro, pra facilitar o diagnóstico
     await page
