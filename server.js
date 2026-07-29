@@ -45,6 +45,10 @@ async function abrirPaginaLogada() {
   const page = await context.newPage();
 
   await page.goto(process.env.SIMPLES_DENTAL_URL);
+  // A tela do Simples Dental carrega em JavaScript e pode demorar um
+  // instante a mais para aparecer -- esperamos a rede "assentar" antes de
+  // checar o que está na tela, evitando checar cedo demais.
+  await page.waitForLoadState('networkidle').catch(() => {});
 
   // Se a sessão salva ainda for válida, o Simples Dental pula direto pra
   // agenda (ou pra tela de seleção de clínica). Confirmamos checando se
@@ -52,7 +56,7 @@ async function abrirPaginaLogada() {
   const aindaNaTelaDeLogin = await page
     .locator('input[type="email"]')
     .first()
-    .isVisible()
+    .isVisible({ timeout: 8000 })
     .catch(() => false);
 
   if (aindaNaTelaDeLogin) {
@@ -119,6 +123,11 @@ async function verificarDisponibilidade() {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Rota temporária para visualizar os prints salvos durante os testes.
+// Recomendo remover ou proteger com senha depois que a automação estiver
+// validada, já que a agenda tem dados de pacientes.
+app.use('/screenshots', express.static(SCREENSHOTS_DIR));
 
 app.post('/verificar-disponibilidade', async (req, res) => {
   try {
