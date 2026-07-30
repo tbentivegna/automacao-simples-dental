@@ -30,36 +30,50 @@ async function getBrowser() {
   if (!browserCompartilhado) {
     browserCompartilhado = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled', // reduz sinais de que é um robô
+      ],
     });
   }
   return browserCompartilhado;
 }
 
+// User-Agent de um Chrome comum em Windows, para o robô se parecer mais
+// com um navegador usado por uma pessoa de verdade.
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
+
 // Recebe a lista de compromissos (ocupados) e calcula os "buracos" livres
 // entre eles, dentro do horário de atendimento configurado.
+// Importante: sempre calcula no fuso de Brasília (UTC-3), independente do
+// fuso em que o servidor estiver rodando -- Brasília não tem mais horário
+// de verão, então esse deslocamento fixo é seguro.
 function calcularHorariosLivres(compromissos) {
-  const [horaIni, minIni] = (process.env.HORA_INICIO_ATENDIMENTO || '08:00').split(':').map(Number);
-  const [horaFim, minFim] = (process.env.HORA_FIM_ATENDIMENTO || '19:00').split(':').map(Number);
+  const horaIniStr = process.env.HORA_INICIO_ATENDIMENTO || '08:00';
+  const horaFimStr = process.env.HORA_FIM_ATENDIMENTO || '19:00';
   const fuso = 'America/Sao_Paulo';
+  const OFFSET_BRASILIA = '-03:00';
 
-  // Agrupa os compromissos por dia
+  // Agrupa os compromissos por dia (data no formato AAAA-MM-DD, já no
+  // fuso de Brasília, usando Intl em vez de setHours/toLocaleDateString
+  // para não depender do fuso do processo Node).
+  const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: fuso });
   const porDia = {};
   for (const c of compromissos) {
     if (!c.inicio || !c.fim) continue;
-    const chaveDia = new Date(c.inicio).toLocaleDateString('pt-BR', { timeZone: fuso });
-    if (!porDia[chaveDia]) porDia[chaveDia] = [];
-    porDia[chaveDia].push({ inicio: c.inicio, fim: c.fim });
+    const diaISO = formatadorDiaISO.format(new Date(c.inicio));
+    if (!porDia[diaISO]) porDia[diaISO] = [];
+    porDia[diaISO].push({ inicio: c.inicio, fim: c.fim });
   }
 
   const resultado = {};
-  for (const [dia, intervalos] of Object.entries(porDia)) {
+  for (const [diaISO, intervalos] of Object.entries(porDia)) {
     intervalos.sort((a, b) => a.inicio - b.inicio);
 
-    const dataBase = new Date(intervalos[0].inicio);
-    dataBase.setHours(0, 0, 0, 0);
-    const inicioExpediente = new Date(dataBase).setHours(horaIni, minIni, 0, 0);
-    const fimExpediente = new Date(dataBase).setHours(horaFim, minFim, 0, 0);
+    const inicioExpediente = new Date(`${diaISO}T${horaIniStr}:00${OFFSET_BRASILIA}`).getTime();
+    const fimExpediente = new Date(`${diaISO}T${horaFimStr}:00${OFFSET_BRASILIA}`).getTime();
 
     const livres = [];
     let cursor = inicioExpediente;
@@ -74,7 +88,9 @@ function calcularHorariosLivres(compromissos) {
       livres.push({ inicio: cursor, fim: fimExpediente });
     }
 
-    resultado[dia] = livres
+    const diaBR = new Date(`${diaISO}T00:00:00${OFFSET_BRASILIA}`).toLocaleDateString('pt-BR', { timeZone: fuso });
+
+    resultado[diaBR] = livres
       .filter((l) => l.fim > l.inicio)
       .map((l) => ({
         inicio: new Date(l.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: fuso }),
