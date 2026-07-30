@@ -36,6 +36,55 @@ async function getBrowser() {
   return browserCompartilhado;
 }
 
+// Recebe a lista de compromissos (ocupados) e calcula os "buracos" livres
+// entre eles, dentro do horário de atendimento configurado.
+function calcularHorariosLivres(compromissos) {
+  const [horaIni, minIni] = (process.env.HORA_INICIO_ATENDIMENTO || '08:00').split(':').map(Number);
+  const [horaFim, minFim] = (process.env.HORA_FIM_ATENDIMENTO || '19:00').split(':').map(Number);
+  const fuso = 'America/Sao_Paulo';
+
+  // Agrupa os compromissos por dia
+  const porDia = {};
+  for (const c of compromissos) {
+    if (!c.inicio || !c.fim) continue;
+    const chaveDia = new Date(c.inicio).toLocaleDateString('pt-BR', { timeZone: fuso });
+    if (!porDia[chaveDia]) porDia[chaveDia] = [];
+    porDia[chaveDia].push({ inicio: c.inicio, fim: c.fim });
+  }
+
+  const resultado = {};
+  for (const [dia, intervalos] of Object.entries(porDia)) {
+    intervalos.sort((a, b) => a.inicio - b.inicio);
+
+    const dataBase = new Date(intervalos[0].inicio);
+    dataBase.setHours(0, 0, 0, 0);
+    const inicioExpediente = new Date(dataBase).setHours(horaIni, minIni, 0, 0);
+    const fimExpediente = new Date(dataBase).setHours(horaFim, minFim, 0, 0);
+
+    const livres = [];
+    let cursor = inicioExpediente;
+
+    for (const intervalo of intervalos) {
+      if (intervalo.inicio > cursor) {
+        livres.push({ inicio: cursor, fim: Math.min(intervalo.inicio, fimExpediente) });
+      }
+      cursor = Math.max(cursor, intervalo.fim);
+    }
+    if (cursor < fimExpediente) {
+      livres.push({ inicio: cursor, fim: fimExpediente });
+    }
+
+    resultado[dia] = livres
+      .filter((l) => l.fim > l.inicio)
+      .map((l) => ({
+        inicio: new Date(l.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: fuso }),
+        fim: new Date(l.fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: fuso }),
+      }));
+  }
+
+  return resultado;
+}
+
 // Abre uma aba já logada no Simples Dental, reaproveitando a sessão salva
 // sempre que possível (evita logar do zero a cada chamada).
 async function abrirPaginaLogada() {
@@ -94,21 +143,28 @@ async function verificarDisponibilidade() {
   const { context, page } = await abrirPaginaLogada();
 
   try {
-    // Neste primeiro momento, ainda não sabemos o padrão exato de HTML que
-    // diferencia um horário livre de um horário ocupado na grade da agenda.
-    // Por enquanto, confirmamos que chegamos na agenda e tiramos um print --
-    // isso já valida toda a parte difícil (login + seleção de clínica).
-    const chegouNaAgenda = page.url().includes('/simples/agenda');
+    // Espera a grade de compromissos carregar antes de tentar ler
+    await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
+
+    // Lê todos os compromissos visíveis na semana atual: horário, paciente
+    // e status (Agendada, Confirmada, etc. -- lido do atributo "title")
+    const compromissos = await page.evaluate(() => {
+      const eventos = Array.from(document.querySelectorAll('a.fc-event'));
+      return eventos.map((el) => {
+        const inicio = Number(el.getAttribute('data-start'));
+        const fim = Number(el.getAttribute('data-end'));
+        const status = el.querySelector('.fc-event-main-frame')?.getAttribute('title') || null;
+        const paciente = el.querySelector('.fc-event-title')?.textContent.trim() || null;
+        return { inicio, fim, status, paciente };
+      });
+    });
+
+    const horarios = calcularHorariosLivres(compromissos);
 
     const nomePrint = `agenda-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
-    // TODO: depois de confirmar o print, trocar isso pela extração real dos
-    // horários livres, algo como:
-    // const horarios = await page.locator('TODO_SELETOR_HORARIOS_LIVRES').allTextContents();
-    const horarios = [];
-
-    return { chegouNaAgenda, print: nomePrint, horarios };
+    return { compromissos, horarios, print: nomePrint };
   } catch (erro) {
     // Tira um print exatamente do momento do erro, pra facilitar o diagnóstico
     await page
