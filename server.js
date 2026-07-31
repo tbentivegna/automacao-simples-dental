@@ -86,9 +86,10 @@ function ehSabadoAberto(diaISO) {
   return diffDias % 14 === 0;
 }
 
-// Para cada dia da semana atual (segunda a domingo), pega os horários fixos
-// do modelo e verifica, contra os compromissos reais, quais estão livres.
-function calcularSlotsSemana(compromissos) {
+// Para cada dia dentro do período (a partir de hoje, cobrindo N semanas),
+// pega os horários fixos do modelo e verifica, contra os compromissos
+// reais, quais estão livres.
+function calcularSlotsSemana(compromissos, semanas) {
   const hojeISO = formatadorDiaISO.format(new Date());
   const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
   const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
@@ -97,8 +98,9 @@ function calcularSlotsSemana(compromissos) {
   segunda.setDate(segunda.getDate() + deslocamentoAteSegunda);
 
   const resultado = {};
+  const totalDias = semanas * 7;
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < totalDias; i++) {
     const diaAtual = new Date(segunda);
     diaAtual.setDate(segunda.getDate() + i);
     const diaISO = formatadorDiaISO.format(diaAtual);
@@ -184,32 +186,75 @@ async function abrirPaginaLogada() {
   return { context, page };
 }
 
-async function verificarDisponibilidade() {
-  const { context, page } = await abrirPaginaLogada();
+// Navega pela agenda clicando em "próxima semana" e vai juntando os
+// compromissos encontrados em cada semana, até cobrir o total pedido.
+async function coletarCompromissosVariasSemanas(page, semanas) {
+  const todosCompromissos = [];
 
-  try {
-    // Espera a grade de compromissos carregar antes de tentar ler
+  for (let semana = 0; semana < semanas; semana++) {
     await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
+    // Pequena pausa extra: os eventos às vezes continuam chegando por um
+    // instante depois que a grade aparece.
+    await page.waitForTimeout(800);
 
-    // Lê todos os compromissos visíveis na semana atual: horário, paciente
-    // e status (Agendada, Confirmada, etc. -- lido do atributo "title")
-    const compromissos = await page.evaluate(() => {
+    const eventosDaSemana = await page.evaluate(() => {
       const eventos = Array.from(document.querySelectorAll('a.fc-event'));
-      return eventos.map((el) => {
-        const inicio = Number(el.getAttribute('data-start'));
-        const fim = Number(el.getAttribute('data-end'));
-        const status = el.querySelector('.fc-event-main-frame')?.getAttribute('title') || null;
-        const paciente = el.querySelector('.fc-event-title')?.textContent.trim() || null;
-        return { inicio, fim, status, paciente };
-      });
+      return eventos.map((el) => ({
+        id: el.getAttribute('data-consulta-id'),
+        inicio: Number(el.getAttribute('data-start')) || 0,
+        fim: Number(el.getAttribute('data-end')) || 0,
+        status: el.querySelector('.fc-event-main-frame')?.getAttribute('title') || null,
+        paciente: el.querySelector('.fc-event-title')?.textContent.trim() || null,
+      }));
     });
 
-    const horarios = calcularSlotsSemana(compromissos);
+    todosCompromissos.push(...eventosDaSemana);
+
+    if (semana < semanas - 1) {
+      // TODO: confirmar se ".fc-next-button" é mesmo o botão de "próxima
+      // semana" nessa versão do Simples Dental -- é o nome padrão da
+      // biblioteca FullCalendar, mas vale validar com um teste real.
+      await page.click('.fc-next-button').catch(() => {});
+      await page.waitForLoadState('networkidle').catch(() => {});
+    }
+  }
+
+  // Remove duplicados, caso a mesma consulta apareça em mais de uma leitura
+  // (mantém os eventos de dia inteiro -- eles representam bloqueios reais).
+  const vistos = new Set();
+  return todosCompromissos.filter((c) => {
+    const chave = c.id || `${c.inicio}-${c.fim}-${c.paciente}`;
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
+}
+
+// Eventos de "dia inteiro" não têm horário de término definido (fim <= 0
+// ou fim <= inicio). Eles representam bloqueios reais (ex: folga, feriado),
+// então o dia inteiro correspondente deve ficar sem horários disponíveis.
+function obterDiasBloqueados(compromissos) {
+  const dias = new Set();
+  for (const c of compromissos) {
+    if (c.inicio > 0 && !(c.fim > c.inicio)) {
+      dias.add(formatadorDiaISO.format(new Date(c.inicio)));
+    }
+  }
+  return dias;
+}
+
+async function verificarDisponibilidade() {
+  const { context, page } = await abrirPaginaLogada();
+  const semanas = Number(process.env.SEMANAS_A_VERIFICAR || 4);
+
+  try {
+    const compromissos = await coletarCompromissosVariasSemanas(page, semanas);
+    const horarios = calcularSlotsSemana(compromissos, semanas);
 
     const nomePrint = `agenda-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
-    return { compromissos, horarios, print: nomePrint };
+    return { compromissos, horarios, semanasVerificadas: semanas, print: nomePrint };
   } catch (erro) {
     // Tira um print exatamente do momento do erro, pra facilitar o diagnóstico
     await page
