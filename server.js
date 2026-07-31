@@ -45,57 +45,86 @@ async function getBrowser() {
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
 
-// Recebe a lista de compromissos (ocupados) e calcula os "buracos" livres
-// entre eles, dentro do horário de atendimento configurado.
-// Importante: sempre calcula no fuso de Brasília (UTC-3), independente do
-// fuso em que o servidor estiver rodando -- Brasília não tem mais horário
-// de verão, então esse deslocamento fixo é seguro.
-function calcularHorariosLivres(compromissos) {
-  const horaIniStr = process.env.HORA_INICIO_ATENDIMENTO || '08:00';
-  const horaFimStr = process.env.HORA_FIM_ATENDIMENTO || '19:00';
-  const fuso = 'America/Sao_Paulo';
-  const OFFSET_BRASILIA = '-03:00';
+const FUSO = 'America/Sao_Paulo';
+const OFFSET_BRASILIA = '-03:00'; // Brasília não tem mais horário de verão
 
-  // Agrupa os compromissos por dia (data no formato AAAA-MM-DD, já no
-  // fuso de Brasília, usando Intl em vez de setHours/toLocaleDateString
-  // para não depender do fuso do processo Node).
-  const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: fuso });
-  const porDia = {};
-  for (const c of compromissos) {
-    if (!c.inicio || !c.fim) continue;
-    const diaISO = formatadorDiaISO.format(new Date(c.inicio));
-    if (!porDia[diaISO]) porDia[diaISO] = [];
-    porDia[diaISO].push({ inicio: c.inicio, fim: c.fim });
-  }
+// Horários fixos que a Dra. Aline costuma usar em cada dia da semana.
+// Para mudar o expediente no futuro, é só editar esta lista.
+const MODELO_HORARIOS = {
+  segunda: ['08:30', '10:00', '13:30', '15:00'],
+  terca: [],
+  quarta: ['08:30', '10:00', '13:30', '15:00'],
+  quinta: [],
+  sexta: ['08:00', '09:30', '11:00'],
+  sabado: ['08:00', '09:30', '11:00'], // só nos sábados "abertos" (quinzenal)
+  domingo: [],
+};
+
+const DURACAO_CONSULTA_MINUTOS = Number(process.env.DURACAO_CONSULTA_MINUTOS || 90);
+
+const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO });
+const NOMES_DIA_SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+
+function nomeDiaSemana(diaISO) {
+  const diaSemana = new Date(`${diaISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
+  return NOMES_DIA_SEMANA[diaSemana];
+}
+
+// Verifica se um determinado sábado está "aberto", com base numa data de
+// referência conhecida (um sábado que sabemos que é de atendimento) e no
+// padrão quinzenal (a cada 14 dias). Se a variável não estiver configurada,
+// os sábados ficam fechados por padrão -- mais seguro do que assumir aberto.
+function ehSabadoAberto(diaISO) {
+  const referencia = process.env.SABADO_DATA_REFERENCIA;
+  if (!referencia) return false;
+
+  const msPorDia = 24 * 60 * 60 * 1000;
+  const dataRef = new Date(`${referencia}T00:00:00${OFFSET_BRASILIA}`).getTime();
+  const dataAtual = new Date(`${diaISO}T00:00:00${OFFSET_BRASILIA}`).getTime();
+  const diffDias = Math.round((dataAtual - dataRef) / msPorDia);
+
+  return diffDias % 14 === 0;
+}
+
+// Para cada dia da semana atual (segunda a domingo), pega os horários fixos
+// do modelo e verifica, contra os compromissos reais, quais estão livres.
+function calcularSlotsSemana(compromissos) {
+  const hojeISO = formatadorDiaISO.format(new Date());
+  const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
+  const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
+
+  const segunda = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`);
+  segunda.setDate(segunda.getDate() + deslocamentoAteSegunda);
 
   const resultado = {};
-  for (const [diaISO, intervalos] of Object.entries(porDia)) {
-    intervalos.sort((a, b) => a.inicio - b.inicio);
 
-    const inicioExpediente = new Date(`${diaISO}T${horaIniStr}:00${OFFSET_BRASILIA}`).getTime();
-    const fimExpediente = new Date(`${diaISO}T${horaFimStr}:00${OFFSET_BRASILIA}`).getTime();
+  for (let i = 0; i < 7; i++) {
+    const diaAtual = new Date(segunda);
+    diaAtual.setDate(segunda.getDate() + i);
+    const diaISO = formatadorDiaISO.format(diaAtual);
+    const nomeDia = nomeDiaSemana(diaISO);
 
-    const livres = [];
-    let cursor = inicioExpediente;
-
-    for (const intervalo of intervalos) {
-      if (intervalo.inicio > cursor) {
-        livres.push({ inicio: cursor, fim: Math.min(intervalo.inicio, fimExpediente) });
-      }
-      cursor = Math.max(cursor, intervalo.fim);
-    }
-    if (cursor < fimExpediente) {
-      livres.push({ inicio: cursor, fim: fimExpediente });
+    let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
+    if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO)) {
+      horariosDoDia = [];
     }
 
-    const diaBR = new Date(`${diaISO}T00:00:00${OFFSET_BRASILIA}`).toLocaleDateString('pt-BR', { timeZone: fuso });
+    if (horariosDoDia.length === 0) continue; // dia sem atendimento, não retorna nada
 
-    resultado[diaBR] = livres
-      .filter((l) => l.fim > l.inicio)
-      .map((l) => ({
-        inicio: new Date(l.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: fuso }),
-        fim: new Date(l.fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: fuso }),
-      }));
+    const diaBR = new Date(`${diaISO}T00:00:00${OFFSET_BRASILIA}`).toLocaleDateString('pt-BR', { timeZone: FUSO });
+
+    resultado[diaBR] = horariosDoDia.map((horario) => {
+      const inicio = new Date(`${diaISO}T${horario}:00${OFFSET_BRASILIA}`).getTime();
+      const fim = inicio + DURACAO_CONSULTA_MINUTOS * 60 * 1000;
+
+      const conflito = compromissos.find((c) => c.inicio < fim && c.fim > inicio);
+
+      return {
+        horario,
+        disponivel: !conflito,
+        paciente: conflito ? conflito.paciente : undefined,
+      };
+    });
   }
 
   return resultado;
@@ -175,7 +204,7 @@ async function verificarDisponibilidade() {
       });
     });
 
-    const horarios = calcularHorariosLivres(compromissos);
+    const horarios = calcularSlotsSemana(compromissos);
 
     const nomePrint = `agenda-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
