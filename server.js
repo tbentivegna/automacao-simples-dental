@@ -214,10 +214,7 @@ async function coletarCompromissosVariasSemanas(page, semanas) {
     todosCompromissos.push(...eventosDaSemana);
 
     if (semana < semanas - 1) {
-      // TODO: confirmar se ".fc-next-button" é mesmo o botão de "próxima
-      // semana" nessa versão do Simples Dental -- é o nome padrão da
-      // biblioteca FullCalendar, mas vale validar com um teste real.
-      await page.click('.fc-next-button').catch(() => {});
+      await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
       await page.waitForLoadState('networkidle').catch(() => {});
     }
   }
