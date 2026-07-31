@@ -89,7 +89,7 @@ function ehSabadoAberto(diaISO) {
 // Para cada dia dentro do período (a partir de hoje, cobrindo N semanas),
 // pega os horários fixos do modelo e verifica, contra os compromissos
 // reais, quais estão livres.
-function calcularSlotsSemana(compromissos, semanas) {
+function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) {
   const hojeISO = formatadorDiaISO.format(new Date());
   const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
   const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
@@ -109,6 +109,9 @@ function calcularSlotsSemana(compromissos, semanas) {
     let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
     if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO)) {
       horariosDoDia = [];
+    }
+    if (diasBloqueados.has(diaISO)) {
+      horariosDoDia = []; // dia todo bloqueado (ex: folga, feriado)
     }
 
     if (horariosDoDia.length === 0) continue; // dia sem atendimento, não retorna nada
@@ -249,12 +252,19 @@ async function verificarDisponibilidade() {
 
   try {
     const compromissos = await coletarCompromissosVariasSemanas(page, semanas);
-    const horarios = calcularSlotsSemana(compromissos, semanas);
+    const diasBloqueados = obterDiasBloqueados(compromissos);
+    const horarios = calcularSlotsSemana(compromissos, semanas, diasBloqueados);
 
     const nomePrint = `agenda-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
-    return { compromissos, horarios, semanasVerificadas: semanas, print: nomePrint };
+    return {
+      compromissos,
+      horarios,
+      diasBloqueados: Array.from(diasBloqueados),
+      semanasVerificadas: semanas,
+      print: nomePrint,
+    };
   } catch (erro) {
     // Tira um print exatamente do momento do erro, pra facilitar o diagnóstico
     await page
