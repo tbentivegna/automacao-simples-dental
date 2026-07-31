@@ -63,10 +63,6 @@ const MODELO_HORARIOS = {
 const DURACAO_CONSULTA_MINUTOS = Number(process.env.DURACAO_CONSULTA_MINUTOS || 90);
 
 const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO });
-// Eventos de "dia inteiro" costumam ser gravados usando meia-noite em UTC,
-// não meia-noite de Brasília -- por isso usamos um formatador separado (em
-// UTC) só para interpretar a data desses eventos específicos.
-const formatadorDiaISO_UTC = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' });
 const NOMES_DIA_SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
 function nomeDiaSemana(diaISO) {
@@ -143,7 +139,11 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
 // sempre que possível (evita logar do zero a cada chamada).
 async function abrirPaginaLogada() {
   const browser = await getBrowser();
-  const opcoesContexto = fs.existsSync(AUTH_FILE) ? { storageState: AUTH_FILE } : {};
+  const opcoesContexto = {
+    ...(fs.existsSync(AUTH_FILE) ? { storageState: AUTH_FILE } : {}),
+    timezoneId: 'America/Sao_Paulo',
+    locale: 'pt-BR',
+  };
   const context = await browser.newContext(opcoesContexto);
   const page = await context.newPage();
 
@@ -241,7 +241,7 @@ function obterDiasBloqueados(compromissos) {
   const dias = new Set();
   for (const c of compromissos) {
     if (c.inicio > 0 && !(c.fim > c.inicio)) {
-      dias.add(formatadorDiaISO_UTC.format(new Date(c.inicio)));
+      dias.add(formatadorDiaISO.format(new Date(c.inicio)));
     }
   }
   return dias;
@@ -270,10 +270,8 @@ function formatarCompromissos(compromissos) {
       };
     }
 
-    // Evento de dia inteiro: usamos a data em UTC (ver obterDiasBloqueados)
-    // para não deslocar o dia por causa do fuso horário.
-    const diaISO_UTC = formatadorDiaISO_UTC.format(new Date(c.inicio));
-    const diaBR = new Date(`${diaISO_UTC}T12:00:00Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    // Evento de dia inteiro
+    const diaBR = new Date(c.inicio).toLocaleDateString('pt-BR', { timeZone: FUSO });
 
     return {
       ...c,
