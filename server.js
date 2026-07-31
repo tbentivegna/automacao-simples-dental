@@ -63,6 +63,10 @@ const MODELO_HORARIOS = {
 const DURACAO_CONSULTA_MINUTOS = Number(process.env.DURACAO_CONSULTA_MINUTOS || 90);
 
 const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO });
+// Eventos de "dia inteiro" costumam ser gravados usando meia-noite em UTC,
+// não meia-noite de Brasília -- por isso usamos um formatador separado (em
+// UTC) só para interpretar a data desses eventos específicos.
+const formatadorDiaISO_UTC = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' });
 const NOMES_DIA_SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
 function nomeDiaSemana(diaISO) {
@@ -237,10 +241,46 @@ function obterDiasBloqueados(compromissos) {
   const dias = new Set();
   for (const c of compromissos) {
     if (c.inicio > 0 && !(c.fim > c.inicio)) {
-      dias.add(formatadorDiaISO.format(new Date(c.inicio)));
+      dias.add(formatadorDiaISO_UTC.format(new Date(c.inicio)));
     }
   }
   return dias;
+}
+
+// Deixa os compromissos legíveis para humanos (e para o n8n exibir),
+// mantendo os campos originais em milissegundos para os cálculos internos.
+function formatarCompromissos(compromissos) {
+  return compromissos.map((c) => {
+    if (c.fim > c.inicio) {
+      return {
+        ...c,
+        inicioFormatado: new Date(c.inicio).toLocaleString('pt-BR', {
+          timeZone: FUSO,
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        fimFormatado: new Date(c.fim).toLocaleString('pt-BR', {
+          timeZone: FUSO,
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      };
+    }
+
+    // Evento de dia inteiro: usamos a data em UTC (ver obterDiasBloqueados)
+    // para não deslocar o dia por causa do fuso horário.
+    const diaISO_UTC = formatadorDiaISO_UTC.format(new Date(c.inicio));
+    const diaBR = new Date(`${diaISO_UTC}T12:00:00Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+
+    return {
+      ...c,
+      inicioFormatado: `Dia inteiro - ${diaBR}`,
+      fimFormatado: null,
+    };
+  });
 }
 
 async function verificarDisponibilidade() {
@@ -251,12 +291,13 @@ async function verificarDisponibilidade() {
     const compromissos = await coletarCompromissosVariasSemanas(page, semanas);
     const diasBloqueados = obterDiasBloqueados(compromissos);
     const horarios = calcularSlotsSemana(compromissos, semanas, diasBloqueados);
+    const compromissosFormatados = formatarCompromissos(compromissos);
 
     const nomePrint = `agenda-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
     return {
-      compromissos,
+      compromissos: compromissosFormatados,
       horarios,
       diasBloqueados: Array.from(diasBloqueados),
       semanasVerificadas: semanas,
