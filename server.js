@@ -187,6 +187,14 @@ async function abrirPaginaLogada() {
   // Confirma que chegamos de fato na agenda antes de seguir
   await page.waitForURL('**/simples/agenda**', { timeout: 15000 }).catch(() => {});
 
+  // O Simples Dental mostra um banner de cookies que pode atrapalhar
+  // cliques em outros elementos depois. Aceitamos uma única vez aqui,
+  // logo após o login -- assim ele não volta a incomodar mais tarde.
+  await page
+    .getByRole('button', { name: 'Aceitar todos os cookies' })
+    .click({ timeout: 5000 })
+    .catch(() => {});
+
   // Salva a sessão logada para reaproveitar nas próximas chamadas
   await context.storageState({ path: AUTH_FILE });
 
@@ -325,227 +333,119 @@ function telefoneLocal(texto) {
   return digitos.length > 11 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
 }
 
-async function criarAgendamento({
-  telefone,
-  nomePaciente,
-  data,
-  hora,
-  duracaoMinutos,
-  observacao
-}) {
+async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao }) {
   if (!telefone || !data || !hora) {
-    throw new Error(
-      'Campos obrigatórios faltando: telefone, data e hora são necessários.'
-    );
+    throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
   }
 
   const { context, page } = await abrirPaginaLogada();
-  const duracao = Number(
-    duracaoMinutos || DURACAO_CONSULTA_MINUTOS
-  );
-  const nomeProfissional =
-    process.env.SIMPLES_DENTAL_PROFISSIONAL ||
-    'Aline Ramos Bentivegna';
+  const duracao = Number(duracaoMinutos || DURACAO_CONSULTA_MINUTOS);
+  const nomeProfissional = process.env.SIMPLES_DENTAL_PROFISSIONAL || 'Aline Ramos Bentivegna';
 
   try {
     // 1. Abre o formulário de novo evento
     await page.click('[data-testid="btnNovoEvento"]');
+    await page.getByText('Encontrar horário livre').click();
 
-    // 2. Busca o paciente pelo telefone
-    const campoPaciente = page.locator(
-      'sd-pacientes-autocomplete input[placeholder="Buscar paciente"]'
-    );
+    // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
+    // não importa qual, porque vamos sobrescrever data/hora depois. Isso
+    // só serve para "destravar" os campos no formulário principal.
+    // O dia sugerido por padrão pode não ter nenhum horário livre (ex:
+    // dia sem expediente ou totalmente ocupado), então avançamos de dia
+    // em dia até aparecer alguma sugestão clicável.
+    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
+    let apareceuSugestao = await sugestao.isVisible({ timeout: 3000 }).catch(() => false);
 
+    let tentativas = 0;
+    while (!apareceuSugestao && tentativas < 14) {
+      await page.getByRole('button', { name: 'Avançar um dia' }).click();
+      await page.waitForTimeout(500);
+      apareceuSugestao = await sugestao.isVisible({ timeout: 2000 }).catch(() => false);
+      tentativas++;
+    }
+
+    if (!apareceuSugestao) {
+      throw new Error('Nenhuma sugestão de horário apareceu em 14 dias -- não foi possível destravar os campos de data/hora.');
+    }
+    await sugestao.click();
+    await page.getByRole('button', { name: 'Escolher horário' }).click();
+
+    // 3. Sobrescreve com os valores reais desejados
+    await page.locator('[data-testid="inputData"]').fill(data);
+    await page.locator('input[formcontrolname="hour"]').fill(hora);
+    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
+
+    // 4. Busca o paciente pelo telefone
+    const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
     await campoPaciente.fill(somenteDigitos(telefone));
-    await page.waitForTimeout(2000);
-    console.log(
-      'OPÇÕES DE PACIENTE:',
-      await page.locator('.sd-pacientes-autocomplete__option').allTextContents()
-    );
-    const opcaoPaciente = page.locator(
-      '.sd-pacientes-autocomplete__option'
-    ).first();
 
-    const encontrouPaciente = await opcaoPaciente
-      .isVisible({ timeout: 4000 })
-      .catch(() => false);
+    const opcaoPaciente = page.locator('.sd-pacientes-autocomplete__option').first();
+    const encontrouPaciente = await opcaoPaciente.isVisible({ timeout: 4000 }).catch(() => false);
 
     let pacienteNovo = false;
-
     if (encontrouPaciente) {
       await opcaoPaciente.click();
     } else {
-      // Paciente não encontrado — cadastra um novo
+      // Paciente não encontrado -- cadastra um novo
       pacienteNovo = true;
-
       if (!nomePaciente) {
-        throw new Error(
-          'Paciente não encontrado pelo telefone e nomePaciente não foi informado para cadastro.'
-        );
+        throw new Error('Paciente não encontrado pelo telefone e nomePaciente não foi informado para cadastro.');
       }
-
       await page.getByText('Cadastrar novo paciente').click();
-
-      await page
-        .locator('[data-testid="inputNome"]')
-        .fill(nomePaciente);
-
-      await page
-        .locator('[data-testid="inputCelular"]')
-        .fill(telefoneLocal(telefone));
-
-      // Remove banner de cookies se estiver bloqueando o botão
-      await page.evaluate(() => {
-        const banner = document.querySelector(
-          '#onetrust-consent-sdk'
-        );
-
-        if (banner) {
-          banner.remove();
-        }
-      });
-
-      await page
-        .locator('[data-testid="btnSalvar"]')
-        .click();
-
-      // Aguarda o retorno ao formulário com o paciente selecionado
+      await page.locator('[data-testid="inputNome"]').fill(nomePaciente);
+      await page.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
+      await page.locator('[data-testid="btnSalvar"]').click();
+      // Depois de salvar, a tela volta sozinha para o formulário de
+      // agendamento com o paciente já selecionado -- esperamos isso
+      // acontecer conferindo se o campo de paciente ficou preenchido.
       await page.waitForFunction(
         () => {
-          const campo = document.querySelector(
-            'sd-pacientes-autocomplete input'
-          );
-
-          return (
-            campo &&
-            campo.value &&
-            campo.value.trim().length > 0
-          );
+          const campo = document.querySelector('sd-pacientes-autocomplete input');
+          return campo && campo.value && campo.value.trim().length > 0;
         },
         { timeout: 10000 }
       );
     }
 
-    // 3. Seleciona o profissional
+    // 5. Seleciona o profissional
+    await page.locator('[data-testid="inputProfissional"]').fill(nomeProfissional);
     await page
-      .locator('[data-testid="inputProfissional"]')
-      .fill(nomeProfissional);
-
-    await page
-      .locator(
-        '.sd-profissionais-autocomplete__name-container',
-        { hasText: nomeProfissional }
-      )
+      .locator('.sd-profissionais-autocomplete__name-container', { hasText: nomeProfissional })
       .first()
       .click();
 
-    // 4. Procura horário livre
-    await page
-      .getByText('Encontrar horário livre')
-      .click();
-
-    await page.waitForTimeout(2000);
-
-    // Screenshot temporário para diagnóstico
-    await page.screenshot({
-      path: path.join(
-        SCREENSHOTS_DIR,
-        `debug-sugestao-${Date.now()}.png`
-      ),
-      fullPage: true
-    });
-
-    console.log('URL:', page.url());
-    console.log('TEXTO DA PÁGINA:');
-    console.log(
-      await page.locator('body').innerText()
-    );
-
-    // 5. Seleciona qualquer sugestão de horário
-    // Apenas para destravar os campos de data/hora
-    const sugestao = page
-      .locator(
-        'mat-button-toggle-group button.mat-button-toggle-button'
-      )
-      .first();
-
-    const apareceuSugestao = await sugestao
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (!apareceuSugestao) {
-      throw new Error(
-        'Nenhuma sugestão de horário apareceu -- não foi possível destravar os campos de data/hora.'
-      );
-    }
-
-    await sugestao.click();
-
-    await page
-      .getByRole('button', { name: 'Escolher horário' })
-      .click();
-
-    // 6. Sobrescreve com os valores reais desejados
-    await page.getByLabel('Data da consulta').fill(data);
-    
-    await page
-      .locator('input[formcontrolname="hour"]')
-      .fill(hora);
-    
-    await page
-      .locator('sd-minutes-autocomplete input[type="number"]')
-      .fill(String(duracao));
-
-    // 7. Observação (opcional)
+    // 6. Observação (opcional)
     if (observacao) {
-      await page
-        .locator('textarea[formcontrolname="descricao"]')
-        .fill(observacao);
+      await page.locator('textarea[formcontrolname="descricao"]').fill(observacao);
     }
 
-    // 8. Verifica conflito de horário
+    // 7. Rede de segurança: o próprio Simples Dental avisa com um banner
+    // amarelo se detectar conflito de horário assim que os campos são
+    // preenchidos. Checamos isso ANTES de clicar em Marcar -- se existir,
+    // abortamos, para não arriscar duplicar o compromisso.
     const bannerConflito = await page
-      .getByText(
-        'Há um compromisso no mesmo horário desta consulta.'
-      )
+      .getByText('Há um compromisso no mesmo horário desta consulta.')
       .isVisible({ timeout: 2000 })
       .catch(() => false);
 
     if (bannerConflito) {
-      throw new Error(
-        'CONFLITO_HORARIO: o Simples Dental detectou um compromisso já existente nesse horário.'
-      );
+      throw new Error('CONFLITO_HORARIO: o Simples Dental detectou um compromisso já existente nesse horário.');
     }
 
-    // 9. Marca de verdade
-    await page
-      .getByRole('button', {
-        name: 'Marcar',
-        exact: true
-      })
-      .click();
+    // 8. Marca de verdade
+    await page.getByRole('button', { name: 'Marcar', exact: true }).click();
 
-    // 10. Confirma sucesso pelo toast
+    // 9. Confirma sucesso pelo texto do toast
     const confirmou = await page
       .getByText('Consulta agendada com sucesso.')
       .isVisible({ timeout: 10000 })
       .catch(() => false);
 
-    const nomePrint =
-      `agendamento-${Date.now()}.png`;
-
-    await page.screenshot({
-      path: path.join(
-        SCREENSHOTS_DIR,
-        nomePrint
-      ),
-      fullPage: true
-    });
+    const nomePrint = `agendamento-${Date.now()}.png`;
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
     if (!confirmou) {
-      throw new Error(
-        'Não foi possível confirmar visualmente o sucesso do agendamento (toast não apareceu).'
-      );
+      throw new Error('Não foi possível confirmar visualmente o sucesso do agendamento (toast não apareceu).');
     }
 
     return {
@@ -554,21 +454,13 @@ async function criarAgendamento({
       data,
       hora,
       duracaoMinutos: duracao,
-      print: nomePrint
+      print: nomePrint,
     };
-
   } catch (erro) {
     await page
-      .screenshot({
-        path: path.join(
-          SCREENSHOTS_DIR,
-          `erro-agendamento-${Date.now()}.png`
-        )
-      })
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-agendamento-${Date.now()}.png`) })
       .catch(() => {});
-
     throw erro;
-
   } finally {
     await context.close();
   }
