@@ -464,14 +464,19 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await sugestao.click();
     await page.getByRole('button', { name: 'Escolher horário' }).click();
 
+    // Restringe as buscas seguintes ao diálogo aberto (em vez da página
+    // inteira) -- evita ambiguidade com elementos parecidos que existem
+    // "por baixo", como o filtro de data lá no topo da agenda.
+    const dialogo = page.locator('mat-dialog-container');
+
     // 6. Sobrescreve com os valores reais desejados
-    await page.locator('[data-testid="inputData"]').fill(data);
-    await page.locator('input[formcontrolname="hour"]').fill(hora);
-    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
+    await dialogo.locator('[data-testid="inputData"]').fill(data);
+    await dialogo.locator('input[formcontrolname="hour"]').fill(hora);
+    await dialogo.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
 
     // 7. Observação (opcional)
     if (observacao) {
-      await page.locator('textarea[formcontrolname="descricao"]').fill(observacao);
+      await dialogo.locator('textarea[formcontrolname="descricao"]').fill(observacao);
     }
 
     // 8. Rede de segurança: o próprio Simples Dental avisa com um banner
