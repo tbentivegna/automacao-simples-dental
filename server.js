@@ -338,6 +338,14 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // 1. Abre o formulário de novo evento
     await page.click('[data-testid="btnNovoEvento"]');
     await page.getByText('Encontrar horário livre').click();
+    await page.waitForTimeout(2000);
+    await page.screenshot({
+      path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`),
+      fullPage: true
+    });
+    console.log('URL:', page.url());
+    console.log('TEXTO DA PÁGINA:');
+    console.log(await page.locator('body').innerText());
 
     // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
     // não importa qual, porque vamos sobrescrever data/hora depois.
@@ -346,6 +354,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     const apareceuSugestao = await sugestao.isVisible({ timeout: 5000 }).catch(() => false);
     if (!apareceuSugestao) {
       throw new Error('Nenhuma sugestão de horário apareceu -- não foi possível destravar os campos de data/hora.');
+      
     }
     await sugestao.click();
     await page.getByRole('button', { name: 'Escolher horário' }).click();
