@@ -40,6 +40,23 @@ async function getBrowser() {
   return browserCompartilhado;
 }
 
+// O Simples Dental mostra um banner de cookies que, em alguns pontos,
+// volta a aparecer (parece renderizar de novo a cada diálogo/modal) e
+// pode fisicamente cobrir botões, travando cliques. Chamamos essa função
+// em vários pontos-chave para garantir que ele não está no caminho.
+async function dispensarBannerCookies(page) {
+  await page
+    .getByRole('button', { name: 'Aceitar todos os cookies' })
+    .click({ timeout: 1500 })
+    .catch(() => {});
+  await page
+    .evaluate(() => {
+      const banner = document.querySelector('#onetrust-consent-sdk');
+      if (banner) banner.remove();
+    })
+    .catch(() => {});
+}
+
 // User-Agent de um Chrome comum em Windows, para o robô se parecer mais
 // com um navegador usado por uma pessoa de verdade.
 const USER_AGENT =
@@ -188,12 +205,10 @@ async function abrirPaginaLogada() {
   await page.waitForURL('**/simples/agenda**', { timeout: 15000 }).catch(() => {});
 
   // O Simples Dental mostra um banner de cookies que pode atrapalhar
-  // cliques em outros elementos depois. Aceitamos uma única vez aqui,
-  // logo após o login -- assim ele não volta a incomodar mais tarde.
-  await page
-    .getByRole('button', { name: 'Aceitar todos os cookies' })
-    .click({ timeout: 5000 })
-    .catch(() => {});
+  // cliques em outros elementos depois. Tentamos dispensar aqui, logo
+  // após o login (mas repetimos em outros pontos críticos também, já
+  // que ele pode voltar a aparecer em novos diálogos).
+  await dispensarBannerCookies(page);
 
   // Salva a sessão logada para reaproveitar nas próximas chamadas
   await context.storageState({ path: AUTH_FILE });
@@ -345,37 +360,8 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
   try {
     // 1. Abre o formulário de novo evento
     await page.click('[data-testid="btnNovoEvento"]');
-    await page.getByText('Encontrar horário livre').click();
 
-    // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
-    // não importa qual, porque vamos sobrescrever data/hora depois. Isso
-    // só serve para "destravar" os campos no formulário principal.
-    // O dia sugerido por padrão pode não ter nenhum horário livre (ex:
-    // dia sem expediente ou totalmente ocupado), então avançamos de dia
-    // em dia até aparecer alguma sugestão clicável.
-    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
-    let apareceuSugestao = await sugestao.isVisible({ timeout: 3000 }).catch(() => false);
-
-    let tentativas = 0;
-    while (!apareceuSugestao && tentativas < 14) {
-      await page.getByRole('button', { name: 'Avançar um dia' }).click();
-      await page.waitForTimeout(500);
-      apareceuSugestao = await sugestao.isVisible({ timeout: 2000 }).catch(() => false);
-      tentativas++;
-    }
-
-    if (!apareceuSugestao) {
-      throw new Error('Nenhuma sugestão de horário apareceu em 14 dias -- não foi possível destravar os campos de data/hora.');
-    }
-    await sugestao.click();
-    await page.getByRole('button', { name: 'Escolher horário' }).click();
-
-    // 3. Sobrescreve com os valores reais desejados
-    await page.locator('[data-testid="inputData"]').fill(data);
-    await page.locator('input[formcontrolname="hour"]').fill(hora);
-    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
-
-    // 4. Busca o paciente pelo telefone
+    // 2. Busca o paciente pelo telefone
     const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
     await campoPaciente.fill(somenteDigitos(telefone));
 
@@ -394,6 +380,10 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       await page.getByText('Cadastrar novo paciente').click();
       await page.locator('[data-testid="inputNome"]').fill(nomePaciente);
       await page.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
+
+      // Contorno extra, caso o banner de cookies ainda esteja de pé
+      await dispensarBannerCookies(page);
+
       await page.locator('[data-testid="btnSalvar"]').click();
       // Depois de salvar, a tela volta sozinha para o formulário de
       // agendamento com o paciente já selecionado -- esperamos isso
@@ -407,19 +397,84 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       );
     }
 
-    // 5. Seleciona o profissional
+    // 3. Seleciona o profissional
     await page.locator('[data-testid="inputProfissional"]').fill(nomeProfissional);
     await page
       .locator('.sd-profissionais-autocomplete__name-container', { hasText: nomeProfissional })
       .first()
       .click();
 
-    // 6. Observação (opcional)
+    // Diagnóstico: confirma o que ficou preenchido no campo Paciente
+    // até este ponto, antes de seguir -- ajuda a investigar casos em
+    // que o campo aparece vazio mais adiante.
+    const valorPacienteAntes = await page
+      .locator('sd-pacientes-autocomplete input')
+      .inputValue()
+      .catch(() => null);
+
+    // 4. Procura horário livre -- abre o diálogo de sugestão
+    await dispensarBannerCookies(page);
+    await page.getByText('Encontrar horário livre').click();
+
+    // Print de diagnóstico logo após o clique, para confirmarmos se o
+    // diálogo "Sugestão de horários" realmente abriu ou não.
+    await page.waitForTimeout(1000);
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
+      .catch(() => {});
+    const dialogoAbriu = await page
+      .getByText('Sugestão de horários')
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
+
+    // 5. Seleciona qualquer sugestão de horário, só para destravar os
+    // campos de data/hora (vamos sobrescrever com os valores reais logo
+    // em seguida). O dia sugerido por padrão pode não ter nenhum horário
+    // livre (ex: dia sem expediente ou já totalmente ocupado) -- nesse
+    // caso avançamos de dia em dia até aparecer alguma sugestão clicável.
+    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
+    let apareceuSugestao = await sugestao.isVisible({ timeout: 3000 }).catch(() => false);
+
+    let tentativas = 0;
+    while (!apareceuSugestao && tentativas < 14) {
+      if (!dialogoAbriu) {
+        throw new Error(
+          `O diálogo "Sugestão de horários" não abriu depois do clique em "Encontrar horário livre" (valorPacienteAntes: ${JSON.stringify(valorPacienteAntes)}).`
+        );
+      }
+      await dispensarBannerCookies(page);
+      const cliqueAvancar = await page
+        .getByRole('button', { name: 'Avançar um dia' })
+        .click({ timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!cliqueAvancar) {
+        throw new Error('Não foi possível clicar em "Avançar um dia" -- algo pode estar bloqueando o botão (ex: banner de cookies).');
+      }
+
+      await page.waitForTimeout(500);
+      apareceuSugestao = await sugestao.isVisible({ timeout: 2000 }).catch(() => false);
+      tentativas++;
+    }
+
+    if (!apareceuSugestao) {
+      throw new Error('Nenhuma sugestão de horário apareceu em 14 dias -- não foi possível destravar os campos de data/hora.');
+    }
+    await sugestao.click();
+    await page.getByRole('button', { name: 'Escolher horário' }).click();
+
+    // 6. Sobrescreve com os valores reais desejados
+    await page.locator('[data-testid="inputData"]').fill(data);
+    await page.locator('input[formcontrolname="hour"]').fill(hora);
+    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
+
+    // 7. Observação (opcional)
     if (observacao) {
       await page.locator('textarea[formcontrolname="descricao"]').fill(observacao);
     }
 
-    // 7. Rede de segurança: o próprio Simples Dental avisa com um banner
+    // 8. Rede de segurança: o próprio Simples Dental avisa com um banner
     // amarelo se detectar conflito de horário assim que os campos são
     // preenchidos. Checamos isso ANTES de clicar em Marcar -- se existir,
     // abortamos, para não arriscar duplicar o compromisso.
@@ -432,10 +487,10 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       throw new Error('CONFLITO_HORARIO: o Simples Dental detectou um compromisso já existente nesse horário.');
     }
 
-    // 8. Marca de verdade
+    // 9. Marca de verdade
     await page.getByRole('button', { name: 'Marcar', exact: true }).click();
 
-    // 9. Confirma sucesso pelo texto do toast
+    // 10. Confirma sucesso pelo texto do toast
     const confirmou = await page
       .getByText('Consulta agendada com sucesso.')
       .isVisible({ timeout: 10000 })
