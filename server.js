@@ -339,6 +339,18 @@ function somenteDigitos(texto) {
   return (texto || '').replace(/\D/g, '');
 }
 
+// Alguns campos (data, hora, duração) têm máscara de formatação e não
+// aceitam bem receber o valor de uma vez só (via fill) -- o Angular
+// rejeita e volta para o último valor válido. Simulamos digitação real,
+// caractere por caractere, que é como um humano preencheria.
+async function preencherCampoComMascara(locator, valor) {
+  await locator.click();
+  await locator.press('Control+A');
+  await locator.press('Backspace');
+  await locator.pressSequentially(String(valor), { delay: 60 });
+  await locator.press('Escape'); // fecha qualquer calendário/popup que tenha aberto
+}
+
 // O campo de celular do cadastro de paciente novo espera só o número
 // local (sem o "55" do Brasil, que já vem fixo como prefixo separado
 // na tela). Essa suposição ainda não foi validada com um teste real --
@@ -469,10 +481,21 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // "por baixo", como o filtro de data lá no topo da agenda.
     const dialogo = page.locator('mat-dialog-container');
 
-    // 6. Sobrescreve com os valores reais desejados
-    await dialogo.locator('[data-testid="inputData"]').fill(data);
-    await dialogo.locator('input[formcontrolname="hour"]').fill(hora);
-    await dialogo.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
+    // 6. Sobrescreve com os valores reais desejados (digitando caractere
+    // por caractere, já que esses campos têm máscara de formatação)
+    await preencherCampoComMascara(dialogo.locator('[data-testid="inputData"]'), data);
+    await preencherCampoComMascara(dialogo.locator('input[formcontrolname="hour"]'), hora);
+    await preencherCampoComMascara(dialogo.locator('sd-minutes-autocomplete input[type="number"]'), duracao);
+
+    // Confere se os valores realmente "grudaram" antes de seguir -- se
+    // não bateram, é melhor abortar agora do que marcar no horário errado.
+    const dataConfirmada = await dialogo.locator('[data-testid="inputData"]').inputValue();
+    const horaConfirmada = await dialogo.locator('input[formcontrolname="hour"]').inputValue();
+    if (dataConfirmada !== data || horaConfirmada !== hora) {
+      throw new Error(
+        `Os campos de data/hora não ficaram com os valores esperados (esperado: ${data} ${hora}, ficou: ${dataConfirmada} ${horaConfirmada}).`
+      );
+    }
 
     // 7. Observação (opcional)
     if (observacao) {
