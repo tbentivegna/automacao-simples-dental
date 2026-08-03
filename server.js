@@ -312,6 +312,140 @@ async function verificarDisponibilidade() {
   }
 }
 
+function somenteDigitos(texto) {
+  return (texto || '').replace(/\D/g, '');
+}
+
+// O campo de celular do cadastro de paciente novo espera só o número
+// local (sem o "55" do Brasil, que já vem fixo como prefixo separado
+// na tela). Essa suposição ainda não foi validada com um teste real --
+// se o cadastro falhar por causa do formato, ajustar aqui.
+function telefoneLocal(texto) {
+  const digitos = somenteDigitos(texto);
+  return digitos.length > 11 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
+}
+
+async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao }) {
+  if (!telefone || !data || !hora) {
+    throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
+  }
+
+  const { context, page } = await abrirPaginaLogada();
+  const duracao = Number(duracaoMinutos || DURACAO_CONSULTA_MINUTOS);
+  const nomeProfissional = process.env.SIMPLES_DENTAL_PROFISSIONAL || 'Aline Ramos Bentivegna';
+
+  try {
+    // 1. Abre o formulário de novo evento
+    await page.click('[data-testid="btnNovoEvento"]');
+    await page.getByText('Encontrar horário livre').click();
+
+    // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
+    // não importa qual, porque vamos sobrescrever data/hora depois.
+    // Isso só serve para "destravar" os campos no formulário principal.
+    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
+    const apareceuSugestao = await sugestao.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!apareceuSugestao) {
+      throw new Error('Nenhuma sugestão de horário apareceu -- não foi possível destravar os campos de data/hora.');
+    }
+    await sugestao.click();
+    await page.getByRole('button', { name: 'Escolher horário' }).click();
+
+    // 3. Sobrescreve com os valores reais desejados
+    await page.locator('[data-testid="inputData"]').fill(data);
+    await page.locator('input[formcontrolname="hour"]').fill(hora);
+    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
+
+    // 4. Busca o paciente pelo telefone
+    const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
+    await campoPaciente.fill(somenteDigitos(telefone));
+
+    const opcaoPaciente = page.locator('.sd-pacientes-autocomplete__option').first();
+    const encontrouPaciente = await opcaoPaciente.isVisible({ timeout: 4000 }).catch(() => false);
+
+    let pacienteNovo = false;
+    if (encontrouPaciente) {
+      await opcaoPaciente.click();
+    } else {
+      // Paciente não encontrado -- cadastra um novo
+      pacienteNovo = true;
+      if (!nomePaciente) {
+        throw new Error('Paciente não encontrado pelo telefone e nomePaciente não foi informado para cadastro.');
+      }
+      await page.getByText('Cadastrar novo paciente').click();
+      await page.locator('[data-testid="inputNome"]').fill(nomePaciente);
+      await page.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
+      await page.locator('[data-testid="btnSalvar"]').click();
+      // Depois de salvar, a tela volta sozinha para o formulário de
+      // agendamento com o paciente já selecionado -- esperamos isso
+      // acontecer conferindo se o campo de paciente ficou preenchido.
+      await page.waitForFunction(
+        () => {
+          const campo = document.querySelector('sd-pacientes-autocomplete input');
+          return campo && campo.value && campo.value.trim().length > 0;
+        },
+        { timeout: 10000 }
+      );
+    }
+
+    // 5. Seleciona o profissional
+    await page.locator('[data-testid="inputProfissional"]').fill(nomeProfissional);
+    await page
+      .locator('.sd-profissionais-autocomplete__name-container', { hasText: nomeProfissional })
+      .first()
+      .click();
+
+    // 6. Observação (opcional)
+    if (observacao) {
+      await page.locator('textarea[formcontrolname="descricao"]').fill(observacao);
+    }
+
+    // 7. Rede de segurança: o próprio Simples Dental avisa com um banner
+    // amarelo se detectar conflito de horário assim que os campos são
+    // preenchidos. Checamos isso ANTES de clicar em Marcar -- se existir,
+    // abortamos, para não arriscar duplicar o compromisso.
+    const bannerConflito = await page
+      .getByText('Há um compromisso no mesmo horário desta consulta.')
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
+
+    if (bannerConflito) {
+      throw new Error('CONFLITO_HORARIO: o Simples Dental detectou um compromisso já existente nesse horário.');
+    }
+
+    // 8. Marca de verdade
+    await page.getByRole('button', { name: 'Marcar', exact: true }).click();
+
+    // 9. Confirma sucesso pelo texto do toast
+    const confirmou = await page
+      .getByText('Consulta agendada com sucesso.')
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
+
+    const nomePrint = `agendamento-${Date.now()}.png`;
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
+
+    if (!confirmou) {
+      throw new Error('Não foi possível confirmar visualmente o sucesso do agendamento (toast não apareceu).');
+    }
+
+    return {
+      sucesso: true,
+      pacienteNovo,
+      data,
+      hora,
+      duracaoMinutos: duracao,
+      print: nomePrint,
+    };
+  } catch (erro) {
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-agendamento-${Date.now()}.png`) })
+      .catch(() => {});
+    throw erro;
+  } finally {
+    await context.close();
+  }
+}
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -329,6 +463,31 @@ app.post('/verificar-disponibilidade', async (req, res) => {
     console.error('Erro ao verificar disponibilidade:', erro);
     res.status(500).json({
       erro: 'Falha ao verificar disponibilidade',
+      detalhe: erro.message,
+    });
+  }
+});
+
+// Espera receber, no corpo da requisição (JSON):
+// {
+//   "telefone": "11991234567",       (obrigatório)
+//   "nomePaciente": "Nome Completo", (obrigatório só se for paciente novo)
+//   "data": "03/08/2026",            (obrigatório, formato DD/MM/AAAA --
+//                                     igual ao usado nas chaves do
+//                                     resultado de /verificar-disponibilidade)
+//   "hora": "08:30",                 (obrigatório, formato HH:mm)
+//   "duracaoMinutos": 90,            (opcional)
+//   "observacao": "texto livre"      (opcional)
+// }
+app.post('/criar-agendamento', async (req, res) => {
+  try {
+    const resultado = await comFilaSegura(() => criarAgendamento(req.body || {}));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao criar agendamento:', erro);
+    const conflito = String(erro.message || '').startsWith('CONFLITO_HORARIO');
+    res.status(conflito ? 409 : 500).json({
+      erro: conflito ? 'Horário não está mais disponível' : 'Falha ao criar agendamento',
       detalhe: erro.message,
     });
   }
