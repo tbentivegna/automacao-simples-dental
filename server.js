@@ -337,34 +337,9 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
   try {
     // 1. Abre o formulário de novo evento
     await page.click('[data-testid="btnNovoEvento"]');
-    await page.getByText('Encontrar horário livre').click();
-    await page.waitForTimeout(2000);
-    await page.screenshot({
-      path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`),
-      fullPage: true
-    });
-    console.log('URL:', page.url());
-    console.log('TEXTO DA PÁGINA:');
-    console.log(await page.locator('body').innerText());
 
-    // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
-    // não importa qual, porque vamos sobrescrever data/hora depois.
-    // Isso só serve para "destravar" os campos no formulário principal.
-    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
-    const apareceuSugestao = await sugestao.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!apareceuSugestao) {
-      throw new Error('Nenhuma sugestão de horário apareceu -- não foi possível destravar os campos de data/hora.');
-      
-    }
-    await sugestao.click();
-    await page.getByRole('button', { name: 'Escolher horário' }).click();
-
-    // 3. Sobrescreve com os valores reais desejados
-    await page.locator('[data-testid="inputData"]').fill(data);
-    await page.locator('input[formcontrolname="hour"]').fill(hora);
-    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
-
-    // 4. Busca o paciente pelo telefone
+      //mudança aqui:
+     // 4. Busca o paciente pelo telefone
     const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
     await campoPaciente.fill(somenteDigitos(telefone));
 
@@ -394,6 +369,35 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
         },
         { timeout: 10000 }
       );
+
+    await page.getByText('Encontrar horário livre').click();
+    await page.waitForTimeout(2000);
+    await page.screenshot({
+      path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`),
+      fullPage: true
+    });
+    console.log('URL:', page.url());
+    console.log('TEXTO DA PÁGINA:');
+    console.log(await page.locator('body').innerText());
+
+    // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
+    // não importa qual, porque vamos sobrescrever data/hora depois.
+    // Isso só serve para "destravar" os campos no formulário principal.
+    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
+    const apareceuSugestao = await sugestao.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!apareceuSugestao) {
+      throw new Error('Nenhuma sugestão de horário apareceu -- não foi possível destravar os campos de data/hora.');
+      
+    }
+    await sugestao.click();
+    await page.getByRole('button', { name: 'Escolher horário' }).click();
+
+    // 3. Sobrescreve com os valores reais desejados
+    await page.locator('[data-testid="inputData"]').fill(data);
+    await page.locator('input[formcontrolname="hour"]').fill(hora);
+    await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
+
+   
     }
 
     // 5. Seleciona o profissional
