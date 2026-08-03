@@ -339,7 +339,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await page.click('[data-testid="btnNovoEvento"]');
 
       //mudança aqui:
-     // 4. Busca o paciente pelo telefone
+     // 2. Busca o paciente pelo telefone
     const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
     await campoPaciente.fill(somenteDigitos(telefone));
 
@@ -358,6 +358,12 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       await page.getByText('Cadastrar novo paciente').click();
       await page.locator('[data-testid="inputNome"]').fill(nomePaciente);
       await page.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
+      //remover banner de cookies da frente.
+      const cookieBanner = page.locator('#onetrust-consent-sdk');
+      if (await cookieBanner.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: 'Rejeitar cookies opcionais' }).click();
+        await page.waitForTimeout(500);
+      }
       await page.locator('[data-testid="btnSalvar"]').click();
       // Depois de salvar, a tela volta sozinha para o formulário de
       // agendamento com o paciente já selecionado -- esperamos isso
@@ -380,7 +386,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     console.log('TEXTO DA PÁGINA:');
     console.log(await page.locator('body').innerText());
 
-    // 2. No diálogo de sugestão, clica em QUALQUER horário disponível --
+    // 3. No diálogo de sugestão, clica em QUALQUER horário disponível --
     // não importa qual, porque vamos sobrescrever data/hora depois.
     // Isso só serve para "destravar" os campos no formulário principal.
     const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
@@ -392,7 +398,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await sugestao.click();
     await page.getByRole('button', { name: 'Escolher horário' }).click();
 
-    // 3. Sobrescreve com os valores reais desejados
+    // 4. Sobrescreve com os valores reais desejados
     await page.locator('[data-testid="inputData"]').fill(data);
     await page.locator('input[formcontrolname="hour"]').fill(hora);
     await page.locator('sd-minutes-autocomplete input[type="number"]').fill(String(duracao));
