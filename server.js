@@ -482,18 +482,14 @@ async function criarAgendamento({
       .click();
 
     // 6. Sobrescreve com os valores reais desejados
-    await page
-      .locator('[data-testid="inputData"]')
-      .fill(data);
-
+    await page.getByLabel('Data da consulta').fill(data);
+    
     await page
       .locator('input[formcontrolname="hour"]')
       .fill(hora);
-
+    
     await page
-      .locator(
-        'sd-minutes-autocomplete input[type="number"]'
-      )
+      .locator('sd-minutes-autocomplete input[type="number"]')
       .fill(String(duracao));
 
     // 7. Observação (opcional)
