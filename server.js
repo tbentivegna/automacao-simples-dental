@@ -358,12 +358,11 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       await page.getByText('Cadastrar novo paciente').click();
       await page.locator('[data-testid="inputNome"]').fill(nomePaciente);
       await page.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
-      //remover banner de cookies da frente.
-      const cookieBanner = page.locator('#onetrust-consent-sdk');
-      if (await cookieBanner.isVisible().catch(() => false)) {
-        await page.getByRole('button', { name: 'Rejeitar cookies opcionais' }).click();
-        await page.waitForTimeout(500);
-      }
+      // Remove banner de cookies
+      await page.evaluate(() => {
+        const banner = document.querySelector('#onetrust-consent-sdk');
+        if (banner) banner.remove();
+      });
       await page.locator('[data-testid="btnSalvar"]').click();
       // Depois de salvar, a tela volta sozinha para o formulário de
       // agendamento com o paciente já selecionado -- esperamos isso
