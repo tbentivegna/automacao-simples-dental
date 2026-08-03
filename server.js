@@ -481,11 +481,17 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
 
     // 8. Rede de segurança: o próprio Simples Dental avisa com um banner
     // amarelo se detectar conflito de horário assim que os campos são
-    // preenchidos. Checamos isso ANTES de clicar em Marcar -- se existir,
-    // abortamos, para não arriscar duplicar o compromisso.
+    // preenchidos. Essa checagem parece ser assíncrona (provavelmente uma
+    // chamada ao servidor), então esperamos a rede assentar e damos um
+    // tempo extra antes de decidir se está mesmo livre. Checamos ANTES de
+    // clicar em Marcar -- se existir conflito, abortamos, para não
+    // arriscar duplicar o compromisso.
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(1500);
+
     const bannerConflito = await page
       .getByText('Há um compromisso no mesmo horário desta consulta.')
-      .isVisible({ timeout: 2000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
 
     if (bannerConflito) {
@@ -495,10 +501,11 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // 9. Marca de verdade
     await page.getByRole('button', { name: 'Marcar', exact: true }).click();
 
-    // 10. Confirma sucesso pelo texto do toast
+    // 10. Confirma sucesso pelo texto do toast (dá um tempo, pois o
+    // Simples Dental demora um pouco entre o clique e a confirmação)
     const confirmou = await page
       .getByText('Consulta agendada com sucesso.')
-      .isVisible({ timeout: 10000 })
+      .isVisible({ timeout: 15000 })
       .catch(() => false);
 
     const nomePrint = `agendamento-${Date.now()}.png`;
