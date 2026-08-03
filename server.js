@@ -357,7 +357,11 @@ async function criarAgendamento({
     );
 
     await campoPaciente.fill(somenteDigitos(telefone));
-
+    await page.waitForTimeout(2000);
+    console.log(
+      'OPÇÕES DE PACIENTE:',
+      await page.locator('.sd-pacientes-autocomplete__option').allTextContents()
+    );
     const opcaoPaciente = page.locator(
       '.sd-pacientes-autocomplete__option'
     ).first();
