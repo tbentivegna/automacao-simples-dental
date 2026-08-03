@@ -348,7 +348,7 @@ async function preencherCampoComMascara(locator, valor) {
   await locator.press('Control+A');
   await locator.press('Backspace');
   await locator.pressSequentially(String(valor), { delay: 60 });
-  await locator.press('Escape'); // fecha qualquer calendário/popup que tenha aberto
+  //await locator.press('Escape'); // fecha qualquer calendário/popup que tenha aberto
 }
 
 // O campo de celular do cadastro de paciente novo espera só o número
