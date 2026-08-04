@@ -644,6 +644,67 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
   }
 }
 
+// Encontra os próximos compromissos de um paciente, a partir do telefone.
+// Estratégia: usa o mesmo campo de busca de paciente do formulário de novo
+// evento (sem criar nada) para descobrir o NOME exato cadastrado, fecha o
+// diálogo, e então varre os compromissos das próximas semanas (mesma
+// função usada em /verificar-disponibilidade) filtrando pelo nome.
+async function buscarAgendamentosPaciente({ telefone, semanas }) {
+  if (!telefone) {
+    throw new Error('Campo obrigatório faltando: telefone.');
+  }
+
+  const { context, page } = await abrirPaginaLogada();
+  const totalSemanas = Number(semanas || process.env.SEMANAS_A_VERIFICAR || 4);
+
+  try {
+    // 1. Abre o "+" só para usar o campo de busca de paciente
+    await page.click('[data-testid="btnNovoEvento"]');
+    const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
+    await campoPaciente.fill(somenteDigitos(telefone));
+
+    const opcaoPaciente = page.locator('.sd-pacientes-autocomplete__option').first();
+    const encontrouPaciente = await aparece(opcaoPaciente, 6000);
+
+    let nomePaciente = null;
+    if (encontrouPaciente) {
+      nomePaciente = await opcaoPaciente
+        .locator('.sd-pacientes-autocomplete__nome')
+        .innerText()
+        .catch(() => null);
+    }
+
+    // Fecha o diálogo sem salvar nada
+    await page
+      .getByRole('button', { name: 'Fechar', exact: true })
+      .click({ timeout: 5000 })
+      .catch(() => {});
+
+    if (!nomePaciente) {
+      return { encontrado: false, agendamentos: [] };
+    }
+
+    // 2. Varre os compromissos das próximas semanas e filtra pelo nome
+    const compromissos = await coletarCompromissosVariasSemanas(page, totalSemanas);
+    const nomeBusca = nomePaciente.toLowerCase();
+    const doPaciente = compromissos.filter((c) => (c.paciente || '').toLowerCase().includes(nomeBusca));
+
+    return {
+      encontrado: true,
+      nomePaciente,
+      agendamentos: formatarCompromissos(doPaciente),
+      semanasVerificadas: totalSemanas,
+    };
+  } catch (erro) {
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-busca-paciente-${Date.now()}.png`) })
+      .catch(() => {});
+    throw erro;
+  } finally {
+    await context.close();
+  }
+}
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -686,6 +747,24 @@ app.post('/criar-agendamento', async (req, res) => {
     const conflito = String(erro.message || '').startsWith('CONFLITO_HORARIO');
     res.status(conflito ? 409 : 500).json({
       erro: conflito ? 'Horário não está mais disponível' : 'Falha ao criar agendamento',
+      detalhe: erro.message,
+    });
+  }
+});
+
+// Espera receber, no corpo da requisição (JSON):
+// {
+//   "telefone": "11991234567",  (obrigatório)
+//   "semanas": 4                (opcional, padrão = SEMANAS_A_VERIFICAR)
+// }
+app.post('/buscar-agendamentos-paciente', async (req, res) => {
+  try {
+    const resultado = await comFilaSegura(() => buscarAgendamentosPaciente(req.body || {}));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao buscar agendamentos do paciente:', erro);
+    res.status(500).json({
+      erro: 'Falha ao buscar agendamentos do paciente',
       detalhe: erro.message,
     });
   }
