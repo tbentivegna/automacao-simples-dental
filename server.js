@@ -377,31 +377,65 @@ function telefoneLocal(texto) {
 // pedido. Se a semana visível não parecer ser a certa (nenhum evento
 // "por perto" da data pedida), tenta avançar algumas vezes antes de
 // desistir -- mas nunca trava insistindo demais.
-async function existeConflitoReal(page, inicioEsperado, fimEsperado) {
+async function existeConflitoReal(page, inicioEsperado, fimEsperado, excluirId = null) {
   const UMA_SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
 
   for (let tentativa = 0; tentativa < 4; tentativa++) {
     const { conflito, algumEventoPorPerto } = await page.evaluate(
-      ({ inicioEsperado, fimEsperado, UMA_SEMANA_MS }) => {
+      ({ inicioEsperado, fimEsperado, UMA_SEMANA_MS, excluirId }) => {
         const eventos = Array.from(document.querySelectorAll('a.fc-event'));
+
         let conflito = false;
         let algumEventoPorPerto = false;
+
         for (const el of eventos) {
+          const id = el.getAttribute('data-consulta-id');
           const inicio = Number(el.getAttribute('data-start')) || 0;
           const fim = Number(el.getAttribute('data-end')) || 0;
-          if (Math.abs(inicio - inicioEsperado) < UMA_SEMANA_MS) algumEventoPorPerto = true;
-          if (fim > inicio && inicio < fimEsperado && fim > inicioEsperado) conflito = true;
+
+          // IMPORTANTE:
+          // ignora o próprio compromisso que está sendo remarcado
+          if (excluirId && String(id) === String(excluirId)) {
+            continue;
+          }
+
+          if (Math.abs(inicio - inicioEsperado) < UMA_SEMANA_MS) {
+            algumEventoPorPerto = true;
+          }
+
+          if (
+            fim > inicio &&
+            inicio < fimEsperado &&
+            fim > inicioEsperado
+          ) {
+            conflito = true;
+          }
         }
-        return { conflito, algumEventoPorPerto };
+
+        return {
+          conflito,
+          algumEventoPorPerto,
+        };
       },
-      { inicioEsperado, fimEsperado, UMA_SEMANA_MS }
+      {
+        inicioEsperado,
+        fimEsperado,
+        UMA_SEMANA_MS,
+        excluirId: excluirId ? String(excluirId) : null,
+      }
     );
 
     if (conflito) return true;
-    if (algumEventoPorPerto) return false; // semana certa, sem conflito
 
-    // Pode ser que a semana visível não seja a certa -- avança e tenta de novo
-    await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+    if (algumEventoPorPerto) {
+      return false;
+    }
+
+    // A semana visível pode não ser a semana do horário desejado
+    await page
+      .click('[data-testid="btnProximoPeriodo"]')
+      .catch(() => {});
+
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(500);
   }
@@ -789,6 +823,421 @@ async function mudarStatusAgendamento({ id, status }) {
   }
 }
 
+async function remarcarAgendamento({
+  id,
+  data,
+  hora,
+  duracaoMinutos,
+  observacao,
+}) {
+  if (!id || !data || !hora) {
+    throw new Error(
+      'Campos obrigatórios faltando: id, data e hora são necessários.'
+    );
+  }
+
+  const { context, page } = await abrirPaginaLogada();
+
+  const duracao = Number(
+    duracaoMinutos || DURACAO_CONSULTA_MINUTOS
+  );
+
+  try {
+    // ============================================================
+    // 1. LOCALIZA O COMPROMISSO PELO ID
+    // ============================================================
+
+    const evento = await localizarEventoPorId(page, id);
+
+    if (!evento) {
+      throw new Error(
+        `Não foi possível encontrar o compromisso com id ${id} nas próximas semanas.`
+      );
+    }
+
+    // Guarda informações do compromisso original para diagnóstico
+    const dadosOriginais = await evento.evaluate((el) => ({
+      id: el.getAttribute('data-consulta-id'),
+      inicio: Number(el.getAttribute('data-start')) || 0,
+      fim: Number(el.getAttribute('data-end')) || 0,
+      paciente:
+        el.querySelector('.fc-event-title')?.textContent.trim() || null,
+    }));
+
+    console.log(
+      'Compromisso localizado para remarcação:',
+      dadosOriginais
+    );
+
+    // ============================================================
+    // 2. CLICA NO COMPROMISSO
+    // ============================================================
+
+    await dispensarBannerCookies(page);
+
+    await evento.click();
+
+    const popover = page.locator('mat-card.popover-content');
+
+    const abriuPopover = await aparece(popover, 5000);
+
+    if (!abriuPopover) {
+      throw new Error(
+        'O popover do compromisso não abriu depois do clique.'
+      );
+    }
+
+    await page.screenshot({
+      path: path.join(
+        SCREENSHOTS_DIR,
+        `debug-remarcar-popover-${Date.now()}.png`
+      ),
+      fullPage: true,
+    });
+
+    // ============================================================
+    // 3. CLICA NO LÁPIS / EDITAR
+    // ============================================================
+
+    /*
+     * O Simples Dental pode variar os atributos do botão dependendo
+     * da versão da tela. Tentamos primeiro seletores mais específicos
+     * e depois algumas alternativas.
+     */
+
+    const botoesEditar = [
+      popover.locator('[data-testid="btnEditar"]'),
+      popover.locator('[data-testid="btnEditarConsulta"]'),
+      popover.locator('[data-testid="btnEditarAgendamento"]'),
+      popover.getByRole('button', { name: /editar/i }),
+      popover.locator('button').filter({ has: page.locator('mat-icon') }),
+    ];
+
+    let botaoEditar = null;
+
+    for (const candidato of botoesEditar) {
+      if (await aparece(candidato, 1000)) {
+        botaoEditar = candidato.first();
+        break;
+      }
+    }
+
+    /*
+     * Último recurso: procura botões que contenham um ícone
+     * relacionado a edição.
+     */
+    if (!botaoEditar) {
+      const botoes = popover.locator('button');
+
+      const quantidadeBotoes = await botoes.count();
+
+      for (let i = 0; i < quantidadeBotoes; i++) {
+        const botao = botoes.nth(i);
+
+        const texto = await botao.innerText().catch(() => '');
+        const aria = await botao.getAttribute('aria-label').catch(() => '');
+        const tooltip = await botao
+          .getAttribute('mattooltip')
+          .catch(() => '');
+
+        const informacao = `${texto} ${aria} ${tooltip}`.toLowerCase();
+
+        if (
+          informacao.includes('editar') ||
+          informacao.includes('edit') ||
+          informacao.includes('alterar')
+        ) {
+          botaoEditar = botao;
+          break;
+        }
+      }
+    }
+
+    if (!botaoEditar) {
+      throw new Error(
+        'Não foi possível localizar o botão de editar (lápis) no compromisso.'
+      );
+    }
+
+    await botaoEditar.click();
+
+    // ============================================================
+    // 4. ESPERA O DIÁLOGO COMPLETO DE EDIÇÃO
+    // ============================================================
+
+    const dialogo = page.locator('mat-dialog-container').last();
+
+    const abriuDialogo = await aparece(dialogo, 8000);
+
+    if (!abriuDialogo) {
+      throw new Error(
+        'O diálogo completo de edição do compromisso não abriu.'
+      );
+    }
+
+    await page.waitForTimeout(500);
+    await dispensarBannerCookies(page);
+
+    await page.screenshot({
+      path: path.join(
+        SCREENSHOTS_DIR,
+        `debug-remarcar-dialogo-${Date.now()}.png`
+      ),
+      fullPage: true,
+    });
+
+    // ============================================================
+    // 5. ALTERA DATA
+    // ============================================================
+
+    const campoData = dialogo
+      .locator('[data-testid="inputData"]')
+      .last();
+
+    const campoHora = dialogo
+      .locator('input[formcontrolname="hour"]')
+      .last();
+
+    const campoDuracao = dialogo
+      .locator('sd-minutes-autocomplete input[type="number"]')
+      .last();
+
+    if (!(await aparece(campoData, 5000))) {
+      throw new Error(
+        'Campo de data da consulta não apareceu no diálogo de edição.'
+      );
+    }
+
+    if (!(await aparece(campoHora, 5000))) {
+      throw new Error(
+        'Campo de horário da consulta não apareceu no diálogo de edição.'
+      );
+    }
+
+    // Digitação simulando usuário real para respeitar as máscaras
+    await preencherCampoComMascara(campoData, data);
+
+    await preencherCampoComMascara(campoHora, hora);
+
+    if (await aparece(campoDuracao, 3000)) {
+      await preencherCampoComMascara(
+        campoDuracao,
+        String(duracao)
+      );
+    }
+
+    // ============================================================
+    // 6. CONFERE SE OS CAMPOS FORAM PREENCHIDOS
+    // ============================================================
+
+    const dataConfirmada = await campoData
+      .inputValue()
+      .catch(() => '');
+
+    const horaConfirmada = await campoHora
+      .inputValue()
+      .catch(() => '');
+
+    if (dataConfirmada !== data || horaConfirmada !== hora) {
+      throw new Error(
+        `Os campos de data/hora não ficaram com os valores esperados ` +
+        `(esperado: ${data} ${hora}, ficou: ` +
+        `${dataConfirmada} ${horaConfirmada}).`
+      );
+    }
+
+    // ============================================================
+    // 7. OBSERVAÇÃO
+    // ============================================================
+
+    if (observacao !== undefined && observacao !== null) {
+      const campoObservacao = dialogo.locator(
+        'textarea[formcontrolname="descricao"]'
+      );
+
+      if (await aparece(campoObservacao, 2000)) {
+        await campoObservacao.fill(observacao);
+      }
+    }
+
+    // ============================================================
+    // 8. CHECAGEM DE CONFLITO
+    // ============================================================
+
+    const inicioEsperado = new Date(
+      `${paraDataISO(data)}T${hora}:00${OFFSET_BRASILIA}`
+    ).getTime();
+
+    const fimEsperado =
+      inicioEsperado + duracao * 60 * 1000;
+
+    await page.waitForTimeout(1000);
+
+    /*
+     * IMPORTANTE:
+     *
+     * Passamos o ID do compromisso atual para
+     * existeConflitoReal().
+     *
+     * Assim, se ele ainda estiver aparecendo na agenda,
+     * não será considerado conflito consigo mesmo.
+     */
+
+    const conflitoReal = await existeConflitoReal(
+      page,
+      inicioEsperado,
+      fimEsperado,
+      id
+    );
+
+    const bannerConflito = await aparece(
+      page.getByText(
+        'Há um compromisso no mesmo horário desta consulta.'
+      ),
+      3000
+    );
+
+    if (bannerConflito || conflitoReal) {
+      throw new Error(
+        'CONFLITO_HORARIO: já existe outro compromisso nesse horário.'
+      );
+    }
+
+    // ============================================================
+    // 9. SALVA A REMARCAÇÃO
+    // ============================================================
+
+    let botaoSalvar = dialogo.getByRole('button', {
+      name: 'Salvar',
+      exact: true,
+    });
+
+    if (!(await aparece(botaoSalvar, 2000))) {
+      botaoSalvar = dialogo.getByRole('button', {
+        name: 'Marcar',
+        exact: true,
+      });
+    }
+
+    if (!(await aparece(botaoSalvar, 3000))) {
+      throw new Error(
+        'Não foi possível encontrar o botão "Salvar" no diálogo de edição.'
+      );
+    }
+
+    await botaoSalvar.click();
+
+    // ============================================================
+    // 10. ESPERA O DIÁLOGO FECHAR
+    // ============================================================
+
+    await dialogo
+      .waitFor({
+        state: 'detached',
+        timeout: 20000,
+      })
+      .catch(() => {});
+
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(1200);
+
+    // ============================================================
+    // 11. CONFIRMAÇÃO DO NOVO HORÁRIO
+    // ============================================================
+
+    /*
+     * Depois de salvar, o compromisso pode estar em outra semana.
+     * Procuramos pelo ID, que é muito mais confiável do que procurar
+     * pelo nome do paciente.
+     */
+
+    let confirmou = false;
+
+    for (let tentativa = 0; tentativa < 6; tentativa++) {
+      const eventoAtual = page.locator(
+        `a.fc-event[data-consulta-id="${id}"]`
+      );
+
+      if (await aparece(eventoAtual, 1500)) {
+        const dadosDepois = await eventoAtual.evaluate((el) => ({
+          id: el.getAttribute('data-consulta-id'),
+          inicio: Number(el.getAttribute('data-start')) || 0,
+          fim: Number(el.getAttribute('data-end')) || 0,
+          paciente:
+            el.querySelector('.fc-event-title')?.textContent.trim() ||
+            null,
+        }));
+
+        console.log(
+          'Compromisso depois da remarcação:',
+          dadosDepois
+        );
+
+        const bateHorario =
+          Math.abs(dadosDepois.inicio - inicioEsperado) < 60000;
+
+        if (bateHorario) {
+          confirmou = true;
+          break;
+        }
+      }
+
+      if (tentativa < 5) {
+        await page
+          .click('[data-testid="btnProximoPeriodo"]')
+          .catch(() => {});
+
+        await page
+          .waitForLoadState('networkidle')
+          .catch(() => {});
+
+        await page.waitForTimeout(600);
+      }
+    }
+
+    // ============================================================
+    // 12. PRINT FINAL
+    // ============================================================
+
+    const nomePrint = `remarcacao-${Date.now()}.png`;
+
+    await page.screenshot({
+      path: path.join(SCREENSHOTS_DIR, nomePrint),
+      fullPage: true,
+    });
+
+    if (!confirmou) {
+      throw new Error(
+        'A remarcação foi salva, mas não foi possível confirmar na agenda que o compromisso ficou no novo horário.'
+      );
+    }
+
+    return {
+      sucesso: true,
+      id,
+      data,
+      hora,
+      duracaoMinutos: duracao,
+      print: nomePrint,
+    };
+  } catch (erro) {
+    await page
+      .screenshot({
+        path: path.join(
+          SCREENSHOTS_DIR,
+          `erro-remarcacao-${Date.now()}.png`
+        ),
+        fullPage: true,
+      })
+      .catch(() => {});
+
+    throw erro;
+  } finally {
+    await context.close();
+  }
+}
+
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -879,6 +1328,40 @@ app.post('/cancelar-agendamento', async (req, res) => {
     res.status(500).json({ erro: 'Falha ao cancelar agendamento', detalhe: erro.message });
   }
 });
+
+// Espera receber:
+// {
+//   "id": "310729432",
+//   "data": "05/08/2026",
+//   "hora": "15:00",
+//   "duracaoMinutos": 90,
+//   "observacao": "Paciente solicitou alteração de horário"
+// }
+//
+// O ID deve vir de /buscar-agendamentos-paciente.
+app.post('/remarcar-agendamento', async (req, res) => {
+  try {
+    const resultado = await comFilaSegura(() =>
+      remarcarAgendamento(req.body || {})
+    );
+
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao remarcar agendamento:', erro);
+
+    const conflito = String(
+      erro.message || ''
+    ).startsWith('CONFLITO_HORARIO');
+
+    res.status(conflito ? 409 : 500).json({
+      erro: conflito
+        ? 'Horário não está mais disponível'
+        : 'Falha ao remarcar agendamento',
+      detalhe: erro.message,
+    });
+  }
+});
+
 
 process.on('SIGTERM', async () => {
   if (browserCompartilhado) await browserCompartilhado.close();
