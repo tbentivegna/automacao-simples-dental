@@ -400,13 +400,22 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
         throw new Error('Paciente não encontrado pelo telefone e nomePaciente não foi informado para cadastro.');
       }
       await page.getByText('Cadastrar novo paciente').click();
-      await page.locator('[data-testid="inputNome"]').fill(nomePaciente);
-      await page.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
+
+      // O cadastro abre num diálogo NOVO, por cima do formulário principal
+      // (que continua "por baixo", ainda presente no DOM). Restringimos a
+      // busca ao último diálogo aberto (o de cima) para não confundir com
+      // elementos parecidos do formulário de baixo -- o Simples Dental,
+      // por exemplo, reaproveita o mesmo data-testid="btnSalvar" no botão
+      // "Marcar" do formulário principal.
+      const dialogoCadastro = page.locator('mat-dialog-container').last();
+
+      await dialogoCadastro.locator('[data-testid="inputNome"]').fill(nomePaciente);
+      await dialogoCadastro.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
 
       // Contorno extra, caso o banner de cookies ainda esteja de pé
       await dispensarBannerCookies(page);
 
-      await page.locator('[data-testid="btnSalvar"]').click();
+      await dialogoCadastro.locator('[data-testid="btnSalvar"]').click();
       // Depois de salvar, a tela volta sozinha para o formulário de
       // agendamento com o paciente já selecionado -- esperamos isso
       // acontecer conferindo se o campo de paciente ficou preenchido.
