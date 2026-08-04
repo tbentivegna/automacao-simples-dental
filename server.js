@@ -57,6 +57,18 @@ async function dispensarBannerCookies(page) {
     .catch(() => {});
 }
 
+// IMPORTANTE: locator.isVisible() faz uma checagem praticamente imediata,
+// sem re-tentar de verdade enquanto o conteúdo ainda está carregando --
+// isso causava falsos negativos (ex: achar que um paciente não existia
+// só porque a busca ainda não tinha terminado). Esta função usa waitFor,
+// que realmente aguarda até o elemento aparecer.
+async function aparece(locator, timeout = 5000) {
+  return locator
+    .waitFor({ state: 'visible', timeout })
+    .then(() => true)
+    .catch(() => false);
+}
+
 // User-Agent de um Chrome comum em Windows, para o robô se parecer mais
 // com um navegador usado por uma pessoa de verdade.
 const USER_AGENT =
@@ -173,11 +185,7 @@ async function abrirPaginaLogada() {
   // Se a sessão salva ainda for válida, o Simples Dental pula direto pra
   // agenda (ou pra tela de seleção de clínica). Confirmamos checando se
   // ainda estamos na tela de login.
-  const aindaNaTelaDeLogin = await page
-    .locator('input[type="email"]')
-    .first()
-    .isVisible({ timeout: 8000 })
-    .catch(() => false);
+  const aindaNaTelaDeLogin = await aparece(page.locator('input[type="email"]').first(), 8000);
 
   if (aindaNaTelaDeLogin) {
     await page.fill('input[type="email"]', process.env.SIMPLES_DENTAL_USER);
@@ -190,10 +198,7 @@ async function abrirPaginaLogada() {
   // (quando o usuário tem acesso a mais de uma). Se essa tela aparecer,
   // clicamos em "ACESSAR" no card da clínica configurada.
   const nomeClinica = process.env.SIMPLES_DENTAL_CLINICA || 'ALINE BENTIVEGNA';
-  const telaSelecaoClinica = await page
-    .getByText('Selecionar clínica')
-    .isVisible()
-    .catch(() => false);
+  const telaSelecaoClinica = await aparece(page.getByText('Selecionar clínica'), 3000);
 
   if (telaSelecaoClinica) {
     const cartaoClinica = page.locator('div').filter({ hasText: nomeClinica }).last();
@@ -339,6 +344,12 @@ function somenteDigitos(texto) {
   return (texto || '').replace(/\D/g, '');
 }
 
+// Converte "DD/MM/AAAA" para "AAAA-MM-DD"
+function paraDataISO(dataBR) {
+  const [dia, mes, ano] = dataBR.split('/');
+  return `${ano}-${mes}-${dia}`;
+}
+
 // Alguns campos (data, hora, duração) têm máscara de formatação e não
 // aceitam bem receber o valor de uma vez só (via fill) -- o Angular
 // rejeita e volta para o último valor válido. Simulamos digitação real,
@@ -348,7 +359,6 @@ async function preencherCampoComMascara(locator, valor) {
   await locator.press('Control+A');
   await locator.press('Backspace');
   await locator.pressSequentially(String(valor), { delay: 60 });
-  //await locator.press('Escape'); // fecha qualquer calendário/popup que tenha aberto
 }
 
 // O campo de celular do cadastro de paciente novo espera só o número
@@ -378,7 +388,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await campoPaciente.fill(somenteDigitos(telefone));
 
     const opcaoPaciente = page.locator('.sd-pacientes-autocomplete__option').first();
-    const encontrouPaciente = await opcaoPaciente.isVisible({ timeout: 4000 }).catch(() => false);
+    const encontrouPaciente = await aparece(opcaoPaciente, 6000);
 
     let pacienteNovo = false;
     if (encontrouPaciente) {
@@ -434,10 +444,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
       .catch(() => {});
-    const dialogoAbriu = await page
-      .getByText('Sugestão de horários')
-      .isVisible({ timeout: 2000 })
-      .catch(() => false);
+    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 3000);
 
     // 5. Seleciona qualquer sugestão de horário, só para destravar os
     // campos de data/hora (vamos sobrescrever com os valores reais logo
@@ -445,7 +452,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // livre (ex: dia sem expediente ou já totalmente ocupado) -- nesse
     // caso avançamos de dia em dia até aparecer alguma sugestão clicável.
     const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
-    let apareceuSugestao = await sugestao.isVisible({ timeout: 3000 }).catch(() => false);
+    let apareceuSugestao = await aparece(sugestao, 3000);
 
     let tentativas = 0;
     while (!apareceuSugestao && tentativas < 14) {
@@ -466,7 +473,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       }
 
       await page.waitForTimeout(500);
-      apareceuSugestao = await sugestao.isVisible({ timeout: 2000 }).catch(() => false);
+      apareceuSugestao = await aparece(sugestao, 2000);
       tentativas++;
     }
 
@@ -512,10 +519,10 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(1500);
 
-    const bannerConflito = await page
-      .getByText('Há um compromisso no mesmo horário desta consulta.')
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
+    const bannerConflito = await aparece(
+      page.getByText('Há um compromisso no mesmo horário desta consulta.'),
+      5000
+    );
 
     if (bannerConflito) {
       throw new Error('CONFLITO_HORARIO: o Simples Dental detectou um compromisso já existente nesse horário.');
@@ -524,18 +531,47 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // 9. Marca de verdade
     await page.getByRole('button', { name: 'Marcar', exact: true }).click();
 
-    // 10. Confirma sucesso pelo texto do toast (dá um tempo, pois o
-    // Simples Dental demora um pouco entre o clique e a confirmação)
-    const confirmou = await page
-      .getByText('Consulta agendada com sucesso.')
-      .isVisible({ timeout: 15000 })
-      .catch(() => false);
+    // 10. Confirma sucesso de um jeito confiável: em vez de tentar capturar
+    // o toast (que aparece e desaparece rápido demais), esperamos o
+    // diálogo fechar e então procuramos, na própria agenda, um compromisso
+    // batendo com o horário pedido (e o nome do paciente, se disponível).
+    await dialogo.waitFor({ state: 'detached', timeout: 20000 }).catch(() => {});
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(1000);
+
+    const inicioEsperado = new Date(`${paraDataISO(data)}T${hora}:00${OFFSET_BRASILIA}`).getTime();
+    const nomeParaBuscar = (nomePaciente || '').toLowerCase();
+
+    let confirmou = false;
+    for (let tentativa = 0; tentativa < 4 && !confirmou; tentativa++) {
+      confirmou = await page.evaluate(
+        ({ inicioEsperado, nomeParaBuscar }) => {
+          const eventos = Array.from(document.querySelectorAll('a.fc-event'));
+          return eventos.some((el) => {
+            const inicio = Number(el.getAttribute('data-start')) || 0;
+            const paciente = (el.querySelector('.fc-event-title')?.textContent || '').toLowerCase();
+            const bateHorario = Math.abs(inicio - inicioEsperado) < 60000; // tolerância de 1 min
+            const batePaciente = !nomeParaBuscar || paciente.includes(nomeParaBuscar);
+            return bateHorario && batePaciente;
+          });
+        },
+        { inicioEsperado, nomeParaBuscar }
+      );
+
+      if (!confirmou && tentativa < 3) {
+        // O horário pedido pode estar numa semana que não é a que está
+        // visível agora -- avança e tenta de novo antes de desistir.
+        await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await page.waitForTimeout(500);
+      }
+    }
 
     const nomePrint = `agendamento-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
     if (!confirmou) {
-      throw new Error('Não foi possível confirmar visualmente o sucesso do agendamento (toast não apareceu).');
+      throw new Error('Não foi possível confirmar o agendamento na agenda (nenhum compromisso encontrado no horário esperado).');
     }
 
     return {
