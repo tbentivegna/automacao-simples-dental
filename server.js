@@ -705,6 +705,90 @@ async function buscarAgendamentosPaciente({ telefone, semanas }) {
   }
 }
 
+// Localiza um compromisso específico na tela pelo id (data-consulta-id).
+// Como o evento pode estar numa semana diferente da que está visível por
+// padrão, avança algumas vezes procurando antes de desistir.
+async function localizarEventoPorId(page, id, maxTentativas = 6) {
+  const evento = page.locator(`a.fc-event[data-consulta-id="${id}"]`);
+  for (let tentativa = 0; tentativa < maxTentativas; tentativa++) {
+    if (await aparece(evento, 1500)) return evento;
+    await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(500);
+  }
+  return null;
+}
+
+const STATUS_VALIDOS = [
+  'Agendada',
+  'Confirmada',
+  'Em atendimento',
+  'Falta',
+  'Cancelada pelo paciente',
+  'Cancelada pelo profissional',
+];
+
+// Base de /confirmar-agendamento e /cancelar-agendamento: clica no
+// compromisso (abre o popover pequeno) e troca o status pelo dropdown.
+async function mudarStatusAgendamento({ id, status }) {
+  if (!id || !status) {
+    throw new Error('Campos obrigatórios faltando: id e status são necessários.');
+  }
+  if (!STATUS_VALIDOS.includes(status)) {
+    throw new Error(`Status inválido: "${status}". Valores aceitos: ${STATUS_VALIDOS.join(', ')}`);
+  }
+
+  const { context, page } = await abrirPaginaLogada();
+
+  try {
+    const evento = await localizarEventoPorId(page, id);
+    if (!evento) {
+      throw new Error(`Não foi possível encontrar o compromisso com id ${id} nas próximas semanas.`);
+    }
+
+    await evento.click();
+
+    const popover = page.locator('mat-card.popover-content');
+    const abriu = await aparece(popover, 5000);
+    if (!abriu) {
+      throw new Error('O popover do compromisso não abriu depois do clique.');
+    }
+
+    await popover.locator('mat-select[mattooltip="Status"]').click();
+    await page.getByRole('option', { name: status, exact: true }).click();
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(800);
+
+    // Confirma que o status realmente mudou antes de considerar sucesso
+    const statusAtual = await popover
+      .locator('.mat-mdc-select-min-line')
+      .innerText()
+      .catch(() => null);
+
+    const nomePrint = `status-${Date.now()}.png`;
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
+
+    if (!statusAtual || statusAtual.trim() !== status) {
+      throw new Error(`O status não foi confirmado como alterado (ficou: "${statusAtual}").`);
+    }
+
+    // Fecha o popover
+    await popover
+      .locator('[data-testid="btnFechar"]')
+      .click({ timeout: 3000 })
+      .catch(() => {});
+
+    return { sucesso: true, id, status, print: nomePrint };
+  } catch (erro) {
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-status-${Date.now()}.png`) })
+      .catch(() => {});
+    throw erro;
+  } finally {
+    await context.close();
+  }
+}
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -767,6 +851,32 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
       erro: 'Falha ao buscar agendamentos do paciente',
       detalhe: erro.message,
     });
+  }
+});
+
+// Espera receber: { "id": "310729432" }  (o id vem de /buscar-agendamentos-paciente)
+app.post('/confirmar-agendamento', async (req, res) => {
+  try {
+    const { id } = req.body || {};
+    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status: 'Confirmada' }));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao confirmar agendamento:', erro);
+    res.status(500).json({ erro: 'Falha ao confirmar agendamento', detalhe: erro.message });
+  }
+});
+
+// Espera receber: { "id": "310729432", "motivo": "paciente" | "profissional" }
+// (motivo é opcional, padrão = "paciente")
+app.post('/cancelar-agendamento', async (req, res) => {
+  try {
+    const { id, motivo } = req.body || {};
+    const status = motivo === 'profissional' ? 'Cancelada pelo profissional' : 'Cancelada pelo paciente';
+    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status }));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao cancelar agendamento:', erro);
+    res.status(500).json({ erro: 'Falha ao cancelar agendamento', detalhe: erro.message });
   }
 });
 
