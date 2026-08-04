@@ -370,6 +370,45 @@ function telefoneLocal(texto) {
   return digitos.length > 11 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
 }
 
+// Checagem PRÓPRIA de conflito, direto na grade da agenda -- não depende
+// do banner nativo do Simples Dental (que nem sempre aparece de forma
+// confiável, como confirmamos num teste real). Procura, entre os
+// compromissos já carregados na tela, algum que se sobreponha ao horário
+// pedido. Se a semana visível não parecer ser a certa (nenhum evento
+// "por perto" da data pedida), tenta avançar algumas vezes antes de
+// desistir -- mas nunca trava insistindo demais.
+async function existeConflitoReal(page, inicioEsperado, fimEsperado) {
+  const UMA_SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
+
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    const { conflito, algumEventoPorPerto } = await page.evaluate(
+      ({ inicioEsperado, fimEsperado, UMA_SEMANA_MS }) => {
+        const eventos = Array.from(document.querySelectorAll('a.fc-event'));
+        let conflito = false;
+        let algumEventoPorPerto = false;
+        for (const el of eventos) {
+          const inicio = Number(el.getAttribute('data-start')) || 0;
+          const fim = Number(el.getAttribute('data-end')) || 0;
+          if (Math.abs(inicio - inicioEsperado) < UMA_SEMANA_MS) algumEventoPorPerto = true;
+          if (fim > inicio && inicio < fimEsperado && fim > inicioEsperado) conflito = true;
+        }
+        return { conflito, algumEventoPorPerto };
+      },
+      { inicioEsperado, fimEsperado, UMA_SEMANA_MS }
+    );
+
+    if (conflito) return true;
+    if (algumEventoPorPerto) return false; // semana certa, sem conflito
+
+    // Pode ser que a semana visível não seja a certa -- avança e tenta de novo
+    await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(500);
+  }
+
+  return false;
+}
+
 async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao }) {
   if (!telefone || !data || !hora) {
     throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
@@ -518,13 +557,13 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       await dialogo.locator('textarea[formcontrolname="descricao"]').fill(observacao);
     }
 
-    // 8. Rede de segurança: o próprio Simples Dental avisa com um banner
-    // amarelo se detectar conflito de horário assim que os campos são
-    // preenchidos. Essa checagem parece ser assíncrona (provavelmente uma
-    // chamada ao servidor), então esperamos a rede assentar e damos um
-    // tempo extra antes de decidir se está mesmo livre. Checamos ANTES de
-    // clicar em Marcar -- se existir conflito, abortamos, para não
-    // arriscar duplicar o compromisso.
+    // 8. Rede de segurança DUPLA contra conflito de horário:
+    //   a) o banner amarelo nativo do Simples Dental (mas ele nem sempre
+    //      aparece de forma confiável -- já vimos isso falhar num teste real)
+    //   b) uma checagem própria, direto nos compromissos já carregados na
+    //      grade da agenda -- essa é a proteção principal agora.
+    // Se qualquer uma das duas detectar conflito, abortamos antes de
+    // clicar em Marcar, para não arriscar duplicar o compromisso.
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(1500);
 
@@ -533,9 +572,14 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       5000
     );
 
-    if (bannerConflito) {
-      throw new Error('CONFLITO_HORARIO: o Simples Dental detectou um compromisso já existente nesse horário.');
+    const inicioEsperado = new Date(`${paraDataISO(data)}T${hora}:00${OFFSET_BRASILIA}`).getTime();
+    const fimEsperado = inicioEsperado + duracao * 60 * 1000;
+    const conflitoReal = await existeConflitoReal(page, inicioEsperado, fimEsperado);
+
+    if (bannerConflito || conflitoReal) {
+      throw new Error('CONFLITO_HORARIO: já existe um compromisso nesse horário.');
     }
+
 
     // 9. Marca de verdade
     await page.getByRole('button', { name: 'Marcar', exact: true }).click();
@@ -548,7 +592,6 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(1000);
 
-    const inicioEsperado = new Date(`${paraDataISO(data)}T${hora}:00${OFFSET_BRASILIA}`).getTime();
     const nomeParaBuscar = (nomePaciente || '').toLowerCase();
 
     let confirmou = false;
