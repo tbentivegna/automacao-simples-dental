@@ -132,33 +132,50 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
   for (let i = 0; i < totalDias; i++) {
     const diaAtual = new Date(segunda);
     diaAtual.setDate(segunda.getDate() + i);
+
     const diaISO = formatadorDiaISO.format(diaAtual);
     const nomeDia = nomeDiaSemana(diaISO);
 
     let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
+
     if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO)) {
       horariosDoDia = [];
     }
+
     if (diasBloqueados.has(diaISO)) {
-      horariosDoDia = []; // dia todo bloqueado (ex: folga, feriado)
+      horariosDoDia = [];
     }
 
-    if (horariosDoDia.length === 0) continue; // dia sem atendimento, não retorna nada
+    if (horariosDoDia.length === 0) continue;
 
-    const diaBR = new Date(`${diaISO}T00:00:00${OFFSET_BRASILIA}`).toLocaleDateString('pt-BR', { timeZone: FUSO });
-
-    resultado[diaBR] = horariosDoDia.map((horario) => {
-      const inicio = new Date(`${diaISO}T${horario}:00${OFFSET_BRASILIA}`).getTime();
-      const fim = inicio + DURACAO_CONSULTA_MINUTOS * 60 * 1000;
-
-      const conflito = compromissos.find((c) => c.inicio < fim && c.fim > inicio);
-
-      return {
-        horario,
-        disponivel: !conflito,
-        paciente: conflito ? conflito.paciente : undefined,
-      };
+    const diaBR = new Date(
+      `${diaISO}T00:00:00${OFFSET_BRASILIA}`
+    ).toLocaleDateString('pt-BR', {
+      timeZone: FUSO,
     });
+
+    resultado[diaBR] = {
+      diaSemana: nomeDia,
+
+      horarios: horariosDoDia.map((horario) => {
+        const inicio = new Date(
+          `${diaISO}T${horario}:00${OFFSET_BRASILIA}`
+        ).getTime();
+
+        const fim =
+          inicio + DURACAO_CONSULTA_MINUTOS * 60 * 1000;
+
+        const conflito = compromissos.find(
+          (c) => c.inicio < fim && c.fim > inicio
+        );
+
+        return {
+          horario,
+          disponivel: !conflito,
+          paciente: conflito ? conflito.paciente : undefined,
+        };
+      }),
+    };
   }
 
   return resultado;
