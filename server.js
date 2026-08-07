@@ -169,10 +169,14 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
           (c) => c.inicio < fim && c.fim > inicio
         );
 
+        // IMPORTANTE: não incluir aqui nenhum dado de identificação do
+        // paciente que ocupa o horário (nome, telefone, etc.) -- esta
+        // resposta alimenta o contexto de um agente de IA no WhatsApp
+        // (Lumi), e dados de terceiros não podem vazar para essa conversa.
+        // Só o necessário para calcular disponibilidade: horário e booleano.
         return {
           horario,
           disponivel: !conflito,
-          paciente: conflito ? conflito.paciente : undefined,
         };
       }),
     };
@@ -334,17 +338,22 @@ async function verificarDisponibilidade() {
     const compromissos = await coletarCompromissosVariasSemanas(page, semanas);
     const diasBloqueados = obterDiasBloqueados(compromissos);
     const horarios = calcularSlotsSemana(compromissos, semanas, diasBloqueados);
-    const compromissosFormatados = formatarCompromissos(compromissos);
 
+    // O print continua sendo salvo em disco (útil para depuração local),
+    // mas não é mais devolvido na resposta da API -- a rota /screenshots
+    // foi removida, e o próprio nome do arquivo não deve ir para o
+    // contexto do agente de IA.
     const nomePrint = `agenda-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
 
+    // IMPORTANTE: esta resposta alimenta o contexto de um agente de IA
+    // (Lumi, no WhatsApp). Não incluir aqui o array bruto de compromissos
+    // (que traz nome de paciente, telefone, observação, etc. de terceiros)
+    // nem o caminho do print. Só o necessário para calcular disponibilidade.
     return {
-      compromissos: compromissosFormatados,
       horarios,
       diasBloqueados: Array.from(diasBloqueados),
       semanasVerificadas: semanas,
-      print: nomePrint,
     };
   } catch (erro) {
     // Tira um print exatamente do momento do erro, pra facilitar o diagnóstico
@@ -700,7 +709,6 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       data,
       hora,
       duracaoMinutos: duracao,
-      print: nomePrint,
     };
   } catch (erro) {
     await page
@@ -846,7 +854,7 @@ async function mudarStatusAgendamento({ id, status }) {
       .click({ timeout: 3000 })
       .catch(() => {});
 
-    return { sucesso: true, id, status, print: nomePrint };
+    return { sucesso: true, id, status };
   } catch (erro) {
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-status-${Date.now()}.png`) })
@@ -1252,7 +1260,6 @@ async function remarcarAgendamento({
       data,
       hora,
       duracaoMinutos: duracao,
-      print: nomePrint,
     };
   } catch (erro) {
     await page
@@ -1275,11 +1282,6 @@ async function remarcarAgendamento({
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
-
-// Rota temporária para visualizar os prints salvos durante os testes.
-// Recomendo remover ou proteger com senha depois que a automação estiver
-// validada, já que a agenda tem dados de pacientes.
-app.use('/screenshots', express.static(SCREENSHOTS_DIR));
 
 app.post('/verificar-disponibilidade', async (req, res) => {
   try {
