@@ -134,6 +134,13 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
     diaAtual.setDate(segunda.getDate() + i);
 
     const diaISO = formatadorDiaISO.format(diaAtual);
+
+    // Não oferece hoje nem dias já passados -- não dá pra agendar em cima
+    // da hora (o paciente não teria como chegar a tempo), e um horário de
+    // um dia anterior já nem existe mais. A busca efetivamente começa a
+    // partir de amanhã.
+    if (diaISO <= hojeISO) continue;
+
     const nomeDia = nomeDiaSemana(diaISO);
 
     let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
