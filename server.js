@@ -641,7 +641,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // batendo com o horário pedido (e o nome do paciente, se disponível).
     await dialogo.waitFor({ state: 'detached', timeout: 20000 }).catch(() => {});
     await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(10000);
 
     const nomeParaBuscar = (nomePaciente || '').toLowerCase();
 
@@ -666,7 +666,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
         // visível agora -- avança e tenta de novo antes de desistir.
         await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
         await page.waitForLoadState('networkidle').catch(() => {});
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
       }
     }
 
