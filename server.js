@@ -99,6 +99,25 @@ function nomeDiaSemana(diaISO) {
   return NOMES_DIA_SEMANA[diaSemana];
 }
 
+// Segunda-feira da semana que contém a data informada -- mesmo critério
+// usado em calcularSlotsSemana e na paginação da agenda (a grade do
+// Simples Dental é sempre navegada semana a semana a partir daí).
+function segundaDaSemana(diaISO) {
+  const diaSemana = new Date(`${diaISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
+  const deslocamentoAteSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
+  const segunda = new Date(`${diaISO}T12:00:00${OFFSET_BRASILIA}`);
+  segunda.setDate(segunda.getDate() + deslocamentoAteSegunda);
+  return segunda;
+}
+
+// Quantos cliques em "próximo período" separam a semana de hoje da
+// semana da data alvo (pode ser 0 se estiverem na mesma semana).
+function semanasEntre(diaISOAlvo, diaISOBase) {
+  const msPorSemana = 7 * 24 * 60 * 60 * 1000;
+  const diff = segundaDaSemana(diaISOAlvo).getTime() - segundaDaSemana(diaISOBase).getTime();
+  return Math.round(diff / msPorSemana);
+}
+
 // Verifica se um determinado sábado está "aberto", com base numa data de
 // referência conhecida (um sábado que sabemos que é de atendimento) e no
 // padrão quinzenal (a cada 14 dias). Se a variável não estiver configurada,
@@ -657,13 +676,30 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // batendo com o horário pedido (e o nome do paciente, se disponível).
     await dialogo.waitFor({ state: 'detached', timeout: 20000 }).catch(() => {});
 
-    // Recarrega a página para garantir que a grade reflete o estado mais
-    // recente do servidor -- evita falso negativo por causa de uma
-    // atualização que ainda não tinha chegado no DOM renderizado.
-    await page.reload();
+    // Volta para a URL base da agenda -- não basta um reload(). O fluxo
+    // de "Encontrar horário livre" pode ter avançado a visão do calendário
+    // várias vezes (via "Avançar um dia") procurando uma sugestão, e não
+    // há garantia de que um reload sozinho descarta esse estado. Ir
+    // explicitamente para a URL base garante que partimos sempre de um
+    // ponto de referência conhecido: a semana de HOJE.
+    await page.goto(process.env.SIMPLES_DENTAL_URL);
     await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForURL('**/simples/agenda**', { timeout: 15000 }).catch(() => {});
     await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
     await dispensarBannerCookies(page);
+
+    // Calcula EXATAMENTE quantas semanas à frente de hoje está a data
+    // marcada, e avança essa quantidade exata de cliques -- em vez de
+    // tentar "adivinhar" avançando aos poucos. Essa grade não tem como
+    // voltar, então adivinhar errado significa nunca mais achar o evento.
+    const hojeISO = formatadorDiaISO.format(new Date());
+    const semanasParaAvancar = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
+
+    for (let semana = 0; semana < semanasParaAvancar; semana++) {
+      await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForTimeout(600);
+    }
 
     const nomeParaBuscar = (nomePaciente || '').toLowerCase();
 
@@ -684,19 +720,18 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
 
     let confirmou = false;
 
-    // Primeiro insiste algumas vezes NA MESMA semana -- o evento recém
-    // criado pode simplesmente ainda não ter terminado de renderizar.
-    // IMPORTANTE: não avançar de semana antes de esgotar essas tentativas,
-    // senão corremos o risco de "fugir" da semana certa por causa de uma
-    // renderização um pouco lenta e nunca mais encontrar o compromisso
-    // (não existe navegação para trás neste fluxo).
-    for (let tentativa = 0; tentativa < 3 && !confirmou; tentativa++) {
+    // Insiste algumas vezes na semana calculada -- o evento recém criado
+    // pode ainda não ter terminado de renderizar.
+    for (let tentativa = 0; tentativa < 4 && !confirmou; tentativa++) {
       confirmou = await checarNaTelaAtual();
       if (!confirmou) await page.waitForTimeout(1500);
     }
 
-    // Só então considera que o horário pode estar em outra semana.
-    for (let semana = 0; semana < 3 && !confirmou; semana++) {
+    // Margem de segurança: avança mais algumas semanas caso o cálculo
+    // tenha ficado com folga por alguma diferença de limite de semana
+    // entre o nosso cálculo e o do Simples Dental (não há como voltar,
+    // então a margem só pode ser para frente).
+    for (let margem = 0; margem < 2 && !confirmou; margem++) {
       await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
       await page.waitForLoadState('networkidle').catch(() => {});
       await page.waitForTimeout(1000);
