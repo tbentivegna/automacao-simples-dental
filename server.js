@@ -640,14 +640,19 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // diálogo fechar e então procuramos, na própria agenda, um compromisso
     // batendo com o horário pedido (e o nome do paciente, se disponível).
     await dialogo.waitFor({ state: 'detached', timeout: 20000 }).catch(() => {});
+
+    // Recarrega a página para garantir que a grade reflete o estado mais
+    // recente do servidor -- evita falso negativo por causa de uma
+    // atualização que ainda não tinha chegado no DOM renderizado.
+    await page.reload();
     await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(10000);
+    await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
+    await dispensarBannerCookies(page);
 
     const nomeParaBuscar = (nomePaciente || '').toLowerCase();
 
-    let confirmou = false;
-    for (let tentativa = 0; tentativa < 4 && !confirmou; tentativa++) {
-      confirmou = await page.evaluate(
+    const checarNaTelaAtual = () =>
+      page.evaluate(
         ({ inicioEsperado, nomeParaBuscar }) => {
           const eventos = Array.from(document.querySelectorAll('a.fc-event'));
           return eventos.some((el) => {
@@ -661,13 +666,25 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
         { inicioEsperado, nomeParaBuscar }
       );
 
-      if (!confirmou && tentativa < 3) {
-        // O horário pedido pode estar numa semana que não é a que está
-        // visível agora -- avança e tenta de novo antes de desistir.
-        await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
-        await page.waitForLoadState('networkidle').catch(() => {});
-        await page.waitForTimeout(1000);
-      }
+    let confirmou = false;
+
+    // Primeiro insiste algumas vezes NA MESMA semana -- o evento recém
+    // criado pode simplesmente ainda não ter terminado de renderizar.
+    // IMPORTANTE: não avançar de semana antes de esgotar essas tentativas,
+    // senão corremos o risco de "fugir" da semana certa por causa de uma
+    // renderização um pouco lenta e nunca mais encontrar o compromisso
+    // (não existe navegação para trás neste fluxo).
+    for (let tentativa = 0; tentativa < 3 && !confirmou; tentativa++) {
+      confirmou = await checarNaTelaAtual();
+      if (!confirmou) await page.waitForTimeout(1500);
+    }
+
+    // Só então considera que o horário pode estar em outra semana.
+    for (let semana = 0; semana < 3 && !confirmou; semana++) {
+      await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForTimeout(1000);
+      confirmou = await checarNaTelaAtual();
     }
 
     const nomePrint = `agendamento-${Date.now()}.png`;
