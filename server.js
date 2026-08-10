@@ -422,79 +422,6 @@ function telefoneLocal(texto) {
   return digitos.length > 11 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
 }
 
-// Checagem PRÓPRIA de conflito, direto na grade da agenda -- não depende
-// do banner nativo do Simples Dental (que nem sempre aparece de forma
-// confiável, como confirmamos num teste real). Procura, entre os
-// compromissos já carregados na tela, algum que se sobreponha ao horário
-// pedido. Se a semana visível não parecer ser a certa (nenhum evento
-// "por perto" da data pedida), tenta avançar algumas vezes antes de
-// desistir -- mas nunca trava insistindo demais.
-async function existeConflitoReal(page, inicioEsperado, fimEsperado, excluirId = null) {
-  const UMA_SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
-
-  for (let tentativa = 0; tentativa < 4; tentativa++) {
-    const { conflito, algumEventoPorPerto } = await page.evaluate(
-      ({ inicioEsperado, fimEsperado, UMA_SEMANA_MS, excluirId }) => {
-        const eventos = Array.from(document.querySelectorAll('a.fc-event'));
-
-        let conflito = false;
-        let algumEventoPorPerto = false;
-
-        for (const el of eventos) {
-          const id = el.getAttribute('data-consulta-id');
-          const inicio = Number(el.getAttribute('data-start')) || 0;
-          const fim = Number(el.getAttribute('data-end')) || 0;
-
-          // IMPORTANTE:
-          // ignora o próprio compromisso que está sendo remarcado
-          if (excluirId && String(id) === String(excluirId)) {
-            continue;
-          }
-
-          if (Math.abs(inicio - inicioEsperado) < UMA_SEMANA_MS) {
-            algumEventoPorPerto = true;
-          }
-
-          if (
-            fim > inicio &&
-            inicio < fimEsperado &&
-            fim > inicioEsperado
-          ) {
-            conflito = true;
-          }
-        }
-
-        return {
-          conflito,
-          algumEventoPorPerto,
-        };
-      },
-      {
-        inicioEsperado,
-        fimEsperado,
-        UMA_SEMANA_MS,
-        excluirId: excluirId ? String(excluirId) : null,
-      }
-    );
-
-    if (conflito) return true;
-
-    if (algumEventoPorPerto) {
-      return false;
-    }
-
-    // A semana visível pode não ser a semana do horário desejado
-    await page
-      .click('[data-testid="btnProximoPeriodo"]')
-      .catch(() => {});
-
-    await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(500);
-  }
-
-  return false;
-}
-
 async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao }) {
   if (!telefone || !data || !hora) {
     throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
@@ -503,8 +430,23 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
   const { context, page } = await abrirPaginaLogada();
   const duracao = Number(duracaoMinutos || DURACAO_CONSULTA_MINUTOS);
   const nomeProfissional = process.env.SIMPLES_DENTAL_PROFISSIONAL || 'Aline Ramos Bentivegna';
+  const hojeISO = formatadorDiaISO.format(new Date());
+  const semanasAteData = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
 
   try {
+    // 0. Coleta os compromissos reais ANTES de abrir qualquer diálogo.
+    // IMPORTANTE: a checagem de conflito NÃO PODE navegar a agenda
+    // clicando em "próximo período" depois que o diálogo de novo evento
+    // estiver aberto -- o backdrop do diálogo modal bloqueia cliques nos
+    // elementos por trás dele (fora do diálogo), então esses cliques
+    // falham silenciosamente (a chamada tem .catch(() => {})) e a
+    // checagem nunca alcança a semana certa, podendo concluir
+    // erradamente que não há conflito -- isso já causou um agendamento
+    // duplicado num teste real. Coletando aqui, com a página ainda
+    // "limpa" (sem diálogo por cima), evitamos esse problema por completo.
+    const semanasParaConflito = Math.max(4, semanasAteData + 2);
+    const compromissosExistentes = await coletarCompromissosVariasSemanas(page, semanasParaConflito);
+
     // 1. Abre o formulário de novo evento
     await page.click('[data-testid="btnNovoEvento"]');
 
@@ -646,8 +588,10 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // 8. Rede de segurança DUPLA contra conflito de horário:
     //   a) o banner amarelo nativo do Simples Dental (mas ele nem sempre
     //      aparece de forma confiável -- já vimos isso falhar num teste real)
-    //   b) uma checagem própria, direto nos compromissos já carregados na
-    //      grade da agenda -- essa é a proteção principal agora.
+    //   b) checagem própria contra os compromissos reais coletados no
+    //      passo 0, ANTES de este diálogo abrir -- essa é a proteção
+    //      principal agora (ver comentário no passo 0 sobre por que não
+    //      dá pra checar direto no DOM aqui, com o diálogo já aberto).
     // Se qualquer uma das duas detectar conflito, abortamos antes de
     // clicar em Marcar, para não arriscar duplicar o compromisso.
     await page.waitForLoadState('networkidle').catch(() => {});
@@ -660,7 +604,9 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
 
     const inicioEsperado = new Date(`${paraDataISO(data)}T${hora}:00${OFFSET_BRASILIA}`).getTime();
     const fimEsperado = inicioEsperado + duracao * 60 * 1000;
-    const conflitoReal = await existeConflitoReal(page, inicioEsperado, fimEsperado);
+    const conflitoReal = compromissosExistentes.some(
+      (c) => c.fim > c.inicio && c.inicio < fimEsperado && c.fim > inicioEsperado
+    );
 
     if (bannerConflito || conflitoReal) {
       throw new Error('CONFLITO_HORARIO: já existe um compromisso nesse horário.');
@@ -692,8 +638,8 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // marcada, e avança essa quantidade exata de cliques -- em vez de
     // tentar "adivinhar" avançando aos poucos. Essa grade não tem como
     // voltar, então adivinhar errado significa nunca mais achar o evento.
-    const hojeISO = formatadorDiaISO.format(new Date());
-    const semanasParaAvancar = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
+    // (hojeISO/semanasAteData já foram calculados no início da função.)
+    const semanasParaAvancar = semanasAteData;
 
     for (let semana = 0; semana < semanasParaAvancar; semana++) {
       await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
@@ -956,7 +902,33 @@ async function remarcarAgendamento({
     duracaoMinutos || DURACAO_CONSULTA_MINUTOS
   );
 
+  const hojeISO = formatadorDiaISO.format(new Date());
+  const semanasAteData = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
+
   try {
+    // ============================================================
+    // 0. COLETA OS COMPROMISSOS REAIS (para checagem de conflito)
+    // ============================================================
+    //
+    // IMPORTANTE: assim como em criarAgendamento, a checagem de conflito
+    // NÃO PODE navegar a agenda clicando em "próximo período" depois que
+    // o diálogo de edição estiver aberto -- o backdrop do diálogo modal
+    // bloqueia cliques nos elementos por trás dele, e esses cliques
+    // falhariam silenciosamente (.catch(() => {})), fazendo a checagem
+    // nunca alcançar a semana certa e concluir erradamente que não há
+    // conflito. Coletamos aqui, com a página ainda "limpa".
+    const semanasParaConflito = Math.max(4, semanasAteData + 2);
+    const compromissosExistentes = await coletarCompromissosVariasSemanas(page, semanasParaConflito);
+
+    // Volta para a URL base -- a coleta acima avança a visão da agenda
+    // várias semanas, e localizarEventoPorId (a seguir) espera partir de
+    // um ponto de referência conhecido (a semana de hoje).
+    await page.goto(process.env.SIMPLES_DENTAL_URL);
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForURL('**/simples/agenda**', { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
+    await dispensarBannerCookies(page);
+
     // ============================================================
     // 1. LOCALIZA O COMPROMISSO PELO ID
     // ============================================================
@@ -1190,18 +1162,19 @@ async function remarcarAgendamento({
     /*
      * IMPORTANTE:
      *
-     * Passamos o ID do compromisso atual para
-     * existeConflitoReal().
-     *
-     * Assim, se ele ainda estiver aparecendo na agenda,
-     * não será considerado conflito consigo mesmo.
+     * A checagem usa os compromissos coletados no passo 0, ANTES do
+     * diálogo de edição abrir (ver comentário lá sobre por que não dá
+     * pra navegar a agenda com o diálogo já aberto). Excluímos o próprio
+     * ID do compromisso sendo remarcado, senão ele conflitaria consigo
+     * mesmo.
      */
 
-    const conflitoReal = await existeConflitoReal(
-      page,
-      inicioEsperado,
-      fimEsperado,
-      id
+    const conflitoReal = compromissosExistentes.some(
+      (c) =>
+        String(c.id) !== String(id) &&
+        c.fim > c.inicio &&
+        c.inicio < fimEsperado &&
+        c.fim > inicioEsperado
     );
 
     const bannerConflito = await aparece(
@@ -1275,8 +1248,8 @@ async function remarcarAgendamento({
     await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
     await dispensarBannerCookies(page);
 
-    const hojeISO = formatadorDiaISO.format(new Date());
-    const semanasParaAvancar = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
+    // (hojeISO/semanasAteData já foram calculados no início da função.)
+    const semanasParaAvancar = semanasAteData;
 
     console.log(
       `[remarcarAgendamento] navegando ${semanasParaAvancar} período(s) à frente de hoje até a semana da nova data (${data})...`
