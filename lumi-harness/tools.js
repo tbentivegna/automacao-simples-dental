@@ -1,0 +1,134 @@
+'use strict';
+
+// Espelha exatamente os 6 nós "httpRequestTool" do workflow n8n
+// (Chatbot_divisao_mensgens.json). Descrições copiadas verbatim do campo
+// "toolDescription" de cada nó. "Busca Agendamentos Paciente" não tem
+// toolDescription própria no n8n (usa só o nome do nó) -- aqui usamos o
+// texto que o system prompt principal já usa pra descrever essa tool, já
+// que é a única fonte disponível.
+
+const tools = [
+  {
+    type: 'function',
+    function: {
+      name: 'verificar_disponibilidade',
+      description:
+        'Verifica os horários disponíveis no Simples Dental. Use esta ferramenta antes de tentar realizar um agendamento. Nunca invente horários. Use o resultado desta ferramenta para informar ao paciente quais horários estão disponíveis.\nOBRIGATÓRIO para qualquer pergunta sobre disponibilidade. Execute esta ferramenta sempre que o paciente perguntar, confirmar, contestar ou pedir para verificar novamente qualquer data, dia ou horário. Nunca responda sobre disponibilidade usando memória, contexto anterior ou suposição. Sempre use o resultado mais recente desta ferramenta como fonte de verdade.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'criar_agendamento',
+      description:
+        'IMPORTANTE — TIMEOUT OU ERRO\n\nEsta ferramenta realiza uma operação real de criação de agendamento.\n\nSe a ferramenta retornar timeout, erro ou resultado inconclusivo, NÃO tente criar o mesmo agendamento novamente.\n\nUm timeout não significa necessariamente que o agendamento não foi criado no sistema.\n\nEm caso de erro ou timeout:\n1. Não informe ao paciente que o agendamento foi cancelado ou não foi criado.\n2. Não execute novamente "Criar Agendamento" imediatamente.\n3. Utilize "Buscar Agendamentos do Paciente" para verificar se o agendamento solicitado foi criado.\n4. Se o agendamento for encontrado para a mesma data e horário solicitados pelo paciente, considere a operação concluída.\n5. Se não for encontrado, encaminhe a situação para a equipe humana.\n\nNunca crie um segundo agendamento apenas porque esta ferramenta não retornou uma confirmação.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nomePaciente: {
+            type: 'string',
+            description:
+              'Nome completo do paciente. Obrigatório somente quando for necessário cadastrar um paciente novo. Se o paciente já estiver cadastrado no sistema, não é necessário inventar ou fornecer outro nome.',
+          },
+          data: {
+            type: 'string',
+            description:
+              'Data da consulta no formato DD/MM/AAAA. Use exatamente uma data de um horário que tenha sido retornado pela ferramenta Verifica Disponibilidade e explicitamente escolhido pelo usuário via mensagem. Nunca invente uma data ou horário disponível.',
+          },
+          hora: {
+            type: 'string',
+            description:
+              'Horário da consulta no formato HH:mm. Deve ser obrigatoriamente um dos horários disponíveis retornados pela ferramenta Verifica Disponibilidade e explicitamente escolhido pelo usuário via mensagem. Nunca invente ou assuma que um horário está disponível.',
+          },
+          observacao: {
+            type: 'string',
+            description:
+              'Aqui você deve colocar a queixa principal ou motivação da consulta que o paciente te informou. Sempre concatene ao final da motivação a seguinte string "(AGENDADO POR IA)".',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'buscar_agendamentos_paciente',
+      description:
+        'Localiza as consultas existentes do paciente ("qual minha próxima consulta?", "tenho consulta marcada?"). Use sempre antes de confirmar, cancelar ou remarcar um agendamento, para obter o ID exato do agendamento.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'confirmar_agendamento',
+      description:
+        'Confirma um agendamento existente do paciente.\n\nUse esta ferramenta SOMENTE quando o paciente solicitar explicitamente a confirmação de um agendamento já existente.\n\nO campo "id" deve ser obrigatoriamente o ID do agendamento retornado pela ferramenta "Busca Agendamentos do Paciente".\n\nNUNCA invente, estime ou utilize o telefone, nome, data ou horário como ID.\n\nAntes de utilizar esta ferramenta, consulte "Buscar Agendamentos do Paciente" para localizar o agendamento correto e obter seu ID.\n\nSe houver mais de um agendamento e não for possível identificar com segurança qual o paciente deseja confirmar, pergunte qual agendamento ele deseja confirmar antes de executar esta ferramenta.\n\nApós executar a ferramenta, aguarde o resultado. Somente informe ao paciente que o agendamento foi confirmado se a ferramenta retornar sucesso.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description:
+              'ID único do agendamento, exatamente como retornado por "Busca Agendamentos do Paciente".',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cancelar_agendamento',
+      description:
+        'Cancela um agendamento existente do paciente.\n\nUse esta ferramenta SOMENTE quando o paciente solicitar explicitamente o cancelamento de um agendamento já existente.\n\nO campo "id" deve ser obrigatoriamente o ID do agendamento retornado pela ferramenta "Busca Agendamentos do Paciente".\n\nNUNCA invente, estime ou utilize o telefone, nome, data ou horário como ID.\n\nAntes de utilizar esta ferramenta, consulte "Buscar Agendamentos do Paciente" para localizar o agendamento correto e obter seu ID.\n\nSe houver mais de um agendamento e não for possível identificar com segurança qual o paciente deseja cancelar, pergunte qual agendamento ele deseja cancelar antes de executar esta ferramenta.\n\nApós executar a ferramenta, aguarde o resultado. Somente informe ao paciente que o agendamento foi cancelado se a ferramenta retornar sucesso.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description:
+              'ID único do agendamento, exatamente como retornado por "Busca Agendamentos do Paciente".',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remarcar_agendamento',
+      description:
+        'Remarca (altera data e/ou horário) um agendamento existente do paciente.\n\nUse esta ferramenta SOMENTE quando o paciente solicitar explicitamente mudar a data ou horário de uma consulta já existente.\n\nO campo "id" deve ser obrigatoriamente o ID do agendamento retornado pela ferramenta "Busca Agendamentos do Paciente". NUNCA invente, estime ou utilize o telefone, nome, data ou horário como ID.\n\nAntes de utilizar esta ferramenta:\n1. Utilize "Busca Agendamentos do Paciente" para localizar o agendamento correto e obter seu ID.\n2. Utilize "Verifica Disponibilidade" para encontrar um novo horário livre.\n3. Confirme com o paciente qual novo horário ele deseja.\n\nApós executar a ferramenta, aguarde o resultado. Somente informe ao paciente que a consulta foi remarcada se a ferramenta retornar sucesso.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description:
+              'ID único do agendamento, exatamente como retornado por "Busca Agendamentos do Paciente".',
+          },
+          data: {
+            type: 'string',
+            description:
+              'Nova data da consulta no formato DD/MM/AAAA. Deve ser um horário retornado por "Verifica Disponibilidade" e explicitamente escolhido pelo paciente. Nunca invente.',
+          },
+          hora: {
+            type: 'string',
+            description:
+              'Novo horário no formato HH:mm. Deve ser um horário retornado por "Verifica Disponibilidade" e explicitamente escolhido pelo paciente. Nunca invente.',
+          },
+        },
+      },
+    },
+  },
+];
+
+module.exports = { tools };

@@ -180,35 +180,63 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
       timeZone: FUSO,
     });
 
+    // Só entra no resultado o que está livre -- horário ocupado não serve
+    // pra nada no fluxo de agendamento em si, e é só mais uma coisa que o
+    // agente de IA (Lumi) precisaria filtrar/ignorar corretamente ao ler a
+    // resposta (na prática, ela às vezes deixava de considerar um horário
+    // livre que vinha no meio de uma lista longa com ocupados misturados).
+    const horariosLivres = horariosDoDia.filter((horario) => {
+      const inicio = new Date(
+        `${diaISO}T${horario}:00${OFFSET_BRASILIA}`
+      ).getTime();
+
+      const fim = inicio + DURACAO_CONSULTA_MINUTOS * 60 * 1000;
+
+      const conflito = compromissos.find(
+        (c) => c.inicio < fim && c.fim > inicio
+      );
+
+      return !conflito;
+    });
+
+    if (horariosLivres.length === 0) continue;
+
+    // IMPORTANTE: não incluir aqui nenhum dado de identificação do
+    // paciente que ocupa o horário (nome, telefone, etc.) -- esta
+    // resposta alimenta o contexto de um agente de IA no WhatsApp
+    // (Lumi), e dados de terceiros não podem vazar para essa conversa.
+    // Só o necessário para calcular disponibilidade.
     resultado[diaBR] = {
       diaSemana: nomeDia,
-
-      horarios: horariosDoDia.map((horario) => {
-        const inicio = new Date(
-          `${diaISO}T${horario}:00${OFFSET_BRASILIA}`
-        ).getTime();
-
-        const fim =
-          inicio + DURACAO_CONSULTA_MINUTOS * 60 * 1000;
-
-        const conflito = compromissos.find(
-          (c) => c.inicio < fim && c.fim > inicio
-        );
-
-        // IMPORTANTE: não incluir aqui nenhum dado de identificação do
-        // paciente que ocupa o horário (nome, telefone, etc.) -- esta
-        // resposta alimenta o contexto de um agente de IA no WhatsApp
-        // (Lumi), e dados de terceiros não podem vazar para essa conversa.
-        // Só o necessário para calcular disponibilidade: horário e booleano.
-        return {
-          horario,
-          disponivel: !conflito,
-        };
-      }),
+      horariosDisponiveis: horariosLivres,
     };
   }
 
   return resultado;
+}
+
+// Agrupa o resultado de calcularSlotsSemana por dia da semana + período
+// (manhã/tarde), já filtrado e ordenado da data mais próxima pra mais
+// distante. Existe pra dar ao agente de IA uma resposta pronta pra
+// perguntas do tipo "tem quarta de manhã?", sem precisar escanear
+// manualmente um objeto grande com várias semanas de datas (o que, na
+// prática, o modelo às vezes fazia de forma incompleta e pulava datas).
+function agruparPorDiaSemana(horariosPorData) {
+  const resumo = {};
+
+  for (const [diaBR, info] of Object.entries(horariosPorData)) {
+    if (!resumo[info.diaSemana]) {
+      resumo[info.diaSemana] = { manha: [], tarde: [] };
+    }
+
+    const manha = info.horariosDisponiveis.filter((h) => h < '12:00');
+    const tarde = info.horariosDisponiveis.filter((h) => h >= '12:00');
+
+    if (manha.length) resumo[info.diaSemana].manha.push({ data: diaBR, horarios: manha });
+    if (tarde.length) resumo[info.diaSemana].tarde.push({ data: diaBR, horarios: tarde });
+  }
+
+  return resumo;
 }
 
 // Abre uma aba já logada no Simples Dental, reaproveitando a sessão salva
@@ -378,6 +406,7 @@ async function verificarDisponibilidade() {
     // nem o caminho do print. Só o necessário para calcular disponibilidade.
     return {
       horarios,
+      resumoPorDiaSemana: agruparPorDiaSemana(horarios),
       diasBloqueados: Array.from(diasBloqueados),
       semanasVerificadas: semanas,
     };

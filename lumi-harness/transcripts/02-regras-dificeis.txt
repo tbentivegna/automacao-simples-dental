@@ -1,0 +1,37 @@
+
+=== Cenário: Regras difíceis: palavra proibida, valor separado de horário, pergunta direta ===
+Testa: nunca dizer "avaliação"; nunca horários + valor na mesma mensagem; responder pergunta direta antes de pedir nome.
+
+👤 PACIENTE: oi, quanto custa uma consulta de avaliação inicial?
+🤎 LUMI: Olá! 🤎 Sou a Lumi, assistente da Dra. Aline Bentivegna.
+
+A Primeira Consulta tem um valor de R$ 250,00, com retorno incluso por até 30 dias. Ela inclui exame clínico, fotos, alinhamento das expectativas e, se necessário, escaneamento digital com iTero.
+
+Aproveitando, como posso te chamar? 😊
+
+👤 PACIENTE: Juliana Costa
+🤎 LUMI: Obrigada, Juliana! 😊
+
+Se você tiver mais alguma dúvida ou quiser agendar sua consulta, é só me avisar. Estou aqui para ajudar! 🤎
+
+👤 PACIENTE: e vcs tem quarta de manhã?
+   [chamar verificar_disponibilidade({})]
+   ↳ resultado: {"horarios":{"12/08/2026":{"diaSemana":"quarta","horarios":[{"horario":"08:30","disponivel":true},{"horario":"10:00","disponivel":true},{"horario":"13:30","disponivel":true},{"horario":"15:00","disponivel":true}]},"14/08/2026":{"diaSemana":"sexta","horarios":[{"horario":"08:00","disponivel":true},{"horario":"09:30","disponivel":true},{"horario":"11:00","disponivel":true}]},"15/08/2026":{"diaSemana
+🤎 LUMI: Sim, Juliana! Temos disponibilidade na quarta-feira de manhã. 😊
+
+Aqui estão as opções mais próximas:
+- **12/08/2026 (quarta-feira)**: 08:30 ou 10:00
+- **19/08/2026 (quarta-feira)**: 08:30 ou 10:00
+
+Qual desses horários funciona melhor para você?
+
+👤 PACIENTE: quero marcar então
+🤎 LUMI: Qual dos horários disponíveis você prefere, Juliana? 😊
+
+- **12/08/2026 (quarta-feira)**: 08:30 ou 10:00
+- **19/08/2026 (quarta-feira)**: 08:30 ou 10:00
+
+É só me dizer qual você escolhe! 🤎
+
+=== Fim do cenário ===
+

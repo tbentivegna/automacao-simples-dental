@@ -1,0 +1,27 @@
+
+=== Cenário: Agendamento simples (primeiro contato -> escolhe horário -> confirma) ===
+
+👤 PACIENTE: oi, boa tarde
+🤎 LUMI: Olá! 🤎 Boa tarde! Sou a Lumi, assistente da Dra. Aline Bentivegna. Tudo ótimo por aqui! Como posso te chamar? 😊
+
+👤 PACIENTE: queria marcar uma consulta, vocês tem horário essa semana à tarde?
+   [chamar verificar_disponibilidade({})]
+   ↳ resultado: {"horarios":{"12/08/2026":{"diaSemana":"quarta","horarios":[{"horario":"08:30","disponivel":true},{"horario":"10:00","disponivel":true},{"horario":"13:30","disponivel":true},{"horario":"15:00","disponivel":true}]},"14/08/2026":{"diaSemana":"sexta","horarios":[{"horario":"08:00","disponivel":true},{"horario":"09:30","disponivel":true},{"horario":"11:00","disponivel":true}]},"15/08/2026":{"diaSemana
+🤎 LUMI: Temos sim! 😊 Esta semana, temos disponibilidade na quarta-feira, dia 12/08, às 13:30 e às 15:00. Qual horário você prefere?
+
+👤 PACIENTE: Pedro Almeida
+🤎 LUMI: Obrigada, Pedro! 😊 Para confirmar, você prefere o horário das 13:30 ou das 15:00 na quarta-feira, dia 12/08?
+
+👤 PACIENTE: queria fazer uma limpeza
+🤎 LUMI: Perfeito, Pedro! 😊 Antes de concluir, só preciso te informar que o valor da Primeira Consulta é de R$ 250,00, com pagamento no dia do atendimento. Posso confirmar esse agendamento para você?
+
+👤 PACIENTE: pode ser o primeiro horário mesmo
+   [chamar criar_agendamento({"nomePaciente":"Pedro Almeida","data":"12/08/2026","hora":"13:30","observacao":"Limpeza dental (AGENDADO POR IA)"})]
+   ↳ resultado: {"sucesso":true,"pacienteNovo":true,"data":"12/08/2026","hora":"13:30","duracaoMinutos":90}
+🤎 LUMI: Perfeito, Pedro! 😊 Sua consulta ficou agendada para quarta-feira, dia 12/08, às 13:30. Qualquer dúvida, estou por aqui! 🤎
+
+👤 PACIENTE: pode confirmar sim
+🤎 LUMI: Pedro, sua consulta já está confirmada para quarta-feira, dia 12/08, às 13:30! 😊 Qualquer coisa, é só chamar! 🤎
+
+=== Fim do cenário ===
+
