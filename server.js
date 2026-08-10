@@ -703,28 +703,33 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
 
     const nomeParaBuscar = (nomePaciente || '').toLowerCase();
 
-    const checarNaTelaAtual = () =>
-      page.evaluate(
-        ({ inicioEsperado, nomeParaBuscar }) => {
-          const eventos = Array.from(document.querySelectorAll('a.fc-event'));
-          return eventos.some((el) => {
-            const inicio = Number(el.getAttribute('data-start')) || 0;
-            const paciente = (el.querySelector('.fc-event-title')?.textContent || '').toLowerCase();
-            const bateHorario = Math.abs(inicio - inicioEsperado) < 60000; // tolerância de 1 min
-            const batePaciente = !nomeParaBuscar || paciente.includes(nomeParaBuscar);
-            return bateHorario && batePaciente;
-          });
-        },
-        { inicioEsperado, nomeParaBuscar }
-      );
+    // Predicado serializado para dentro do browser -- roda em polling
+    // via page.waitForFunction, então é uma espera ATIVA (verifica o DOM
+    // repetidamente) em vez de um sleep fixo que pode ser curto demais.
+    const eventoBateCondicao = ({ inicioEsperado, nomeParaBuscar }) => {
+      const eventos = Array.from(document.querySelectorAll('a.fc-event'));
+      return eventos.some((el) => {
+        const inicio = Number(el.getAttribute('data-start')) || 0;
+        const paciente = (el.querySelector('.fc-event-title')?.textContent || '').toLowerCase();
+        const bateHorario = Math.abs(inicio - inicioEsperado) < 60000; // tolerância de 1 min
+        const batePaciente = !nomeParaBuscar || paciente.includes(nomeParaBuscar);
+        return bateHorario && batePaciente;
+      });
+    };
 
     let confirmou = false;
 
-    // Insiste algumas vezes na semana calculada -- o evento recém criado
-    // pode ainda não ter terminado de renderizar.
-    for (let tentativa = 0; tentativa < 4 && !confirmou; tentativa++) {
-      confirmou = await checarNaTelaAtual();
-      if (!confirmou) await page.waitForTimeout(1500);
+    console.log(
+      `[criarAgendamento] tentativa 1: aguardando compromisso aparecer na semana calculada ` +
+      `(${semanasParaAvancar} período(s) à frente de hoje, até 12s)...`
+    );
+    confirmou = await page
+      .waitForFunction(eventoBateCondicao, { inicioEsperado, nomeParaBuscar }, { timeout: 12000, polling: 500 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (confirmou) {
+      console.log('[criarAgendamento] tentativa 1: compromisso encontrado.');
     }
 
     // Margem de segurança: avança mais algumas semanas caso o cálculo
@@ -732,10 +737,23 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // entre o nosso cálculo e o do Simples Dental (não há como voltar,
     // então a margem só pode ser para frente).
     for (let margem = 0; margem < 2 && !confirmou; margem++) {
+      console.log(
+        `[criarAgendamento] tentativa ${margem + 2}: não encontrado ainda -- ` +
+        `avançando mais um período e tentando de novo...`
+      );
       await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
       await page.waitForLoadState('networkidle').catch(() => {});
-      await page.waitForTimeout(1000);
-      confirmou = await checarNaTelaAtual();
+      confirmou = await page
+        .waitForFunction(eventoBateCondicao, { inicioEsperado, nomeParaBuscar }, { timeout: 8000, polling: 500 })
+        .then(() => true)
+        .catch(() => false);
+      if (confirmou) {
+        console.log(`[criarAgendamento] tentativa ${margem + 2}: compromisso encontrado.`);
+      }
+    }
+
+    if (!confirmou) {
+      console.error('[criarAgendamento] compromisso NÃO encontrado após todas as tentativas.');
     }
 
     const nomePrint = `agendamento-${Date.now()}.png`;
@@ -875,13 +893,25 @@ async function mudarStatusAgendamento({ id, status }) {
     await popover.locator('mat-select[mattooltip="Status"]').click();
     await page.getByRole('option', { name: status, exact: true }).click();
     await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(800);
 
-    // Confirma que o status realmente mudou antes de considerar sucesso
-    const statusAtual = await popover
-      .locator('.mat-mdc-select-min-line')
-      .innerText()
-      .catch(() => null);
+    // Confirma que o status realmente mudou antes de considerar sucesso --
+    // espera ATIVA com retry (em vez de um sleep fixo + checagem única),
+    // já que o texto do popover pode demorar um pouco mais que isso pra
+    // atualizar depois do clique na opção.
+    let statusAtual = null;
+    for (let tentativa = 0; tentativa < 6; tentativa++) {
+      statusAtual = await popover
+        .locator('.mat-mdc-select-min-line')
+        .innerText()
+        .catch(() => null);
+
+      console.log(
+        `[mudarStatusAgendamento] tentativa ${tentativa + 1}: status na tela = "${statusAtual}" (esperado "${status}")`
+      );
+
+      if (statusAtual && statusAtual.trim() === status) break;
+      await page.waitForTimeout(500);
+    }
 
     const nomePrint = `status-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
@@ -1223,7 +1253,6 @@ async function remarcarAgendamento({
       .catch(() => {});
 
     await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(1200);
 
     // ============================================================
     // 11. CONFIRMAÇÃO DO NOVO HORÁRIO
@@ -1233,50 +1262,85 @@ async function remarcarAgendamento({
      * Depois de salvar, o compromisso pode estar em outra semana.
      * Procuramos pelo ID, que é muito mais confiável do que procurar
      * pelo nome do paciente.
+     *
+     * Volta para a URL base da agenda (referência conhecida: semana de
+     * hoje) em vez de continuar de onde a busca do compromisso original
+     * (localizarEventoPorId) deixou a tela -- essa grade não tem como
+     * voltar sozinha, então se a nova data for anterior à semana em que
+     * estávamos, nunca mais acharíamos o compromisso.
      */
+    await page.goto(process.env.SIMPLES_DENTAL_URL);
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForURL('**/simples/agenda**', { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector('a.fc-event', { timeout: 15000 }).catch(() => {});
+    await dispensarBannerCookies(page);
+
+    const hojeISO = formatadorDiaISO.format(new Date());
+    const semanasParaAvancar = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
+
+    console.log(
+      `[remarcarAgendamento] navegando ${semanasParaAvancar} período(s) à frente de hoje até a semana da nova data (${data})...`
+    );
+    for (let semana = 0; semana < semanasParaAvancar; semana++) {
+      await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForTimeout(600);
+    }
+
+    // Predicado serializado para dentro do browser -- roda em polling via
+    // page.waitForFunction, uma espera ATIVA em vez de sleep fixo.
+    const eventoBateCondicao = ({ id, inicioEsperado }) => {
+      const el = document.querySelector(`a.fc-event[data-consulta-id="${id}"]`);
+      if (!el) return false;
+      const inicio = Number(el.getAttribute('data-start')) || 0;
+      return Math.abs(inicio - inicioEsperado) < 60000;
+    };
 
     let confirmou = false;
 
-    for (let tentativa = 0; tentativa < 6; tentativa++) {
-      const eventoAtual = page.locator(
-        `a.fc-event[data-consulta-id="${id}"]`
-      );
+    console.log(
+      `[remarcarAgendamento] tentativa 1: aguardando compromisso aparecer no novo horário (até 12s)...`
+    );
+    confirmou = await page
+      .waitForFunction(eventoBateCondicao, { id, inicioEsperado }, { timeout: 12000, polling: 500 })
+      .then(() => true)
+      .catch(() => false);
 
-      if (await aparece(eventoAtual, 1500)) {
-        const dadosDepois = await eventoAtual.evaluate((el) => ({
+    if (confirmou) {
+      console.log('[remarcarAgendamento] tentativa 1: compromisso confirmado no novo horário.');
+    }
+
+    // Margem de segurança: avança mais algumas semanas caso o cálculo
+    // tenha ficado com folga (não há como voltar, então só pra frente).
+    for (let margem = 0; margem < 2 && !confirmou; margem++) {
+      console.log(
+        `[remarcarAgendamento] tentativa ${margem + 2}: não encontrado ainda -- avançando mais um período e tentando de novo...`
+      );
+      await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
+      await page.waitForLoadState('networkidle').catch(() => {});
+      confirmou = await page
+        .waitForFunction(eventoBateCondicao, { id, inicioEsperado }, { timeout: 8000, polling: 500 })
+        .then(() => true)
+        .catch(() => false);
+      if (confirmou) {
+        console.log(`[remarcarAgendamento] tentativa ${margem + 2}: compromisso confirmado no novo horário.`);
+      }
+    }
+
+    if (!confirmou) {
+      console.error('[remarcarAgendamento] compromisso NÃO confirmado no novo horário após todas as tentativas.');
+    } else {
+      const dadosDepois = await page
+        .locator(`a.fc-event[data-consulta-id="${id}"]`)
+        .first()
+        .evaluate((el) => ({
           id: el.getAttribute('data-consulta-id'),
           inicio: Number(el.getAttribute('data-start')) || 0,
           fim: Number(el.getAttribute('data-end')) || 0,
-          paciente:
-            el.querySelector('.fc-event-title')?.textContent.trim() ||
-            null,
-        }));
-
-        console.log(
-          'Compromisso depois da remarcação:',
-          dadosDepois
-        );
-
-        const bateHorario =
-          Math.abs(dadosDepois.inicio - inicioEsperado) < 60000;
-
-        if (bateHorario) {
-          confirmou = true;
-          break;
-        }
-      }
-
-      if (tentativa < 5) {
-        await page
-          .click('[data-testid="btnProximoPeriodo"]')
-          .catch(() => {});
-
-        await page
-          .waitForLoadState('networkidle')
-          .catch(() => {});
-
-        await page.waitForTimeout(600);
-      }
+          paciente: el.querySelector('.fc-event-title')?.textContent.trim() || null,
+        }))
+        .catch(() => null);
+      console.log('[remarcarAgendamento] compromisso depois da remarcação:', dadosDepois);
     }
 
     // ============================================================
