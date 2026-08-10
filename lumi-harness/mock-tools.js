@@ -56,7 +56,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888' } = {}) {
     );
   }
 
-  function verificar_disponibilidade() {
+  function verificar_disponibilidade({ diaSemana: diaSemanaFiltro, periodo: periodoFiltro } = {}) {
     const hojeISO = formatadorDiaISO.format(new Date());
     const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
     const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
@@ -74,6 +74,12 @@ function criarEstadoFake({ telefonePaciente = '11999998888' } = {}) {
       if (diaISO <= hojeISO) continue;
 
       const nomeDia = nomeDiaSemana(diaISO);
+
+      // Filtro por dia da semana: se o paciente pediu um dia específico, o
+      // modelo já manda esse filtro na chamada -- nem entra no resultado o
+      // que não é esse dia, então não sobra nada pra "escanear" depois.
+      if (diaSemanaFiltro && nomeDia !== diaSemanaFiltro) continue;
+
       let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
 
       if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO)) horariosDoDia = [];
@@ -84,7 +90,11 @@ function criarEstadoFake({ telefonePaciente = '11999998888' } = {}) {
       // Só entra no resultado o que está livre -- horário ocupado não serve
       // pra nada no fluxo de agendamento, e só é mais uma coisa que o modelo
       // precisaria filtrar/ignorar corretamente (o que ele nem sempre faz).
-      const horariosLivres = horariosDoDia.filter((horario) => !slotOcupado(diaISO, horario));
+      let horariosLivres = horariosDoDia.filter((horario) => !slotOcupado(diaISO, horario));
+
+      if (periodoFiltro === 'manha') horariosLivres = horariosLivres.filter((h) => h < '12:00');
+      if (periodoFiltro === 'tarde') horariosLivres = horariosLivres.filter((h) => h >= '12:00');
+
       if (horariosLivres.length === 0) continue;
 
       horarios[diaBR] = {

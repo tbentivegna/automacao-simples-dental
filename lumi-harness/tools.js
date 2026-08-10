@@ -13,10 +13,23 @@ const tools = [
     function: {
       name: 'verificar_disponibilidade',
       description:
-        'Verifica os horários disponíveis no Simples Dental. Use esta ferramenta antes de tentar realizar um agendamento. Nunca invente horários. Use o resultado desta ferramenta para informar ao paciente quais horários estão disponíveis.\nOBRIGATÓRIO para qualquer pergunta sobre disponibilidade. Execute esta ferramenta sempre que o paciente perguntar, confirmar, contestar ou pedir para verificar novamente qualquer data, dia ou horário. Nunca responda sobre disponibilidade usando memória, contexto anterior ou suposição. Sempre use o resultado mais recente desta ferramenta como fonte de verdade.',
+        'Verifica os horários disponíveis no Simples Dental. Use esta ferramenta antes de tentar realizar um agendamento. Nunca invente horários. Use o resultado desta ferramenta para informar ao paciente quais horários estão disponíveis.\nOBRIGATÓRIO para qualquer pergunta sobre disponibilidade. Execute esta ferramenta sempre que o paciente perguntar, confirmar, contestar ou pedir para verificar novamente qualquer data, dia ou horário. Nunca responda sobre disponibilidade usando memória, contexto anterior ou suposição. Sempre use o resultado mais recente desta ferramenta como fonte de verdade.\nSe o paciente mencionar um dia da semana e/ou período específico (ex: "tem quarta de manhã?", "e sexta?", "só de tarde"), passe isso nos parâmetros diaSemana/periodo -- o resultado já vem filtrado e pronto, sem precisar procurar dentro de uma lista grande. Se o pedido for genérico (sem dia da semana definido), não passe esses parâmetros -- o resultado traz várias semanas de uma vez.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          diaSemana: {
+            type: 'string',
+            enum: ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'],
+            description:
+              'Preencha somente se o paciente mencionou um dia da semana específico nesta pergunta (ex: "quarta", "sexta"). Deixe de fora se o pedido for genérico.',
+          },
+          periodo: {
+            type: 'string',
+            enum: ['manha', 'tarde'],
+            description:
+              'Preencha somente se o paciente já indicou preferência de período (manhã ou tarde) nesta pergunta. Deixe de fora se ainda não sabe a preferência.',
+          },
+        },
       },
     },
   },

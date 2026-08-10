@@ -137,7 +137,7 @@ function ehSabadoAberto(diaISO) {
 // Para cada dia dentro do período (a partir de hoje, cobrindo N semanas),
 // pega os horários fixos do modelo e verifica, contra os compromissos
 // reais, quais estão livres.
-function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) {
+function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set(), diaSemanaFiltro = null, periodoFiltro = null) {
   const hojeISO = formatadorDiaISO.format(new Date());
   const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
   const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
@@ -162,6 +162,11 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
 
     const nomeDia = nomeDiaSemana(diaISO);
 
+    // Filtro por dia da semana: se o paciente pediu um dia específico, o
+    // agente já manda esse filtro na chamada -- nem entra no resultado o
+    // que não é esse dia, então não sobra nada pra "escanear" depois.
+    if (diaSemanaFiltro && nomeDia !== diaSemanaFiltro) continue;
+
     let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
 
     if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO)) {
@@ -185,7 +190,7 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
     // agente de IA (Lumi) precisaria filtrar/ignorar corretamente ao ler a
     // resposta (na prática, ela às vezes deixava de considerar um horário
     // livre que vinha no meio de uma lista longa com ocupados misturados).
-    const horariosLivres = horariosDoDia.filter((horario) => {
+    let horariosLivres = horariosDoDia.filter((horario) => {
       const inicio = new Date(
         `${diaISO}T${horario}:00${OFFSET_BRASILIA}`
       ).getTime();
@@ -198,6 +203,9 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set()) 
 
       return !conflito;
     });
+
+    if (periodoFiltro === 'manha') horariosLivres = horariosLivres.filter((h) => h < '12:00');
+    if (periodoFiltro === 'tarde') horariosLivres = horariosLivres.filter((h) => h >= '12:00');
 
     if (horariosLivres.length === 0) continue;
 
@@ -384,14 +392,14 @@ function formatarCompromissos(compromissos) {
   });
 }
 
-async function verificarDisponibilidade() {
+async function verificarDisponibilidade({ diaSemana, periodo } = {}) {
   const { context, page } = await abrirPaginaLogada();
   const semanas = Number(process.env.SEMANAS_A_VERIFICAR || 4);
 
   try {
     const compromissos = await coletarCompromissosVariasSemanas(page, semanas);
     const diasBloqueados = obterDiasBloqueados(compromissos);
-    const horarios = calcularSlotsSemana(compromissos, semanas, diasBloqueados);
+    const horarios = calcularSlotsSemana(compromissos, semanas, diasBloqueados, diaSemana || null, periodo || null);
 
     // O print continua sendo salvo em disco (útil para depuração local),
     // mas não é mais devolvido na resposta da API -- a rota /screenshots
@@ -1391,9 +1399,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Espera receber, no corpo da requisição (JSON, tudo opcional):
+// {
+//   "diaSemana": "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado" | "domingo",
+//   "periodo": "manha" | "tarde"
+// }
+// Se omitidos, devolve todas as semanas/períodos (comportamento antigo).
 app.post('/verificar-disponibilidade', async (req, res) => {
   try {
-    const resultado = await comFilaSegura(verificarDisponibilidade);
+    const resultado = await comFilaSegura(() => verificarDisponibilidade(req.body || {}));
     res.json(resultado);
   } catch (erro) {
     console.error('Erro ao verificar disponibilidade:', erro);
