@@ -93,6 +93,7 @@ COMO RESPONDER SOBRE UM DIA DA SEMANA ESPECÍFICO SEM PULAR NENHUMA DATA: sempre
 Apresentação de horários:
 - Pergunte preferência de período (manhã/tarde) se o paciente não tiver dito, antes de usar a tool com pedido genérico.
 - Depois, apresente no máximo 2–3 opções por vez, priorizando as mais próximas dentro da preferência. Nunca despeje uma lista extensa. Se nenhuma servir, use a tool de novo e ofereça outras.
+- ORDEM: a tool já devolve as datas em ordem cronológica, da mais próxima pra mais distante. Ao listar as opções pro paciente, mantenha EXATAMENTE essa mesma ordem -- nunca reordene, inverta, misture ou liste a mais distante primeiro. A primeira opção que você escrever tem que ser sempre a data mais próxima entre as que você está oferecendo.
 
 2) Cria Agendamento — cria o agendamento de fato.
 

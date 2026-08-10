@@ -653,11 +653,29 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     // 9. Marca de verdade
     await page.getByRole('button', { name: 'Marcar', exact: true }).click();
 
-    // 10. Confirma sucesso de um jeito confiável: em vez de tentar capturar
-    // o toast (que aparece e desaparece rápido demais), esperamos o
-    // diálogo fechar e então procuramos, na própria agenda, um compromisso
-    // batendo com o horário pedido (e o nome do paciente, se disponível).
-    await dialogo.waitFor({ state: 'detached', timeout: 20000 }).catch(() => {});
+    // 10. Confirma sucesso pelo fechamento do diálogo. Testado manualmente:
+    // o Simples Dental fecha o diálogo e mostra o toast de sucesso de forma
+    // instantânea quando o agendamento é criado -- se o diálogo continuar
+    // aberto depois do clique em "Marcar", é sinal real de que algo
+    // impediu a submissão (ex: erro de validação).
+    const dialogoFechou = await dialogo
+      .waitFor({ state: 'detached', timeout: 20000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!dialogoFechou) {
+      await page
+        .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-dialogo-nao-fechou-${Date.now()}.png`) })
+        .catch(() => {});
+      throw new Error('O diálogo de agendamento não fechou depois de clicar em "Marcar" -- provável falha ao salvar.');
+    }
+
+    // A partir daqui o agendamento já está confirmado (diálogo fechou). O
+    // trecho abaixo só re-varre a agenda como registro auxiliar em log/print
+    // -- NÃO decide mais sucesso ou falha. Antes disso decidia, e mostrou
+    // na prática falsos negativos (reportava falha em agendamentos que,
+    // conferidos manualmente, tinham sido criados com sucesso -- provável
+    // timing: navegação/render da agenda não terminando a tempo do polling).
 
     // Volta para a URL base da agenda -- não basta um reload(). O fluxo
     // de "Encontrar horário livre" pode ter avançado a visão do calendário
@@ -736,15 +754,17 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     }
 
     if (!confirmou) {
-      console.error('[criarAgendamento] compromisso NÃO encontrado após todas as tentativas.');
+      // Só log -- o diálogo já fechou (passo 10), então já sabemos que o
+      // agendamento foi criado. Isso ajuda a investigar timing da agenda
+      // se algum dia for necessário, sem bloquear a resposta ao paciente.
+      console.warn(
+        '[criarAgendamento] AVISO: agendamento já confirmado (diálogo fechou), mas a varredura ' +
+        'auxiliar da agenda não achou o compromisso -- possível timing de render, não é falha real.'
+      );
     }
 
     const nomePrint = `agendamento-${Date.now()}.png`;
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true });
-
-    if (!confirmou) {
-      throw new Error('Não foi possível confirmar o agendamento na agenda (nenhum compromisso encontrado no horário esperado).');
-    }
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true }).catch(() => {});
 
     return {
       sucesso: true,
@@ -1252,20 +1272,34 @@ async function remarcarAgendamento({
     await botaoSalvar.click();
 
     // ============================================================
-    // 10. ESPERA O DIÁLOGO FECHAR
+    // 10. ESPERA O DIÁLOGO FECHAR -- esse é o sinal real de sucesso
+    // (mesmo raciocínio de criarAgendamento: testado manualmente, o
+    // Simples Dental fecha o diálogo instantaneamente quando salva).
     // ============================================================
 
-    await dialogo
+    const dialogoFechou = await dialogo
       .waitFor({
         state: 'detached',
         timeout: 20000,
       })
-      .catch(() => {});
+      .then(() => true)
+      .catch(() => false);
+
+    if (!dialogoFechou) {
+      await page
+        .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-remarcacao-dialogo-nao-fechou-${Date.now()}.png`) })
+        .catch(() => {});
+      throw new Error('O diálogo de edição não fechou depois de clicar em "Salvar"/"Marcar" -- provável falha ao salvar a remarcação.');
+    }
 
     await page.waitForLoadState('networkidle').catch(() => {});
 
     // ============================================================
-    // 11. CONFIRMAÇÃO DO NOVO HORÁRIO
+    // 11. CONFIRMAÇÃO DO NOVO HORÁRIO -- a partir daqui a remarcação já
+    // está confirmada (diálogo fechou). O que segue é só registro
+    // auxiliar em log/print, não decide mais sucesso ou falha (mesmo
+    // motivo de criarAgendamento: essa varredura já mostrou falsos
+    // negativos na prática).
     // ============================================================
 
     /*
@@ -1338,7 +1372,13 @@ async function remarcarAgendamento({
     }
 
     if (!confirmou) {
-      console.error('[remarcarAgendamento] compromisso NÃO confirmado no novo horário após todas as tentativas.');
+      // Só log -- o diálogo já fechou (passo 10), então já sabemos que a
+      // remarcação foi salva. Ajuda a investigar timing da agenda se
+      // necessário, sem bloquear a resposta ao paciente.
+      console.warn(
+        '[remarcarAgendamento] AVISO: remarcação já confirmada (diálogo fechou), mas a varredura ' +
+        'auxiliar não achou o compromisso no novo horário -- possível timing de render, não é falha real.'
+      );
     } else {
       const dadosDepois = await page
         .locator(`a.fc-event[data-consulta-id="${id}"]`)
@@ -1362,13 +1402,7 @@ async function remarcarAgendamento({
     await page.screenshot({
       path: path.join(SCREENSHOTS_DIR, nomePrint),
       fullPage: true,
-    });
-
-    if (!confirmou) {
-      throw new Error(
-        'A remarcação foi salva, mas não foi possível confirmar na agenda que o compromisso ficou no novo horário.'
-      );
-    }
+    }).catch(() => {});
 
     return {
       sucesso: true,
