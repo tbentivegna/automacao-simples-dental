@@ -45,10 +45,11 @@ function paraDataISO(dataBR) {
 // Cria um novo estado isolado (uma "sessão" de teste = uma agenda fake +
 // um cadastro fake de pacientes por telefone). Cada tool recebida do
 // modelo chama um dos métodos abaixo em vez de bater no server.js real.
-function criarEstadoFake({ telefonePaciente = '11999998888' } = {}) {
+function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriacao = false } = {}) {
   const agenda = []; // { id, dataISO, hora, paciente, telefone, status }
   const pacientesPorTelefone = new Map(); // telefone -> nome
   let proximoId = 900000;
+  let falharProxima = falharProximaCriacao;
 
   function slotOcupado(dataISO, hora) {
     return agenda.some(
@@ -127,6 +128,15 @@ function criarEstadoFake({ telefonePaciente = '11999998888' } = {}) {
     if (!data || !hora) {
       throw new Error('Campos obrigatórios faltando: data e/ou hora.');
     }
+
+    // Simula uma falha real na primeira tentativa (ex: timeout do Playwright
+    // contra o Simples Dental), pra testar como a Lumi reage quando o
+    // paciente pede pra tentar de novo depois.
+    if (falharProxima) {
+      falharProxima = false;
+      throw new Error('Timeout ao tentar confirmar o agendamento no Simples Dental.');
+    }
+
     const dataISO = paraDataISO(data);
     const nome = nomePaciente || pacientesPorTelefone.get(telefonePaciente);
 

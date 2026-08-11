@@ -124,9 +124,9 @@ async function chamarMistral(messages, tentativa = 1) {
 // Roda uma sessão de conversa completa. `onEvent(evento)` é chamado a cada
 // passo (mensagem do paciente, tool call, resultado mockado, resposta da
 // Lumi) pra quem estiver rodando poder acompanhar/logar em tempo real.
-function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], historico = [] } = {}) {
+function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], historico = [], falharProximaCriacao = false } = {}) {
   const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
-  const estadoFake = criarEstadoFake({ telefonePaciente });
+  const estadoFake = criarEstadoFake({ telefonePaciente, falharProximaCriacao });
 
   for (const s of seedAgendamentos) estadoFake.seed(s);
 
@@ -224,6 +224,7 @@ async function rodarCenario(caminhoArquivo) {
     telefonePaciente: cenario.telefonePaciente,
     seedAgendamentos: cenario.seedAgendamentos || [],
     historico: cenario.historico || [],
+    falharProximaCriacao: cenario.falharProximaCriacao || false,
   });
 
   console.log(corTerminal(`\n=== Cenário: ${cenario.nome || caminhoArquivo} ===`, '1'));
