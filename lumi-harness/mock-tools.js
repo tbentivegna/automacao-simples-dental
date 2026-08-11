@@ -124,7 +124,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return { horarios, resumoPorDiaSemana, diasBloqueados: [], semanasVerificadas: SEMANAS_A_VERIFICAR };
   }
 
-  function criar_agendamento({ nomePaciente, data, hora, observacao } = {}) {
+  function criar_agendamento({ nomePaciente, data, hora, observacao, categoria } = {}) {
     if (!data || !hora) {
       throw new Error('Campos obrigatórios faltando: data e/ou hora.');
     }
@@ -155,6 +155,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       telefone: telefonePaciente,
       status: 'Agendada',
       observacao: observacao || null,
+      categoria: categoria || null,
     });
 
     if (nomePaciente) pacientesPorTelefone.set(telefonePaciente, nomePaciente);

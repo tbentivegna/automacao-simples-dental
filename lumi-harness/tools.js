@@ -62,6 +62,22 @@ const tools = [
             description:
               'Aqui você deve colocar a queixa principal ou motivação da consulta que o paciente te informou. Sempre concatene ao final da motivação a seguinte string "(AGENDADO POR IA)".',
           },
+          categoria: {
+            type: 'string',
+            enum: [
+              'primeira_consulta',
+              'ortodontia',
+              'odontopediatria',
+              'hof',
+              'clareamento',
+              'limpeza_prevencao',
+              'consulta_estetica',
+              'dor_urgencia',
+              'outro',
+            ],
+            description:
+              'Categoria que melhor representa o motivo identificado nesta conversa (a mesma lista usada na seção IDENTIFICAÇÃO DA QUEIXA do seu prompt). Use "odontopediatria" quando o motivo for ortodontia infantil/Invisalign First em criança. Use "outro" se não se encaixar em nenhuma categoria específica. Só usada para registro interno, nunca mencione essa categoria ao paciente.',
+          },
         },
       },
     },

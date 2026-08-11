@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { chromium } = require('playwright');
+const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,6 +11,36 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const AUTH_FILE = path.join(__dirname, 'auth', 'sessao.json');
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
+
+// Conexão com o mesmo Postgres que o n8n usa -- só pra registrar eventos de
+// agenda (public.eventos_agenda), usados pelo Analytics Agent. Se
+// DATABASE_URL não estiver configurada, o registro só fica desativado (log
+// de aviso), sem quebrar o resto do serviço -- essa tabela é só analytics,
+// nunca deve impedir um agendamento real de funcionar.
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+    })
+  : null;
+
+if (!pool) {
+  console.warn('[eventosAgenda] DATABASE_URL não configurada -- eventos de agenda não serão registrados (analytics ficará sem dados).');
+}
+
+// Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
+async function registrarEventoAgenda({ tipo, telefone, categoria, data, hora }) {
+  if (!pool) return;
+  try {
+    await pool.query(
+      `INSERT INTO public.eventos_agenda (tipo, telefone, categoria, data_consulta, hora_consulta)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [tipo, telefone || null, categoria || null, data ? paraDataISO(data) : null, hora || null]
+    );
+  } catch (erro) {
+    console.error('[eventosAgenda] falha ao registrar evento (não afeta a resposta ao paciente):', erro.message);
+  }
+}
 
 // Garante que as pastas existem antes de usar
 if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
@@ -459,7 +490,7 @@ function telefoneLocal(texto) {
   return digitos.length > 11 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
 }
 
-async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao }) {
+async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao, categoria }) {
   if (!telefone || !data || !hora) {
     throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
   }
@@ -766,6 +797,8 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     const nomePrint = `agendamento-${Date.now()}.png`;
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true }).catch(() => {});
 
+    await registrarEventoAgenda({ tipo: 'criado', telefone, categoria, data, hora });
+
     return {
       sucesso: true,
       pacienteNovo,
@@ -869,7 +902,7 @@ const STATUS_VALIDOS = [
 
 // Base de /confirmar-agendamento e /cancelar-agendamento: clica no
 // compromisso (abre o popover pequeno) e troca o status pelo dropdown.
-async function mudarStatusAgendamento({ id, status }) {
+async function mudarStatusAgendamento({ id, status, telefone }) {
   if (!id || !status) {
     throw new Error('Campos obrigatórios faltando: id e status são necessários.');
   }
@@ -929,6 +962,11 @@ async function mudarStatusAgendamento({ id, status }) {
       .click({ timeout: 3000 })
       .catch(() => {});
 
+    await registrarEventoAgenda({
+      tipo: status === 'Confirmada' ? 'confirmado' : 'cancelado',
+      telefone,
+    });
+
     return { sucesso: true, id, status };
   } catch (erro) {
     await page
@@ -946,6 +984,7 @@ async function remarcarAgendamento({
   hora,
   duracaoMinutos,
   observacao,
+  telefone,
 }) {
   if (!id || !data || !hora) {
     throw new Error(
@@ -1404,6 +1443,8 @@ async function remarcarAgendamento({
       fullPage: true,
     }).catch(() => {});
 
+    await registrarEventoAgenda({ tipo: 'remarcado', telefone, data, hora });
+
     return {
       sucesso: true,
       id,
@@ -1461,7 +1502,11 @@ app.post('/verificar-disponibilidade', async (req, res) => {
 //                                     resultado de /verificar-disponibilidade)
 //   "hora": "08:30",                 (obrigatório, formato HH:mm)
 //   "duracaoMinutos": 90,            (opcional)
-//   "observacao": "texto livre"      (opcional)
+//   "observacao": "texto livre",     (opcional)
+//   "categoria": "primeira_consulta" | "ortodontia" | "odontopediatria" |
+//                "hof" | "clareamento" | "limpeza_prevencao" |
+//                "consulta_estetica" | "dor_urgencia" | "outro"  (opcional,
+//                usado só para registrar o evento em eventos_agenda)
 // }
 app.post('/criar-agendamento', async (req, res) => {
   try {
@@ -1495,11 +1540,13 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
   }
 });
 
-// Espera receber: { "id": "310729432" }  (o id vem de /buscar-agendamentos-paciente)
+// Espera receber: { "id": "310729432", "telefone": "11991234567" }
+// (o id vem de /buscar-agendamentos-paciente; telefone é opcional, só usado
+// para registrar o evento em eventos_agenda)
 app.post('/confirmar-agendamento', async (req, res) => {
   try {
-    const { id } = req.body || {};
-    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status: 'Confirmada' }));
+    const { id, telefone } = req.body || {};
+    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status: 'Confirmada', telefone }));
     res.json(resultado);
   } catch (erro) {
     console.error('Erro ao confirmar agendamento:', erro);
@@ -1507,13 +1554,14 @@ app.post('/confirmar-agendamento', async (req, res) => {
   }
 });
 
-// Espera receber: { "id": "310729432", "motivo": "paciente" | "profissional" }
-// (motivo é opcional, padrão = "paciente")
+// Espera receber: { "id": "310729432", "motivo": "paciente" | "profissional", "telefone": "11991234567" }
+// (motivo e telefone são opcionais -- telefone só é usado para registrar o
+// evento em eventos_agenda; padrão de motivo = "paciente")
 app.post('/cancelar-agendamento', async (req, res) => {
   try {
-    const { id, motivo } = req.body || {};
+    const { id, motivo, telefone } = req.body || {};
     const status = motivo === 'profissional' ? 'Cancelada pelo profissional' : 'Cancelada pelo paciente';
-    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status }));
+    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status, telefone }));
     res.json(resultado);
   } catch (erro) {
     console.error('Erro ao cancelar agendamento:', erro);
@@ -1527,7 +1575,8 @@ app.post('/cancelar-agendamento', async (req, res) => {
 //   "data": "05/08/2026",
 //   "hora": "15:00",
 //   "duracaoMinutos": 90,
-//   "observacao": "Paciente solicitou alteração de horário"
+//   "observacao": "Paciente solicitou alteração de horário",
+//   "telefone": "11991234567"  (opcional, só usado para registrar o evento em eventos_agenda)
 // }
 //
 // O ID deve vir de /buscar-agendamentos-paciente.
