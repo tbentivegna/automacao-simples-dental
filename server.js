@@ -1551,12 +1551,14 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
   }
 });
 
-// Espera receber: { "id": "310729432", "telefone": "11991234567" }
-// (o id vem de /buscar-agendamentos-paciente; telefone é opcional, só usado
-// para registrar o evento em eventos_agenda)
+// Espera receber: { "idAgendamento": "310729432", "telefone": "11991234567" }
+// (idAgendamento vem de /buscar-agendamentos-paciente; telefone é opcional,
+// só usado para registrar o evento em eventos_agenda. Chamado de
+// "idAgendamento" e não "id" de propósito -- evita a IA confundir com o id
+// interno da própria chamada de ferramenta no protocolo de tool-calling.)
 app.post('/confirmar-agendamento', async (req, res) => {
   try {
-    const { id, telefone } = req.body || {};
+    const { idAgendamento: id, telefone } = req.body || {};
     const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status: 'Confirmada', telefone }));
     res.json(resultado);
   } catch (erro) {
@@ -1565,13 +1567,15 @@ app.post('/confirmar-agendamento', async (req, res) => {
   }
 });
 
-// Espera receber: { "id": "310729432", "motivo": "paciente" | "profissional", "telefone": "11991234567" }
+// Espera receber: { "idAgendamento": "310729432", "motivo": "paciente" | "profissional", "telefone": "11991234567" }
 // (motivo e telefone são opcionais -- telefone só é usado para registrar o
-// evento em eventos_agenda; padrão de motivo = "paciente")
+// evento em eventos_agenda; padrão de motivo = "paciente". Chamado de
+// "idAgendamento" e não "id" de propósito -- ver comentário em
+// /confirmar-agendamento.)
 app.post('/cancelar-agendamento', async (req, res) => {
   try {
     console.log('[cancelar-agendamento] body recebido:', JSON.stringify(req.body));
-    const { id, motivo, telefone } = req.body || {};
+    const { idAgendamento: id, motivo, telefone } = req.body || {};
     const status = motivo === 'profissional' ? 'Cancelada pelo profissional' : 'Cancelada pelo paciente';
     const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status, telefone }));
     res.json(resultado);
@@ -1583,7 +1587,7 @@ app.post('/cancelar-agendamento', async (req, res) => {
 
 // Espera receber:
 // {
-//   "id": "310729432",
+//   "idAgendamento": "310729432",
 //   "data": "05/08/2026",
 //   "hora": "15:00",
 //   "duracaoMinutos": 90,
@@ -1591,11 +1595,14 @@ app.post('/cancelar-agendamento', async (req, res) => {
 //   "telefone": "11991234567"  (opcional, só usado para registrar o evento em eventos_agenda)
 // }
 //
-// O ID deve vir de /buscar-agendamentos-paciente.
+// idAgendamento deve vir de /buscar-agendamentos-paciente. Chamado de
+// "idAgendamento" e não "id" de propósito -- ver comentário em
+// /confirmar-agendamento.
 app.post('/remarcar-agendamento', async (req, res) => {
   try {
+    const { idAgendamento, ...resto } = req.body || {};
     const resultado = await comFilaSegura(() =>
-      remarcarAgendamento(req.body || {})
+      remarcarAgendamento({ id: idAgendamento, ...resto })
     );
 
     res.json(resultado);
