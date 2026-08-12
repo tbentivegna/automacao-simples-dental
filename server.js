@@ -906,6 +906,13 @@ async function mudarStatusAgendamento({ id, status, telefone }) {
   if (!id || !status) {
     throw new Error('Campos obrigatórios faltando: id e status são necessários.');
   }
+  // IDs reais do Simples Dental são só dígitos. Se vier outra coisa (ex: a IA
+  // confundindo o id da propria chamada de ferramenta com o id do
+  // agendamento), falha aqui com uma mensagem clara em vez de tentar a
+  // automação com um id que nunca vai ser encontrado.
+  if (!/^\d+$/.test(String(id))) {
+    throw new Error(`ID de agendamento inválido: "${id}". Use exatamente o id numérico retornado por Busca Agendamentos do Paciente.`);
+  }
   if (!STATUS_VALIDOS.includes(status)) {
     throw new Error(`Status inválido: "${status}". Valores aceitos: ${STATUS_VALIDOS.join(', ')}`);
   }
@@ -990,6 +997,10 @@ async function remarcarAgendamento({
     throw new Error(
       'Campos obrigatórios faltando: id, data e hora são necessários.'
     );
+  }
+  // Mesma rede de seguranca do mudarStatusAgendamento -- ver comentario la.
+  if (!/^\d+$/.test(String(id))) {
+    throw new Error(`ID de agendamento inválido: "${id}". Use exatamente o id numérico retornado por Busca Agendamentos do Paciente.`);
   }
 
   const { context, page } = await abrirPaginaLogada();
@@ -1559,6 +1570,7 @@ app.post('/confirmar-agendamento', async (req, res) => {
 // evento em eventos_agenda; padrão de motivo = "paciente")
 app.post('/cancelar-agendamento', async (req, res) => {
   try {
+    console.log('[cancelar-agendamento] body recebido:', JSON.stringify(req.body));
     const { id, motivo, telefone } = req.body || {};
     const status = motivo === 'profissional' ? 'Cancelada pelo profissional' : 'Cancelada pelo paciente';
     const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status, telefone }));
