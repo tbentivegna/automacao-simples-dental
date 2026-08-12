@@ -30,9 +30,10 @@ Um **Switch** checando o texto da mensagem (`{{ $json.Mensagem }}`):
   - System Message: cole o conteúdo de [lumi-harness/analytics-system-prompt.txt](../lumi-harness/analytics-system-prompt.txt)
   - Modelo: pode reaproveitar o mesmo "Mistral Cloud Chat Model" já configurado (ou outro, sem relação com o modelo da Lumi)
   - **Sem memória Postgres** — cada pergunta de analytics é independente, não precisa de histórico entre sessões (ou, se quiser manter contexto de conversa, use uma `sessionKey` diferente da dos pacientes, ex: `={{ 'admin-' + $json.From }}`)
-  - Duas tools **Postgres Tool**, usando as queries de [db/analytics-queries.sql](../db/analytics-queries.sql):
-    - `relatorio_geral` — parâmetro `janela` via `$fromAI('janela', 'hoje | ultimas_24h | ultima_semana | ultimo_mes | tudo', 'string')`
+  - Três tools **Postgres Tool**, usando as queries de [db/analytics-queries.sql](../db/analytics-queries.sql):
+    - `relatorio_geral` — parâmetro `janela` via `$fromAI('janela', 'hoje | ultimas_24h | ultima_semana | ultimo_mes | tudo', 'string')`. Além dos números já existentes, agora também traz `conversao` (contatos novos → agendamentos criados na janela, com taxa %) e `agendamentos_por_recorrencia` (primeira vez vs. recorrente) — sem tools novas, é a mesma query.
     - `listar_pendencias` — parâmetro `apenasUrgentes` via `$fromAI('apenasUrgentes', '...', 'boolean')`
+    - `comparar_periodos` (novo) — parâmetro `periodo` via `$fromAI('periodo', 'semana | mes', 'string')`. Compara o período atual (7 ou 30 dias) contra o imediatamente anterior de mesmo tamanho, pra dar visão de tendência (cresceu/caiu) em vez de só um número absoluto.
   - A saída do Agent vai direto pra um node Evolution API mandando a resposta pro número master (**sem** passar pelo "Extrai JSON" -- esse agent não gera `agent_action`, é sempre texto puro).
 
 ## 3) Checagem de pausa global (só pra quem NÃO é master)
@@ -50,6 +51,8 @@ Logo após o branch FALSE de "É Master?", antes de "Humano ou IA?":
 2. Ainda pausado, mande `quantos agendamentos essa semana?` de um número master → deve responder com números, não com a mensagem de pausado (o gate de master roda ANTES da checagem de pausa).
 3. `##retomar` do mesmo número master → confirma e o atendimento normal volta.
 4. De um número comum (não master), tentar mandar `##pausar` → não deve ter efeito nenhum (a checagem `eh_master` bloqueia antes de chegar no Switch admin).
+5. `qual a taxa de conversão essa semana?` → deve chamar `relatorio_geral` e destacar o campo `conversao` (contatos → agendamentos) na resposta, incluindo o caso de vir `null` (sem contato novo na janela).
+6. `essa semana foi melhor ou pior que a anterior?` → deve chamar `comparar_periodos` com `periodo = semana` e apresentar os dois períodos com variação percentual calculada em cima dos números reais retornados.
 
 ## E se quiser, as melhorias extras sugeridas
 

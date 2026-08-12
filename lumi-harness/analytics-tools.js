@@ -10,7 +10,7 @@ const tools = [
     function: {
       name: 'relatorio_geral',
       description:
-        'Retorna um resumo com todas as métricas principais para uma janela de tempo: agendamentos criados/confirmados/cancelados/remarcados (total e por categoria), novos pacientes, mensagens trocadas com a Lumi, e um resumo de pendências (total em aberto, abertas na janela, e quantas são urgência/dor). Use esta ferramenta pra qualquer pergunta sobre números/estatísticas -- ela já traz tudo de uma vez, não precisa chamar de novo pra cada métrica separada.',
+        'Retorna um resumo com todas as métricas principais para uma janela de tempo: agendamentos criados/confirmados/cancelados/remarcados (total e por categoria), novos pacientes, mensagens trocadas com a Lumi, um resumo de pendências (total em aberto, abertas na janela, e quantas são urgência/dor), a taxa de conversão de contato novo em agendamento criado nessa janela, e quantos dos agendamentos criados são de paciente na primeira vez vs. recorrente. Use esta ferramenta pra qualquer pergunta sobre números/estatísticas de um único período -- ela já traz tudo de uma vez, não precisa chamar de novo pra cada métrica separada. Pra comparar dois períodos (crescimento/queda), use comparar_periodos em vez desta.',
       parameters: {
         type: 'object',
         properties: {
@@ -39,6 +39,26 @@ const tools = [
             description: 'true para listar só as pendências de urgência/dor. Deixe de fora ou false para listar todas.',
           },
         },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'comparar_periodos',
+      description:
+        'Compara o período atual contra o período imediatamente anterior de mesmo tamanho (últimos 7 dias vs. os 7 anteriores, ou últimos 30 dias vs. os 30 anteriores) -- agendamentos criados/confirmados/cancelados/remarcados e novos contatos nos dois períodos, lado a lado. Use quando perguntarem se algo cresceu, caiu, "tá melhor ou pior", ou pedirem uma visão de tendência. Não use pra um número isolado de um único período -- aí é relatorio_geral. Retorna os números brutos dos dois períodos; a variação percentual deve ser calculada por quem apresenta a resposta em cima desses números reais.',
+      parameters: {
+        type: 'object',
+        properties: {
+          periodo: {
+            type: 'string',
+            enum: ['semana', 'mes'],
+            description:
+              'Tamanho do período a comparar. "semana" = últimos 7 dias vs. 7 dias anteriores. "mes" = últimos 30 dias vs. 30 dias anteriores. Se não ficar claro qual dos dois, pergunte antes de assumir.',
+          },
+        },
+        required: ['periodo'],
       },
     },
   },
