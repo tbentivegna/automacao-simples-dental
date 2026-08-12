@@ -194,4 +194,4 @@ SELECT
 FROM public.agent_actions
 WHERE resolved_at IS NULL
   AND ($1 = false OR detail LIKE 'URGÊNCIA%')
-ORDER BY created_at ASC;
+ORDER BY created_at DESC;
