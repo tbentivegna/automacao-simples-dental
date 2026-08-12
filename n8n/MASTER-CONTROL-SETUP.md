@@ -30,10 +30,10 @@ Um **Switch** checando o texto da mensagem (`{{ $json.Mensagem }}`):
   - System Message: cole o conteúdo de [lumi-harness/analytics-system-prompt.txt](../lumi-harness/analytics-system-prompt.txt)
   - Modelo: pode reaproveitar o mesmo "Mistral Cloud Chat Model" já configurado (ou outro, sem relação com o modelo da Lumi)
   - **Sem memória Postgres** — cada pergunta de analytics é independente, não precisa de histórico entre sessões (ou, se quiser manter contexto de conversa, use uma `sessionKey` diferente da dos pacientes, ex: `={{ 'admin-' + $json.From }}`)
-  - Três tools **Postgres Tool**, usando as queries de [db/analytics-queries.sql](../db/analytics-queries.sql):
-    - `relatorio_geral` — parâmetro `janela` via `$fromAI('janela', 'hoje | ultimas_24h | ultima_semana | ultimo_mes | tudo', 'string')`. Além dos números já existentes, agora também traz `conversao` (contatos novos → agendamentos criados na janela, com taxa %) e `agendamentos_por_recorrencia` (primeira vez vs. recorrente) — sem tools novas, é a mesma query.
-    - `listar_pendencias` — parâmetro `apenasUrgentes` via `$fromAI('apenasUrgentes', '...', 'boolean')`
-    - `comparar_periodos` (novo) — parâmetro `periodo` via `$fromAI('periodo', 'semana | mes', 'string')`. Compara o período atual (7 ou 30 dias) contra o imediatamente anterior de mesmo tamanho, pra dar visão de tendência (cresceu/caiu) em vez de só um número absoluto.
+  - Três tools **Postgres Tool**, usando as queries de [db/analytics-queries.sql](../db/analytics-queries.sql), **parametrizadas com `$1`** (não `$fromAI()` embutido no texto da query — isso quebra silenciosamente com "You must specify a key when using $fromAI()"). O jeito certo: deixe `$1` na query, abra **Options → Query Parameters**, e ali sim clique no ícone de IA do campo pra ligar ao `$fromAI`, com a descrição do parâmetro:
+    - `relatorio_geral` — `$1` = janela, descrição `hoje | ultimas_24h | ultima_semana | ultimo_mes | tudo`. Além dos números já existentes, agora também traz `conversao` (contatos novos → agendamentos criados na janela, com taxa %) e `agendamentos_por_recorrencia` (primeira vez vs. recorrente) — sem tools novas, é a mesma query.
+    - `listar_pendencias` — `$1` = apenasUrgentes (comparado como `$1 = false` na query), descrição `true para listar só as pendências de urgência/dor, false para listar todas`.
+    - `comparar_periodos` (novo) — `$1` = periodo, descrição `semana | mes`. Compara o período atual (7 ou 30 dias) contra o imediatamente anterior de mesmo tamanho, pra dar visão de tendência (cresceu/caiu) em vez de só um número absoluto.
   - A saída do Agent vai direto pra um node Evolution API mandando a resposta pro número master (**sem** passar pelo "Extrai JSON" -- esse agent não gera `agent_action`, é sempre texto puro).
 
 ## 3) Checagem de pausa global (só pra quem NÃO é master)
