@@ -328,11 +328,34 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2660,
+        2880,
         60
       ],
       "id": "lembretes-015",
       "name": "Registra Lembrete Enviado",
+      "credentials": {
+        "postgres": {
+          "id": "IM7As7mjQcGJIzzy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.n8n_chat_histories (session_id, message)\nVALUES ('{{ $('Monta Mensagem do Lembrete').item.json.telefoneJid }}', $1::jsonb);",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ type: 'ai', content: $('Monta Mensagem do Lembrete').item.json.mensagem, tool_calls: [], additional_kwargs: {}, response_metadata: {}, invalid_tool_calls: [] }) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2660,
+        60
+      ],
+      "id": "lembretes-016",
+      "name": "Registra Lembrete no Histórico",
       "credentials": {
         "postgres": {
           "id": "IM7As7mjQcGJIzzy",
@@ -473,7 +496,7 @@
       "main": [
         [
           {
-            "node": "Registra Lembrete Enviado",
+            "node": "Registra Lembrete no Histórico",
             "type": "main",
             "index": 0
           }
@@ -496,6 +519,17 @@
         [
           {
             "node": "Checa Pausa Global",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registra Lembrete no Histórico": {
+      "main": [
+        [
+          {
+            "node": "Registra Lembrete Enviado",
             "type": "main",
             "index": 0
           }
