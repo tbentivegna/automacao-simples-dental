@@ -195,3 +195,21 @@ FROM public.agent_actions
 WHERE resolved_at IS NULL
   AND ($1 = false OR detail LIKE 'URGÊNCIA%')
 ORDER BY created_at DESC;
+
+-- ============================================================
+-- LEMBRETES DE CONSULTA (n8n/lembretes-workflow.json)
+-- ============================================================
+-- Rode a migração 003_lembretes_consulta.sql antes de usar isto.
+-- Quantos lembretes foram enviados por período (mesmo padrão de janela
+-- usado no relatório geral acima).
+-- Parâmetro $1 = janela ('hoje' | 'ultimas_24h' | 'ultima_semana' | 'ultimo_mes' | 'tudo')
+SELECT count(*) AS lembretes_enviados
+FROM public.eventos_agenda
+WHERE tipo = 'lembrete_enviado'
+  AND criado_em >= CASE $1
+    WHEN 'hoje' THEN date_trunc('day', now())
+    WHEN 'ultimas_24h' THEN now() - interval '24 hours'
+    WHEN 'ultima_semana' THEN now() - interval '7 days'
+    WHEN 'ultimo_mes' THEN now() - interval '30 days'
+    ELSE '1970-01-01'::timestamptz
+  END;

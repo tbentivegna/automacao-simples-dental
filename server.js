@@ -42,6 +42,24 @@ async function registrarEventoAgenda({ tipo, telefone, categoria, data, hora }) 
   }
 }
 
+// Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
+// Mapeia agendamento (Simples Dental) -> telefone, pra o workflow de
+// lembretes conseguir descobrir quem avisar sem depender de casar por nome
+// -- o calendário do Simples Dental nunca expõe telefone, só nome.
+async function salvarTelefoneAgendamento({ agendamentoId, telefone }) {
+  if (!pool || !agendamentoId || !telefone) return;
+  try {
+    await pool.query(
+      `INSERT INTO public.agendamento_telefone (agendamento_id, telefone, atualizado_em)
+       VALUES ($1, $2, now())
+       ON CONFLICT (agendamento_id) DO UPDATE SET telefone = EXCLUDED.telefone, atualizado_em = now()`,
+      [String(agendamentoId), somenteDigitos(telefone)]
+    );
+  } catch (erro) {
+    console.error('[agendamentoTelefone] falha ao salvar mapeamento (não afeta a resposta ao paciente):', erro.message);
+  }
+}
+
 // Garante que as pastas existem antes de usar
 if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 if (!fs.existsSync(path.dirname(AUTH_FILE))) fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
@@ -735,30 +753,38 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
 
     const nomeParaBuscar = (nomePaciente || '').toLowerCase();
 
-    // Predicado serializado para dentro do browser -- roda em polling
-    // via page.waitForFunction, então é uma espera ATIVA (verifica o DOM
+    // Predicado serializado para dentro do browser -- roda em polling via
+    // page.waitForFunction, então é uma espera ATIVA (verifica o DOM
     // repetidamente) em vez de um sleep fixo que pode ser curto demais.
-    const eventoBateCondicao = ({ inicioEsperado, nomeParaBuscar }) => {
+    // Devolve o id do compromisso (string truthy) em vez de um boolean --
+    // waitForFunction já trata qualquer retorno truthy como "condição
+    // satisfeita", e assim aproveitamos a mesma varredura pra capturar o
+    // data-consulta-id do agendamento recém-criado (usado só pra gravar o
+    // mapeamento agendamento -> telefone, ver salvarTelefoneAgendamento).
+    const encontrarIdEvento = ({ inicioEsperado, nomeParaBuscar }) => {
       const eventos = Array.from(document.querySelectorAll('a.fc-event'));
-      return eventos.some((el) => {
+      const encontrado = eventos.find((el) => {
         const inicio = Number(el.getAttribute('data-start')) || 0;
         const paciente = (el.querySelector('.fc-event-title')?.textContent || '').toLowerCase();
         const bateHorario = Math.abs(inicio - inicioEsperado) < 60000; // tolerância de 1 min
         const batePaciente = !nomeParaBuscar || paciente.includes(nomeParaBuscar);
         return bateHorario && batePaciente;
       });
+      return encontrado ? encontrado.getAttribute('data-consulta-id') : null;
     };
 
     let confirmou = false;
+    let idCriado = null;
 
     console.log(
       `[criarAgendamento] tentativa 1: aguardando compromisso aparecer na semana calculada ` +
       `(${semanasParaAvancar} período(s) à frente de hoje, até 12s)...`
     );
-    confirmou = await page
-      .waitForFunction(eventoBateCondicao, { inicioEsperado, nomeParaBuscar }, { timeout: 12000, polling: 500 })
-      .then(() => true)
-      .catch(() => false);
+    idCriado = await page
+      .waitForFunction(encontrarIdEvento, { inicioEsperado, nomeParaBuscar }, { timeout: 12000, polling: 500 })
+      .then((handle) => handle.jsonValue())
+      .catch(() => null);
+    confirmou = !!idCriado;
 
     if (confirmou) {
       console.log('[criarAgendamento] tentativa 1: compromisso encontrado.');
@@ -775,10 +801,11 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       );
       await page.click('[data-testid="btnProximoPeriodo"]').catch(() => {});
       await page.waitForLoadState('networkidle').catch(() => {});
-      confirmou = await page
-        .waitForFunction(eventoBateCondicao, { inicioEsperado, nomeParaBuscar }, { timeout: 8000, polling: 500 })
-        .then(() => true)
-        .catch(() => false);
+      idCriado = await page
+        .waitForFunction(encontrarIdEvento, { inicioEsperado, nomeParaBuscar }, { timeout: 8000, polling: 500 })
+        .then((handle) => handle.jsonValue())
+        .catch(() => null);
+      confirmou = !!idCriado;
       if (confirmou) {
         console.log(`[criarAgendamento] tentativa ${margem + 2}: compromisso encontrado.`);
       }
@@ -788,6 +815,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
       // Só log -- o diálogo já fechou (passo 10), então já sabemos que o
       // agendamento foi criado. Isso ajuda a investigar timing da agenda
       // se algum dia for necessário, sem bloquear a resposta ao paciente.
+      // Sem id capturado, salvarTelefoneAgendamento abaixo é só um no-op.
       console.warn(
         '[criarAgendamento] AVISO: agendamento já confirmado (diálogo fechou), mas a varredura ' +
         'auxiliar da agenda não achou o compromisso -- possível timing de render, não é falha real.'
@@ -798,6 +826,7 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
     await page.screenshot({ path: path.join(SCREENSHOTS_DIR, nomePrint), fullPage: true }).catch(() => {});
 
     await registrarEventoAgenda({ tipo: 'criado', telefone, categoria, data, hora });
+    await salvarTelefoneAgendamento({ agendamentoId: idCriado, telefone });
 
     return {
       sucesso: true,
@@ -877,6 +906,72 @@ async function buscarAgendamentosPaciente({ telefone, semanas }) {
   }
 }
 
+// Lista as consultas de hoje e amanhã, resolvendo o telefone de cada uma via
+// public.agendamento_telefone (gravado por salvarTelefoneAgendamento sempre
+// que o bot cria/confirma/cancela/remarca um agendamento -- agendamentos
+// feitos manualmente, sem nenhuma interação via WhatsApp, ficam com
+// telefone null aqui). Usada só pelo workflow separado de lembretes
+// (n8n/lembretes-workflow.json), nunca pela Lumi -- por isso, ao contrário
+// de verificarDisponibilidade, PODE incluir nome do paciente na resposta.
+async function listarLembretesDoDia() {
+  const { context, page } = await abrirPaginaLogada();
+
+  try {
+    // 2 semanas dá margem suficiente pra cobrir hoje+amanhã mesmo quando a
+    // virada cai numa fronteira de semana do calendário (ex: hoje é
+    // domingo, amanhã já é segunda da semana seguinte).
+    const compromissos = await coletarCompromissosVariasSemanas(page, 2);
+
+    const hojeISO = formatadorDiaISO.format(new Date());
+    const amanhaISO = formatadorDiaISO.format(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+    const doDia = compromissos.filter((c) => {
+      if (!(c.fim > c.inicio)) return false; // descarta bloqueios de dia inteiro
+      if (STATUS_CANCELADOS.includes(c.status)) return false;
+      const diaISO = formatadorDiaISO.format(new Date(c.inicio));
+      return diaISO === hojeISO || diaISO === amanhaISO;
+    });
+
+    const lembretes = [];
+    for (const c of doDia) {
+      let telefone = null;
+      if (pool && c.id) {
+        try {
+          const resultado = await pool.query(
+            'SELECT telefone FROM public.agendamento_telefone WHERE agendamento_id = $1',
+            [String(c.id)]
+          );
+          telefone = resultado.rows[0]?.telefone || null;
+        } catch (erro) {
+          console.error('[lembretesDoDia] falha ao buscar telefone (agendamento fica sem lembrete):', erro.message);
+        }
+      }
+
+      const diaISO = formatadorDiaISO.format(new Date(c.inicio));
+      const dataHora = new Date(c.inicio);
+
+      lembretes.push({
+        agendamentoId: c.id || null,
+        paciente: c.paciente || null,
+        status: c.status || null,
+        data: dataHora.toLocaleDateString('pt-BR', { timeZone: FUSO }),
+        hora: dataHora.toLocaleTimeString('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' }),
+        quando: diaISO === hojeISO ? 'hoje' : 'amanha',
+        telefone,
+      });
+    }
+
+    return { lembretes };
+  } catch (erro) {
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-lembretes-${Date.now()}.png`) })
+      .catch(() => {});
+    throw erro;
+  } finally {
+    await context.close();
+  }
+}
+
 // Localiza um compromisso específico na tela pelo id (data-consulta-id).
 // Como o evento pode estar numa semana diferente da que está visível por
 // padrão, avança algumas vezes procurando antes de desistir.
@@ -899,6 +994,8 @@ const STATUS_VALIDOS = [
   'Cancelada pelo paciente',
   'Cancelada pelo profissional',
 ];
+
+const STATUS_CANCELADOS = STATUS_VALIDOS.filter((s) => s.startsWith('Cancelada'));
 
 // Base de /confirmar-agendamento e /cancelar-agendamento: clica no
 // compromisso (abre o popover pequeno) e troca o status pelo dropdown.
@@ -973,6 +1070,7 @@ async function mudarStatusAgendamento({ id, status, telefone }) {
       tipo: status === 'Confirmada' ? 'confirmado' : 'cancelado',
       telefone,
     });
+    await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
 
     return { sucesso: true, id, status };
   } catch (erro) {
@@ -1455,6 +1553,7 @@ async function remarcarAgendamento({
     }).catch(() => {});
 
     await registrarEventoAgenda({ tipo: 'remarcado', telefone, data, hora });
+    await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
 
     return {
       sucesso: true,
@@ -1546,6 +1645,37 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
     console.error('Erro ao buscar agendamentos do paciente:', erro);
     res.status(500).json({
       erro: 'Falha ao buscar agendamentos do paciente',
+      detalhe: erro.message,
+    });
+  }
+});
+
+// Sem parâmetros no corpo. Usado só pelo workflow separado de lembretes
+// (n8n/lembretes-workflow.json) -- NÃO é uma tool da Lumi, por isso não
+// precisa (nem deve) ser adicionada como httpRequestTool no fluxo de
+// conversa. Devolve:
+// {
+//   "lembretes": [
+//     {
+//       "agendamentoId": "310729432" | null,
+//       "paciente": "Nome do Paciente" | null,
+//       "status": "Agendada" | "Confirmada" | ...,
+//       "data": "13/08/2026",
+//       "hora": "08:30",
+//       "quando": "hoje" | "amanha",
+//       "telefone": "11991234567" | null   (null = sem mapeamento conhecido,
+//                                           agendamento feito fora do bot)
+//     }, ...
+//   ]
+// }
+app.post('/lembretes-do-dia', async (req, res) => {
+  try {
+    const resultado = await comFilaSegura(() => listarLembretesDoDia());
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao listar lembretes do dia:', erro);
+    res.status(500).json({
+      erro: 'Falha ao listar lembretes do dia',
       detalhe: erro.message,
     });
   }
