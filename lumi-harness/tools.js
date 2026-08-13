@@ -158,6 +158,30 @@ const tools = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'registrar_consentimento_lembrete',
+      // No n8n real esta é uma node postgresTool (mesmo padrão do Analytics
+      // Agent) -- esse tipo de node não tem campo de "toolDescription"
+      // próprio como as httpRequestTool acima, só o nome e a query. Por
+      // isso a descrição aqui é propositalmente mínima (pra não deixar o
+      // teste "mais fácil" do que a realidade) -- a orientação de quando
+      // usar mora no system prompt (seção FERRAMENTAS, item 7).
+      description:
+        'Executa uma query no Postgres para registrar o consentimento do paciente pra receber lembretes de consulta por WhatsApp.',
+      parameters: {
+        type: 'object',
+        properties: {
+          consentimento: {
+            type: 'string',
+            description:
+              '"sim" para resposta ou pedido afirmativo do paciente sobre receber lembrete, "nao" para negativo',
+          },
+        },
+      },
+    },
+  },
 ];
 
 module.exports = { tools };

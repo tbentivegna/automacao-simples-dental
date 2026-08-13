@@ -235,6 +235,21 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return { sucesso: true, id: item.id, data, hora, duracaoMinutos: DURACAO_CONSULTA_MINUTOS };
   }
 
+  // Rastreado num objeto (não uma variável solta) pra poder ser inspecionado
+  // de fora depois que a sessão terminar (ver _consentimentoLembrete abaixo).
+  const estadoConsentimento = { consentimento: null };
+
+  function registrar_consentimento_lembrete({ consentimento } = {}) {
+    const normalizado = String(consentimento || '').trim().toLowerCase();
+    let valor;
+    if (normalizado.startsWith('sim')) valor = true;
+    else if (normalizado.startsWith('nao') || normalizado.startsWith('não')) valor = false;
+    else throw new Error(`Valor de consentimento inválido: "${consentimento}". Use "sim" ou "nao".`);
+
+    estadoConsentimento.consentimento = valor;
+    return { sucesso: true, consentimento: valor };
+  }
+
   const handlers = {
     verificar_disponibilidade,
     criar_agendamento,
@@ -242,6 +257,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     confirmar_agendamento,
     cancelar_agendamento,
     remarcar_agendamento,
+    registrar_consentimento_lembrete,
   };
 
   // Permite pré-popular cenários (ex: paciente já tem uma consulta marcada
@@ -261,7 +277,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return id;
   }
 
-  return { handlers, seed, _agenda: agenda };
+  return { handlers, seed, _agenda: agenda, _consentimentoLembrete: estadoConsentimento };
 }
 
 module.exports = { criarEstadoFake };
