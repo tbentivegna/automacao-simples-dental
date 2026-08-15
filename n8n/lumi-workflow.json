@@ -1684,26 +1684,11 @@
     },
     {
       "parameters": {
-        "amount": "={{ Math.min(4, Math.max(1, Math.round($('Loop Blocos').item.json.messageBlock.length / 30))) }}"
-      },
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        6736,
-        1920
-      ],
-      "id": "dab8454a-e2b4-4dcc-8c94-28a1eedf1a50",
-      "name": "Espera Digitação",
-      "webhookId": "76650073-f81e-4a06-86ce-d970edd2ea71"
-    },
-    {
-      "parameters": {
         "resource": "messages-api",
         "instanceName": "={{ $('Loop Blocos').item.json.Instance }}",
         "remoteJid": "={{ $('Loop Blocos').item.json.From }}",
         "messageText": "={{ $('Loop Blocos').item.json.blockIndex === 0 ? '**[Lumi]:** ' + $('Loop Blocos').item.json.messageBlock : $('Loop Blocos').item.json.messageBlock }}",
         "options_message": {
-          "delay": 800,
           "linkPreview": true
         }
       },
@@ -3024,17 +3009,6 @@
       ]
     },
     "Presença Bloco": {
-      "main": [
-        [
-          {
-            "node": "Espera Digitação",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Espera Digitação": {
       "main": [
         [
           {
