@@ -13,7 +13,7 @@
     },
     {
       "parameters": {
-        "content": "## Aviso de espera (disparado sem travar o fluxo principal)\n\nO fluxo principal chama este sub-workflow logo depois de pegar o lock (Define Lock), com \"Wait For Sub-Workflow Completion\" DESLIGADO -- ou seja, ele dispara e segue na hora, sem somar tempo nenhum à resposta.\n\nAqui a gente FICA MONITORANDO o lock a cada 5 segundos, até 4 vezes (20 segundos no total):\n- Se em qualquer verificação o lock já tiver sido liberado (a Lumi respondeu) ou o aviso já tiver sido enviado por outra execução, o loop para na hora e nada é enviado -- resposta rápida não gera ruído nenhum pro paciente.\n- Só se o lock CONTINUAR preso depois das 4 verificações (ou seja, passou de 20s) é que o aviso sai.\n\nPara ajustar a sensibilidade, mude o \"Espera\" (hoje 5 segundos) e/ou a quantidade de itens no \"Monta Tentativas\" (hoje 4 = 20s no total).",
+        "content": "## Aviso de espera (disparado sem travar o fluxo principal)\n\nO fluxo principal chama este sub-workflow logo depois de pegar o lock (Define Lock), com \"Wait For Sub-Workflow Completion\" DESLIGADO -- ou seja, ele dispara e segue na hora, sem somar tempo nenhum à resposta.\n\nAqui a gente FICA MONITORANDO o lock a cada 5 segundos, até 4 vezes (20 segundos no total):\n- Se em qualquer verificação o lock já tiver sido liberado (a Lumi respondeu) ou o aviso já tiver sido enviado por outra execução, o loop para na hora e nada é enviado -- resposta rápida não gera ruído nenhum pro paciente.\n- Só se o lock CONTINUAR preso depois das 4 verificações (ou seja, passou de 20s) é que o aviso sai.\n\nPara ajustar a sensibilidade, mude o \"Espera\" (hoje 5 segundos) e/ou a quantidade de itens no \"Monta Tentativas\" (hoje 4 = 20s no total).\n\nO node \"So 1 Item\" existe porque a saida \"done\" do Loop Aviso carrega TODOS os itens do lote de uma vez -- sem ele, o Envia Aviso rodaria uma vez por item (mandaria a mensagem repetida).",
         "height": 480,
         "width": 420
       },
@@ -106,6 +106,16 @@
     },
     {
       "parameters": {
+        "maxItems": 1
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [660, 140],
+      "id": "aviso-espera-009",
+      "name": "So 1 Item"
+    },
+    {
+      "parameters": {
         "resource": "messages-api",
         "instanceName": "={{ $('Chamado pelo Fluxo Principal').first().json.instance }}",
         "remoteJid": "={{ $('Chamado pelo Fluxo Principal').first().json.telefone }}",
@@ -117,7 +127,7 @@
       },
       "type": "n8n-nodes-evolution-api.evolutionApi",
       "typeVersion": 1,
-      "position": [660, 140],
+      "position": [880, 140],
       "id": "aviso-espera-005",
       "name": "Envia Aviso",
       "credentials": {
@@ -135,7 +145,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [880, 140],
+      "position": [1100, 140],
       "id": "aviso-espera-006",
       "name": "Marca Aviso Enviado",
       "credentials": {
@@ -156,9 +166,12 @@
     },
     "Loop Aviso": {
       "main": [
-        [{ "node": "Envia Aviso", "type": "main", "index": 0 }],
+        [{ "node": "So 1 Item", "type": "main", "index": 0 }],
         [{ "node": "Espera", "type": "main", "index": 0 }]
       ]
+    },
+    "So 1 Item": {
+      "main": [[{ "node": "Envia Aviso", "type": "main", "index": 0 }]]
     },
     "Espera": {
       "main": [[{ "node": "Ainda Processando?", "type": "main", "index": 0 }]]
