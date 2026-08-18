@@ -1,0 +1,15 @@
+{
+  "name": "admin-panel-simples-dental",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Painel administrativo para a equipe da clinica -- le do mesmo Postgres que o n8n usa (pacientes, pendencias, atendimento humano, analytics).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.23.0"
+  }
+}

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel Administrativo — Dra. Aline Bentivegna</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="barra-lateral">
+      <div class="barra-lateral__marca">
+        <span>🤎</span>
+        <div>
+          <strong>Dra. Aline Bentivegna</strong>
+          <small>Painel administrativo</small>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav__item ativo" data-secao="visao-geral">📊 Visão Geral</button>
+        <button class="nav__item" data-secao="atendimento-humano">
+          🙋 Atendimento Humano
+          <span class="nav__badge" id="badgeSuspensos"></span>
+        </button>
+        <button class="nav__item" data-secao="pendencias">
+          🔔 Pendências
+          <span class="nav__badge" id="badgePendencias"></span>
+        </button>
+        <button class="nav__item" data-secao="pacientes">👥 Pacientes</button>
+      </nav>
+
+      <div class="status-bot" id="statusBot">
+        <div class="status-bot__linha">
+          <span class="status-bot__ponto" id="statusBotPonto"></span>
+          <span id="statusBotTexto">Verificando…</span>
+        </div>
+        <div class="texto-fraco" id="statusBotDetalhe"></div>
+        <button class="botao" id="botaoStatusBot" hidden></button>
+      </div>
+
+      <button class="botao-sair" id="botaoSair">Sair</button>
+    </aside>
+
+    <main class="conteudo">
+      <div class="banner-pausado" id="bannerPausado" hidden>
+        🔴 A Lumi está pausada globalmente — ela não está respondendo <strong>nenhum</strong> paciente agora.
+        <span id="bannerPausadoDetalhe"></span>
+        <button class="botao botao-primario" id="botaoRetomarBanner">Retomar agora</button>
+      </div>
+
+      <!-- ============ VISÃO GERAL ============ -->
+      <section class="secao ativa" id="secao-visao-geral">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Visão Geral</h2>
+            <p>Mesmos números do resumo que a Lumi já responde pelo WhatsApp.</p>
+          </div>
+          <div class="seletor-janela" id="seletorJanela">
+            <button data-janela="hoje" class="ativo">Hoje</button>
+            <button data-janela="ultimas_24h">24h</button>
+            <button data-janela="ultima_semana">7 dias</button>
+            <button data-janela="ultimo_mes">30 dias</button>
+            <button data-janela="tudo">Tudo</button>
+          </div>
+        </div>
+        <div id="conteudoAnalytics">
+          <div class="carregando">Carregando…</div>
+        </div>
+      </section>
+
+      <!-- ============ ATENDIMENTO HUMANO ============ -->
+      <section class="secao" id="secao-atendimento-humano">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Atendimento Humano</h2>
+            <p>Pacientes com a Lumi pausada — a conversa foi assumida pela equipe. Volta sozinha em 6h sem mensagem, ou digitando "##lumi" na conversa.</p>
+          </div>
+        </div>
+        <div class="painel">
+          <div id="conteudoSuspensos"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+
+      <!-- ============ PENDÊNCIAS ============ -->
+      <section class="secao" id="secao-pendencias">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Pendências</h2>
+            <p>Situações que a Lumi encaminhou para a equipe. Urgências aparecem primeiro.</p>
+          </div>
+        </div>
+        <div class="painel">
+          <div id="conteudoPendencias"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+
+      <!-- ============ PACIENTES ============ -->
+      <section class="secao" id="secao-pacientes">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Pacientes</h2>
+            <p>Cadastro de quem já conversou com a Lumi.</p>
+          </div>
+          <input type="search" class="campo-busca" id="buscaPacientes" placeholder="Buscar por nome ou telefone…" />
+        </div>
+        <div class="painel">
+          <div id="conteudoPacientes"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
