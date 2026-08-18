@@ -3548,11 +3548,6 @@
             "node": "Enviar presença",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
