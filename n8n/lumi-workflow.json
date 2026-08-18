@@ -3514,11 +3514,6 @@
             "index": 0
           },
           {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Marcar mensagens como lidas",
             "type": "main",
             "index": 0
@@ -3890,6 +3885,17 @@
         [
           {
             "node": "Dispara Aviso Espera",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispara Aviso Espera": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
             "type": "main",
             "index": 0
           }
