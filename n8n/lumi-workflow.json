@@ -1615,30 +1615,6 @@
     },
     {
       "parameters": {
-        "resource": "chat-api",
-        "operation": "send-presence",
-        "instanceName": "={{ $('Restaurar Campos').first().json.Instance }}",
-        "remoteJid": "={{ $('CREATE & SELECT cliente').first().json.telefone }}",
-        "delay": 1400
-      },
-      "type": "n8n-nodes-evolution-api.evolutionApi",
-      "typeVersion": 1,
-      "position": [
-        8816,
-        3904
-      ],
-      "id": "b950e6c6-0a2a-4750-9cc1-2d3822a37f87",
-      "name": "Enviar presença",
-      "credentials": {
-        "evolutionApi": {
-          "id": "iBL2zZpK6dtnKlWK",
-          "name": "Evolution account"
-        }
-      },
-      "disabled": true
-    },
-    {
-      "parameters": {
         "jsCode": "const items = $input.all();\nconst output = [];\nconst instance = $('Extrai JSON').first().json.Instance;\nconst from = $('Extrai JSON').first().json.From;\nconst fallbackMessage = $('Extrai JSON').first().json.message ?? \"\";\nfor (const item of items) {\n  // O historico agora contem mensagens da equipe humana marcadas com\n  // \"[Equipe da clinica]:\". O modelo tende a IMITAR esse prefixo e acaba\n  // escrevendo ele na propria resposta (confirmado em teste real contra a\n  // API). O prompt ja pede pra nao fazer isso, mas imitacao de padrao as\n  // vezes escapa -- entao removemos aqui, de forma deterministica, antes\n  // de qualquer coisa ser enviada ao paciente.\n  const raw = (item.json.message ?? fallbackMessage)\n    .replace(/^[ \\t]*\\[Equipe da cl[ií]nica\\]:[ \\t]*/gim, \"\");\n  // Divide por paragrafos (linha em branco entre blocos)\n  let blocks = raw\n    .split(/\\n\\s*\\n/)\n    .map(b => b.trim())\n    .filter(b => b.length > 0);\n  // Funde blocos curtos demais (ex: so um emoji) com o anterior, pra nao\n  // virar uma mensagem \"solta\" estranha\n  const MIN_CHARS = 6;\n  const merged = [];\n  for (const b of blocks) {\n    if (merged.length > 0 && b.length < MIN_CHARS) {\n      merged[merged.length - 1] += \"\\n\" + b;\n    } else {\n      merged.push(b);\n    }\n  }\n  blocks = merged;\n  // Limita a no maximo 3 mensagens seguidas, pra nao virar spam.\n  // Se tiver mais blocos que isso, junta o excedente no ultimo.\n  const MAX_BLOCKS = 3;\n  if (blocks.length > MAX_BLOCKS) {\n    const head = blocks.slice(0, MAX_BLOCKS - 1);\n    const tail = blocks.slice(MAX_BLOCKS - 1).join(\"\\n\");\n    blocks = [...head, tail];\n  }\n  if (blocks.length === 0) {\n    blocks = [raw];\n  }\n  blocks.forEach((block, index) => {\n    output.push({\n      json: {\n        ...item.json,\n        Instance: instance,\n        From: from,\n        messageBlock: block,\n        blockIndex: index,\n        totalBlocks: blocks.length\n      }\n    });\n  });\n}\nreturn output;"
       },
       "type": "n8n-nodes-base.code",
@@ -2858,11 +2834,20 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "COLE_AQUI_O_ID_DO_WORKFLOW_AVISO_ESPERA",
-          "mode": "id"
+          "value": "02gnpDAyI3aLDGpB",
+          "mode": "id",
+          "cachedResultUrl": "/workflow/02gnpDAyI3aLDGpB"
         },
         "options": {
           "waitForSubWorkflow": false
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -2909,11 +2894,6 @@
         [
           {
             "node": "Extrai JSON",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Marcar mensagens como lidas",
             "type": "main",
             "index": 0
           }
@@ -3462,17 +3442,6 @@
         ]
       ]
     },
-    "Enviar presença": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Divide Mensagem em Blocos": {
       "main": [
         [
@@ -3545,7 +3514,12 @@
             "index": 0
           },
           {
-            "node": "Enviar presença",
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Marcar mensagens como lidas",
             "type": "main",
             "index": 0
           }

@@ -13,24 +13,44 @@
     },
     {
       "parameters": {
-        "content": "## Aviso de espera (disparado sem travar o fluxo principal)\n\nO fluxo principal chama este sub-workflow logo depois de pegar o lock (Define Lock), com \"Wait For Sub-Workflow Completion\" DESLIGADO -- ou seja, ele dispara e segue na hora, sem somar tempo nenhum à resposta.\n\nAqui a gente espera alguns segundos e SÓ ENTÃO decide: se o lock ainda estiver preso (processando_desde preenchido), é porque a operação realmente demorou, e o aviso sai. Se a Lumi já respondeu nesse meio tempo, o lock foi liberado e nada é enviado -- por isso resposta rápida não gera ruído nenhum pro paciente.\n\nPara ajustar a sensibilidade, mude o \"Espera\" (hoje 8 segundos).",
-        "height": 400,
+        "content": "## Aviso de espera (disparado sem travar o fluxo principal)\n\nO fluxo principal chama este sub-workflow logo depois de pegar o lock (Define Lock), com \"Wait For Sub-Workflow Completion\" DESLIGADO -- ou seja, ele dispara e segue na hora, sem somar tempo nenhum à resposta.\n\nAqui a gente FICA MONITORANDO o lock a cada 5 segundos, até 4 vezes (20 segundos no total):\n- Se em qualquer verificação o lock já tiver sido liberado (a Lumi respondeu) ou o aviso já tiver sido enviado por outra execução, o loop para na hora e nada é enviado -- resposta rápida não gera ruído nenhum pro paciente.\n- Só se o lock CONTINUAR preso depois das 4 verificações (ou seja, passou de 20s) é que o aviso sai.\n\nPara ajustar a sensibilidade, mude o \"Espera\" (hoje 5 segundos) e/ou a quantidade de itens no \"Monta Tentativas\" (hoje 4 = 20s no total).",
+        "height": 480,
         "width": 420
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-40, 440],
+      "position": [-40, 500],
       "id": "aviso-espera-nota",
       "name": "Sticky Note"
     },
     {
       "parameters": {
-        "amount": 8,
+        "jsCode": "// 4 tentativas de 5s cada = ate 20s de monitoramento antes de avisar.\nreturn Array.from({ length: 4 }, () => ({ json: {} }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "id": "aviso-espera-007",
+      "name": "Monta Tentativas"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [440, 300],
+      "id": "aviso-espera-008",
+      "name": "Loop Aviso"
+    },
+    {
+      "parameters": {
+        "amount": 5,
         "unit": "seconds"
       },
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [220, 300],
+      "position": [660, 400],
       "id": "aviso-espera-002",
       "name": "Espera",
       "webhookId": "a1e0f5c2-4b8d-4f31-9a76-2c8e5d1b7f40"
@@ -43,7 +63,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [440, 300],
+      "position": [880, 400],
       "id": "aviso-espera-003",
       "name": "Ainda Processando?",
       "credentials": {
@@ -80,9 +100,9 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [660, 300],
+      "position": [1100, 400],
       "id": "aviso-espera-004",
-      "name": "Vale Avisar?"
+      "name": "Ainda Vale a Pena?"
     },
     {
       "parameters": {
@@ -97,7 +117,7 @@
       },
       "type": "n8n-nodes-evolution-api.evolutionApi",
       "typeVersion": 1,
-      "position": [880, 220],
+      "position": [660, 140],
       "id": "aviso-espera-005",
       "name": "Envia Aviso",
       "credentials": {
@@ -115,7 +135,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1100, 220],
+      "position": [880, 140],
       "id": "aviso-espera-006",
       "name": "Marca Aviso Enviado",
       "credentials": {
@@ -129,16 +149,28 @@
   "pinData": {},
   "connections": {
     "Chamado pelo Fluxo Principal": {
-      "main": [[{ "node": "Espera", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Monta Tentativas", "type": "main", "index": 0 }]]
+    },
+    "Monta Tentativas": {
+      "main": [[{ "node": "Loop Aviso", "type": "main", "index": 0 }]]
+    },
+    "Loop Aviso": {
+      "main": [
+        [{ "node": "Envia Aviso", "type": "main", "index": 0 }],
+        [{ "node": "Espera", "type": "main", "index": 0 }]
+      ]
     },
     "Espera": {
       "main": [[{ "node": "Ainda Processando?", "type": "main", "index": 0 }]]
     },
     "Ainda Processando?": {
-      "main": [[{ "node": "Vale Avisar?", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Ainda Vale a Pena?", "type": "main", "index": 0 }]]
     },
-    "Vale Avisar?": {
-      "main": [[{ "node": "Envia Aviso", "type": "main", "index": 0 }], []]
+    "Ainda Vale a Pena?": {
+      "main": [
+        [{ "node": "Loop Aviso", "type": "main", "index": 0 }],
+        []
+      ]
     },
     "Envia Aviso": {
       "main": [[{ "node": "Marca Aviso Enviado", "type": "main", "index": 0 }]]
