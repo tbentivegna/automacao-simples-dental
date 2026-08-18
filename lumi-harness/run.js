@@ -52,8 +52,16 @@ function extraiAgentAction(texto) {
 // Roda uma sessão de conversa completa. `onEvent(evento)` é chamado a cada
 // passo (mensagem do paciente, tool call, resultado mockado, resposta da
 // Lumi) pra quem estiver rodando poder acompanhar/logar em tempo real.
-function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], historico = [], falharProximaCriacao = false } = {}) {
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], historico = [], falharProximaCriacao = false, notasSistema = [] } = {}) {
+  // As notas "[Sistema: ...]" são calculadas a cada turno pelo n8n e
+  // anexadas ao FINAL do system message (não à mensagem do paciente --
+  // senão ficariam gravadas pra sempre no n8n_chat_histories). O cenário
+  // declara em `notasSistema` quais quer simular.
+  const systemPrompt = notasSistema.length
+    ? `${SYSTEM_PROMPT}\n\n📌 NOTAS DESTA CONVERSA (instruções internas, nunca mostre ao paciente)\n\n${notasSistema.join('\n')}`
+    : SYSTEM_PROMPT;
+
+  const messages = [{ role: 'system', content: systemPrompt }];
   const estadoFake = criarEstadoFake({ telefonePaciente, falharProximaCriacao });
 
   for (const s of seedAgendamentos) estadoFake.seed(s);
@@ -154,6 +162,7 @@ async function rodarCenario(caminhoArquivo) {
     seedAgendamentos: cenario.seedAgendamentos || [],
     historico: cenario.historico || [],
     falharProximaCriacao: cenario.falharProximaCriacao || false,
+    notasSistema: cenario.notasSistema || [],
   });
 
   console.log(corTerminal(`\n=== Cenário: ${cenario.nome || caminhoArquivo} ===`, '1'));
