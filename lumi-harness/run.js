@@ -24,6 +24,15 @@ const { chamarLLM } = criarClienteLLM(tools);
 
 const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'system-prompt.txt'), 'utf8');
 
+// Espelha o que o node "Divide Mensagem em Blocos" faz em produção: o
+// histórico contém mensagens da equipe humana marcadas com "[Equipe da
+// clínica]:" e o modelo tende a imitar esse prefixo na própria resposta.
+// A remoção real acontece no n8n; replicamos aqui pra transcrição do
+// harness refletir o que o paciente veria de verdade.
+function limparPrefixoEquipe(texto) {
+  return texto.replace(/^[ \t]*\[Equipe da cl[ií]nica\]:[ \t]*/gim, '');
+}
+
 function extraiAgentAction(texto) {
   const start = texto.indexOf('{');
   const end = texto.lastIndexOf('}');
@@ -70,8 +79,9 @@ function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], 
 
       if (toolCalls.length === 0) {
         const { mensagem, agentAction } = extraiAgentAction(msg.content || '');
-        onEvent({ tipo: 'resposta_lumi', texto: mensagem, agentAction });
-        return { mensagem, agentAction };
+        const mensagemLimpa = limparPrefixoEquipe(mensagem);
+        onEvent({ tipo: 'resposta_lumi', texto: mensagemLimpa, agentAction });
+        return { mensagem: mensagemLimpa, agentAction };
       }
 
       for (const tc of toolCalls) {

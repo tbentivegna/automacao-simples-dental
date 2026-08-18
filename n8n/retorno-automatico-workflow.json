@@ -1,0 +1,68 @@
+{
+  "name": "Lumi - Retorno Automático do Atendimento Humano",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/30 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300],
+      "id": "retorno-auto-001",
+      "name": "A Cada 30 Minutos"
+    },
+    {
+      "parameters": {
+        "content": "## Rede de segurança do handoff\n\nQuando a secretária ou a Dra. Aline mandam uma mensagem pra um paciente, a Lumi é desativada naquela conversa (last_handoff = now()).\n\nO jeito normal de devolver é digitar \"##lumi\" na conversa do paciente -- o fluxo principal reativa e apaga o comando em seguida.\n\nEste workflow existe só pro caso de ninguém devolver: depois de 6 horas sem nenhuma mensagem nova da equipe naquela conversa, a Lumi reassume sozinha, sem avisar nada ao paciente.\n\nPra mudar o prazo, edite o interval '6 hours' na query.",
+        "height": 380,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-40, 440],
+      "id": "retorno-auto-nota",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.cliente\nSET bot_disabled = false,\n    human_assigned = false\nWHERE bot_disabled = true\n  AND last_handoff IS NOT NULL\n  AND last_handoff < now() - interval '6 hours'\nRETURNING telefone, last_handoff;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [220, 300],
+      "id": "retorno-auto-002",
+      "name": "Devolve Conversas Paradas",
+      "credentials": {
+        "postgres": {
+          "id": "IM7As7mjQcGJIzzy",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "A Cada 30 Minutos": {
+      "main": [[{ "node": "Devolve Conversas Paradas", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "versionId": "00000000-0000-0000-0000-000000000000",
+  "meta": {},
+  "nodeGroups": [],
+  "id": "lumi-retorno-automatico",
+  "tags": []
+}
