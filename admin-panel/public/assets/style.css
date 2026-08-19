@@ -192,7 +192,7 @@ html, body {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  padding: clamp(14px, 3vh, 30px) 20px;
+  padding: clamp(8px, 3vh, 30px) 20px;
 }
 
 .barra-lateral__marca {
@@ -201,16 +201,15 @@ html, body {
   align-items: center;
   text-align: center;
   flex-shrink: 0;
-  padding: 4px 8px clamp(10px, 2.5vh, 22px);
-  margin-bottom: clamp(8px, 2vh, 16px);
+  padding: 4px 8px clamp(6px, 2.5vh, 22px);
+  margin-bottom: clamp(4px, 2vh, 16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .marca-lumi-img {
-  width: auto;
-  max-width: 100%;
+  width: 100%;
+  max-width: 240px;
   height: auto;
-  max-height: clamp(70px, 18vh, 240px);
   display: block;
 }
 
@@ -234,7 +233,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: clamp(8px, 1.8vh, 13px) 13px;
+  padding: clamp(5px, 1.8vh, 13px) 13px;
   border-radius: var(--raio-pequeno);
   color: rgba(255, 255, 255, 0.72);
   font-size: 16px;
@@ -275,8 +274,8 @@ html, body {
 
 .status-bot {
   flex-shrink: 0;
-  margin-top: clamp(6px, 1.5vh, 12px);
-  padding: clamp(8px, 1.8vh, 14px) 14px clamp(6px, 1.5vh, 12px);
+  margin-top: clamp(3px, 1.5vh, 12px);
+  padding: clamp(5px, 1.8vh, 14px) 14px clamp(4px, 1.5vh, 12px);
   border: 1px solid rgba(212, 180, 131, 0.3);
   border-radius: var(--raio-pequeno);
   background: rgba(212, 180, 131, 0.1);
@@ -352,8 +351,8 @@ html, body {
 
 .botao-sair {
   flex-shrink: 0;
-  margin-top: clamp(8px, 1.8vh, 16px);
-  padding: clamp(8px, 1.5vh, 12px) 12px;
+  margin-top: clamp(4px, 1.8vh, 16px);
+  padding: clamp(5px, 1.5vh, 12px) 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--raio-pequeno);
   background: rgba(255, 255, 255, 0.05);
