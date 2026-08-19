@@ -514,6 +514,60 @@ button {
   color: var(--cor-texto-suave);
 }
 
+.atendimento-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch-atendimento {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.switch-atendimento input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-atendimento__slider {
+  position: absolute;
+  inset: 0;
+  background: var(--cor-urgente);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.switch-atendimento__slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.switch-atendimento input:checked + .switch-atendimento__slider {
+  background: var(--cor-sucesso);
+}
+
+.switch-atendimento input:checked + .switch-atendimento__slider::before {
+  transform: translateX(16px);
+}
+
+.switch-atendimento input:disabled + .switch-atendimento__slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .botao {
   padding: 7px 14px;
   border-radius: var(--raio-pequeno);

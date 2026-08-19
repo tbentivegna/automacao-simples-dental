@@ -203,6 +203,22 @@ async function retomarPaciente(id) {
   return rows.length > 0;
 }
 
+// Pausa a Lumi pra UM paciente específico (equivalente ao handoff manual,
+// como se a equipe tivesse assumido a conversa pelo WhatsApp) -- oposto de
+// retomarPaciente. Marca last_handoff = now() também, senão o retorno
+// automático em 6h (que compara contra essa coluna) nunca dispararia pra
+// esse paciente, já que ficaria NULL.
+async function pausarPaciente(id) {
+  const { rows } = await pool.query(
+    `UPDATE public.cliente
+     SET bot_disabled = true, human_assigned = true, last_handoff = now()
+     WHERE id = $1 AND bot_disabled = false
+     RETURNING id;`,
+    [id]
+  );
+  return rows.length > 0;
+}
+
 module.exports = {
   buscarAnalytics,
   buscarSuspensos,
@@ -213,4 +229,5 @@ module.exports = {
   pausarGlobal,
   retomarGlobal,
   retomarPaciente,
+  pausarPaciente,
 };

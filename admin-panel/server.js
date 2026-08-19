@@ -24,6 +24,7 @@ const {
   pausarGlobal,
   retomarGlobal,
   retomarPaciente,
+  pausarPaciente,
 } = require('./queries');
 
 if (!process.env.ADMIN_PASSWORD) {
@@ -170,6 +171,32 @@ app.get('/api/pacientes', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/pacientes:', erro);
     res.status(500).json({ erro: 'Falha ao buscar pacientes.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/pacientes/:id/pausar', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const encontrou = await pausarPaciente(req.params.id);
+    if (!encontrou) {
+      return res.status(404).json({ erro: 'Paciente não encontrado ou a Lumi já estava pausada pra ele.' });
+    }
+    res.json({ ok: true });
+  } catch (erro) {
+    console.error('Erro em POST /api/pacientes/:id/pausar:', erro);
+    res.status(500).json({ erro: 'Falha ao pausar a Lumi pro paciente.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/pacientes/:id/retomar', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const encontrou = await retomarPaciente(req.params.id);
+    if (!encontrou) {
+      return res.status(404).json({ erro: 'Paciente não encontrado ou a Lumi já estava ativa pra ele.' });
+    }
+    res.json({ ok: true });
+  } catch (erro) {
+    console.error('Erro em POST /api/pacientes/:id/retomar:', erro);
+    res.status(500).json({ erro: 'Falha ao devolver o paciente para a Lumi.', detalhe: erro.message });
   }
 });
 

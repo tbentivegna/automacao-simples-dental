@@ -279,7 +279,15 @@ function renderizarPacientes(lista) {
           </td>
           <td>${escapar(p.telefone || '—')}</td>
           <td>${escapar(p.criado_em_formatado || '—')}</td>
-          <td>${p.bot_disabled ? '<span class="selo selo-alerta">Com a equipe</span>' : '<span class="selo selo-sucesso">Lumi ativa</span>'}</td>
+          <td>
+            <div class="atendimento-toggle">
+              <label class="switch-atendimento" title="${p.bot_disabled ? 'Devolver pra Lumi' : 'Pausar a Lumi pra esse paciente'}">
+                <input type="checkbox" data-toggle-paciente="${p.id}" ${p.bot_disabled ? '' : 'checked'} />
+                <span class="switch-atendimento__slider"></span>
+              </label>
+              <span class="selo ${p.bot_disabled ? 'selo-alerta' : 'selo-sucesso'}" data-selo-atendimento>${p.bot_disabled ? 'Com a equipe' : 'Lumi ativa'}</span>
+            </div>
+          </td>
           <td>${
             p.consentimento_lembrete === true
               ? '<span class="selo selo-sucesso">Aceitou</span>'
@@ -306,6 +314,30 @@ async function carregarPacientes(busca) {
     alvo.innerHTML = elementoErro(erro.message);
   }
 }
+
+// Switch por linha: liga = Lumi ativa, desliga = pausa só pra esse
+// paciente (equivalente a um handoff manual). Atualiza o selo na hora e
+// desfaz o toggle se a chamada falhar.
+document.getElementById('conteudoPacientes').addEventListener('change', async (evento) => {
+  const input = evento.target.closest('input[data-toggle-paciente]');
+  if (!input) return;
+  const id = input.dataset.togglePaciente;
+  const querAtivar = input.checked;
+  const selo = input.closest('td').querySelector('[data-selo-atendimento]');
+  input.disabled = true;
+  try {
+    await chamarApi(`/api/pacientes/${id}/${querAtivar ? 'retomar' : 'pausar'}`, { method: 'POST' });
+    selo.textContent = querAtivar ? 'Lumi ativa' : 'Com a equipe';
+    selo.className = `selo ${querAtivar ? 'selo-sucesso' : 'selo-alerta'}`;
+    input.closest('label').title = querAtivar ? 'Pausar a Lumi pra esse paciente' : 'Devolver pra Lumi';
+    carregarSuspensos();
+  } catch (erro) {
+    input.checked = !querAtivar;
+    alert(erro.message);
+  } finally {
+    input.disabled = false;
+  }
+});
 
 let temporizadorBusca = null;
 document.getElementById('buscaPacientes').addEventListener('input', (evento) => {
