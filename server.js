@@ -591,6 +591,41 @@ async function preencherCadastroCompleto(dialogo, dados) {
   }
 }
 
+// Busca o paciente pelo telefone no autocomplete de "novo agendamento" e
+// escolhe QUAL das opções corresponde. Importante desde que passamos a
+// cadastrar cada dependente como paciente próprio (não mais o responsável
+// "por eles"): um telefone de família (WhatsApp da mãe/pai) pode ter vários
+// pacientes cadastrados, um por filho. Sem desambiguar por nome, sempre
+// pegava a primeira opção da lista -- o que podia ser o irmão errado.
+//
+// Se `nomeBuscado` bater com mais de uma opção, ou não bater com nenhuma
+// (ex: telefone já tem outros filhos cadastrados, mas não esse), trata como
+// "não encontrado" -- é alguém novo usando o mesmo telefone da família.
+async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
+  await campoBusca.fill(somenteDigitos(telefone));
+  const opcoes = page.locator('.sd-pacientes-autocomplete__option');
+  const apareceu = await aparece(opcoes.first(), 6000);
+  if (!apareceu) return { opcao: null, nome: null };
+
+  const total = await opcoes.count();
+
+  if (nomeBuscado && total > 1) {
+    const alvo = nomeBuscado.trim().toLowerCase();
+    for (let i = 0; i < total; i++) {
+      const opcao = opcoes.nth(i);
+      const nome = (await opcao.locator('.sd-pacientes-autocomplete__nome').innerText().catch(() => '')) || '';
+      if (nome && (nome.toLowerCase().includes(alvo) || alvo.includes(nome.toLowerCase()))) {
+        return { opcao, nome };
+      }
+    }
+    return { opcao: null, nome: null };
+  }
+
+  const opcao = opcoes.first();
+  const nome = await opcao.locator('.sd-pacientes-autocomplete__nome').innerText().catch(() => null);
+  return { opcao, nome };
+}
+
 async function criarAgendamento({
   telefone,
   nomePaciente,
@@ -637,12 +672,12 @@ async function criarAgendamento({
     // 1. Abre o formulário de novo evento
     await page.click('[data-testid="btnNovoEvento"]');
 
-    // 2. Busca o paciente pelo telefone
+    // 2. Busca o paciente pelo telefone -- desambiguando por nome quando o
+    // telefone tem mais de um paciente cadastrado (ex: vários filhos no
+    // mesmo WhatsApp da família). Ver encontrarOpcaoPaciente.
     const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
-    await campoPaciente.fill(somenteDigitos(telefone));
-
-    const opcaoPaciente = page.locator('.sd-pacientes-autocomplete__option').first();
-    const encontrouPaciente = await aparece(opcaoPaciente, 6000);
+    const { opcao: opcaoPaciente } = await encontrarOpcaoPaciente(page, campoPaciente, telefone, nomePaciente);
+    const encontrouPaciente = !!opcaoPaciente;
 
     let pacienteNovo = false;
     if (encontrouPaciente) {
@@ -967,7 +1002,7 @@ async function criarAgendamento({
 // evento (sem criar nada) para descobrir o NOME exato cadastrado, fecha o
 // diálogo, e então varre os compromissos das próximas semanas (mesma
 // função usada em /verificar-disponibilidade) filtrando pelo nome.
-async function buscarAgendamentosPaciente({ telefone, semanas }) {
+async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente: nomeBuscado }) {
   if (!telefone) {
     throw new Error('Campo obrigatório faltando: telefone.');
   }
@@ -979,18 +1014,10 @@ async function buscarAgendamentosPaciente({ telefone, semanas }) {
     // 1. Abre o "+" só para usar o campo de busca de paciente
     await page.click('[data-testid="btnNovoEvento"]');
     const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
-    await campoPaciente.fill(somenteDigitos(telefone));
-
-    const opcaoPaciente = page.locator('.sd-pacientes-autocomplete__option').first();
-    const encontrouPaciente = await aparece(opcaoPaciente, 6000);
-
-    let nomePaciente = null;
-    if (encontrouPaciente) {
-      nomePaciente = await opcaoPaciente
-        .locator('.sd-pacientes-autocomplete__nome')
-        .innerText()
-        .catch(() => null);
-    }
+    // Desambigua por nome quando o telefone tem mais de um paciente
+    // cadastrado (ex: vários filhos no mesmo WhatsApp da família) -- ver
+    // encontrarOpcaoPaciente.
+    const { nome: nomePaciente } = await encontrarOpcaoPaciente(page, campoPaciente, telefone, nomeBuscado);
 
     // Fecha o diálogo sem salvar nada
     await page
@@ -1771,6 +1798,13 @@ app.post('/criar-agendamento', async (req, res) => {
 // {
 //   "telefone": "11991234567",  (obrigatório)
 //   "semanas": 4                (opcional, padrão = SEMANAS_A_VERIFICAR)
+//   "nomePaciente": "Pedro Lima" (opcional -- necessário quando o telefone
+//                                 pode ter mais de um paciente cadastrado,
+//                                 ex: vários filhos no mesmo WhatsApp da
+//                                 família. Sem isso, se houver mais de um
+//                                 paciente pro telefone, a busca não
+//                                 consegue saber qual deles retornar e trata
+//                                 como não encontrado.)
 // }
 app.post('/buscar-agendamentos-paciente', async (req, res) => {
   try {

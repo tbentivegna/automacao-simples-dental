@@ -78,6 +78,54 @@ const tools = [
             description:
               'Categoria que melhor representa o motivo identificado nesta conversa (a mesma lista usada na seção IDENTIFICAÇÃO DA QUEIXA do seu prompt). Use "odontopediatria" quando o motivo for ortodontia infantil/Invisalign First em criança. Use "outro" se não se encaixar em nenhuma categoria específica. Só usada para registro interno, nunca mencione essa categoria ao paciente.',
           },
+          dataNascimentoPaciente: {
+            type: 'string',
+            description:
+              'Data de nascimento do paciente, formato DD/MM/AAAA. Só preencher quando o paciente for novo no Simples Dental.',
+          },
+          cpfPaciente: {
+            type: 'string',
+            description:
+              'CPF do paciente, só números ou formatado. Só preencher quando o paciente for novo no Simples Dental.',
+          },
+          email: {
+            type: 'string',
+            description:
+              'E-mail do paciente (ou do responsável, se o paciente for menor de idade). Só preencher quando o paciente for novo no Simples Dental.',
+          },
+          cep: {
+            type: 'string',
+            description:
+              'CEP do endereço do paciente (ou do responsável, se menor de idade). Só preencher quando o paciente for novo no Simples Dental.',
+          },
+          numero: {
+            type: 'string',
+            description:
+              'Número do endereço (residência). Só preencher quando o paciente for novo no Simples Dental.',
+          },
+          complemento: {
+            type: 'string',
+            description: 'Complemento do endereço (apto, bloco, etc), se o paciente informar. Opcional.',
+          },
+          nomeResponsavel: {
+            type: 'string',
+            description:
+              'Nome completo do responsável pelo paciente. Só preencher quando o paciente for menor de idade E for novo no Simples Dental.',
+          },
+          dataNascimentoResponsavel: {
+            type: 'string',
+            description:
+              'Data de nascimento do responsável, formato DD/MM/AAAA. Só quando o paciente for menor de idade e novo no Simples Dental.',
+          },
+          cpfResponsavel: {
+            type: 'string',
+            description: 'CPF do responsável. Só quando o paciente for menor de idade e novo no Simples Dental.',
+          },
+          celularResponsavel: {
+            type: 'string',
+            description:
+              'Celular do responsável, se for diferente do número desta conversa no WhatsApp. Só quando o paciente for menor de idade e novo no Simples Dental.',
+          },
         },
       },
     },
@@ -87,10 +135,16 @@ const tools = [
     function: {
       name: 'buscar_agendamentos_paciente',
       description:
-        'Localiza as consultas existentes do paciente ("qual minha próxima consulta?", "tenho consulta marcada?"). Use sempre antes de confirmar, cancelar ou remarcar um agendamento, para obter o ID exato do agendamento.',
+        'Localiza as consultas existentes do paciente ("qual minha próxima consulta?", "tenho consulta marcada?"). Use sempre antes de confirmar, cancelar ou remarcar um agendamento, para obter o ID exato do agendamento. Também use no início do fluxo de agendamento pra descobrir se o paciente já é cadastrado no Simples Dental (campo "encontrado" no retorno).',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          nomePaciente: {
+            type: 'string',
+            description:
+              'Nome do paciente (o do dependente, se a consulta for para um filho/dependente -- ver seção CONSULTA PARA DEPENDENTE; senão, o nome de quem está conversando). Necessário pra desambiguar quando o telefone tem mais de um paciente cadastrado (ex: vários filhos no mesmo WhatsApp da família). Sem isso, se houver mais de um paciente pro telefone, a busca não sabe qual retornar.',
+          },
+        },
       },
     },
   },

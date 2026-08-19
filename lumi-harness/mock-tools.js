@@ -47,9 +47,38 @@ function paraDataISO(dataBR) {
 // modelo chama um dos métodos abaixo em vez de bater no server.js real.
 function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriacao = false } = {}) {
   const agenda = []; // { id, dataISO, hora, paciente, telefone, status }
-  const pacientesPorTelefone = new Map(); // telefone -> nome
+  // telefone -> Set de nomes cadastrados nesse telefone. Não é mais 1
+  // nome por telefone -- uma família pode ter vários filhos cadastrados
+  // no mesmo WhatsApp da mãe/pai, cada um como paciente próprio (ver
+  // encontrarOpcaoPaciente em server.js).
+  const pacientesPorTelefone = new Map();
   let proximoId = 900000;
   let falharProxima = falharProximaCriacao;
+
+  function registrarPaciente(telefone, nome) {
+    if (!nome) return;
+    if (!pacientesPorTelefone.has(telefone)) pacientesPorTelefone.set(telefone, new Set());
+    pacientesPorTelefone.get(telefone).add(nome);
+  }
+
+  // Acha, entre os pacientes já cadastrados nesse telefone, qual bate com
+  // o nome buscado -- mesma lógica de desambiguação por substring do
+  // encontrarOpcaoPaciente real. Sem nome buscado, só resolve sozinho se
+  // houver exatamente UM paciente cadastrado nesse telefone.
+  function resolverPaciente(telefone, nomeBuscado) {
+    const cadastrados = pacientesPorTelefone.get(telefone);
+    if (!cadastrados || cadastrados.size === 0) return null;
+
+    if (nomeBuscado) {
+      const alvo = nomeBuscado.trim().toLowerCase();
+      for (const nome of cadastrados) {
+        if (nome.toLowerCase().includes(alvo) || alvo.includes(nome.toLowerCase())) return nome;
+      }
+      return null; // nenhum dos cadastrados bate -- é alguém novo nesse telefone
+    }
+
+    return cadastrados.size === 1 ? [...cadastrados][0] : null;
+  }
 
   function slotOcupado(dataISO, hora) {
     return agenda.some(
@@ -124,7 +153,23 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return { horarios, resumoPorDiaSemana, diasBloqueados: [], semanasVerificadas: SEMANAS_A_VERIFICAR };
   }
 
-  function criar_agendamento({ nomePaciente, data, hora, observacao, categoria } = {}) {
+  function criar_agendamento({
+    nomePaciente,
+    data,
+    hora,
+    observacao,
+    categoria,
+    dataNascimentoPaciente,
+    cpfPaciente,
+    email,
+    cep,
+    numero,
+    complemento,
+    nomeResponsavel,
+    dataNascimentoResponsavel,
+    cpfResponsavel,
+    celularResponsavel,
+  } = {}) {
     if (!data || !hora) {
       throw new Error('Campos obrigatórios faltando: data e/ou hora.');
     }
@@ -138,7 +183,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     }
 
     const dataISO = paraDataISO(data);
-    const nome = nomePaciente || pacientesPorTelefone.get(telefonePaciente);
+    const nome = nomePaciente || resolverPaciente(telefonePaciente);
 
     if (slotOcupado(dataISO, hora)) {
       const erro = new Error('CONFLITO_HORARIO: horário não está mais disponível');
@@ -156,26 +201,45 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       status: 'Agendada',
       observacao: observacao || null,
       categoria: categoria || null,
+      // Registrado só pra inspeção nos testes (ver 30/31-cadastro-*.js) --
+      // o mock não valida nada aqui, é o server.js real que preenche esses
+      // campos no Simples Dental de verdade.
+      cadastro: {
+        dataNascimentoPaciente: dataNascimentoPaciente || null,
+        cpfPaciente: cpfPaciente || null,
+        email: email || null,
+        cep: cep || null,
+        numero: numero || null,
+        complemento: complemento || null,
+        nomeResponsavel: nomeResponsavel || null,
+        dataNascimentoResponsavel: dataNascimentoResponsavel || null,
+        cpfResponsavel: cpfResponsavel || null,
+        celularResponsavel: celularResponsavel || null,
+      },
     });
 
-    if (nomePaciente) pacientesPorTelefone.set(telefonePaciente, nomePaciente);
+    const jaExistia = !!resolverPaciente(telefonePaciente, nomePaciente);
+    if (nomePaciente) registrarPaciente(telefonePaciente, nomePaciente);
 
     return {
       sucesso: true,
-      pacienteNovo: !pacientesPorTelefone.has(telefonePaciente) === false && !!nomePaciente,
+      pacienteNovo: !!nomePaciente && !jaExistia,
       data,
       hora,
       duracaoMinutos: DURACAO_CONSULTA_MINUTOS,
     };
   }
 
-  function buscar_agendamentos_paciente() {
-    const nomePaciente = pacientesPorTelefone.get(telefonePaciente);
+  function buscar_agendamentos_paciente({ nomePaciente: nomeBuscado } = {}) {
+    const nomePaciente = resolverPaciente(telefonePaciente, nomeBuscado);
     if (!nomePaciente) {
       return { encontrado: false, agendamentos: [] };
     }
 
-    const doPaciente = agenda.filter((a) => a.telefone === telefonePaciente);
+    const nomeBusca = nomePaciente.toLowerCase();
+    const doPaciente = agenda.filter(
+      (a) => a.telefone === telefonePaciente && (a.paciente || '').toLowerCase().includes(nomeBusca)
+    );
 
     return {
       encontrado: true,
@@ -273,7 +337,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       status,
       observacao: observacao || null,
     });
-    pacientesPorTelefone.set(telefonePaciente, nomePaciente);
+    registrarPaciente(telefonePaciente, nomePaciente);
     return id;
   }
 
