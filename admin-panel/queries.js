@@ -205,13 +205,21 @@ async function retomarPaciente(id) {
 
 // Pausa a Lumi pra UM paciente específico (equivalente ao handoff manual,
 // como se a equipe tivesse assumido a conversa pelo WhatsApp) -- oposto de
-// retomarPaciente. Marca last_handoff = now() também, senão o retorno
-// automático em 6h (que compara contra essa coluna) nunca dispararia pra
-// esse paciente, já que ficaria NULL.
+// retomarPaciente. Marca last_handoff também, senão o retorno automático em
+// 6h (que compara contra essa coluna) nunca dispararia pra esse paciente,
+// já que ficaria NULL.
+//
+// "now() AT TIME ZONE 'UTC'" (em vez de now() puro): last_handoff é
+// "timestamp without time zone" mas guarda hora UTC por baixo (é assim que
+// o n8n grava -- ver comentário em db.js). Se gravássemos now() puro aqui,
+// a sessão do painel (timezone Brasília) gravaria a hora LOCAL disfarçada
+// de "sem fuso", misturando dois formatos na mesma coluna e quebrando a
+// leitura (que sempre reinterpreta como UTC). Isso converte pra UTC antes
+// de gravar, mantendo o mesmo formato em toda a coluna.
 async function pausarPaciente(id) {
   const { rows } = await pool.query(
     `UPDATE public.cliente
-     SET bot_disabled = true, human_assigned = true, last_handoff = now()
+     SET bot_disabled = true, human_assigned = true, last_handoff = (now() AT TIME ZONE 'UTC')
      WHERE id = $1 AND bot_disabled = false
      RETURNING id;`,
     [id]
