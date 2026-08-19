@@ -508,7 +508,92 @@ function telefoneLocal(texto) {
   return digitos.length > 11 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
 }
 
-async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMinutos, observacao, categoria }) {
+// Preenche o cadastro completo de um paciente novo no Simples Dental (data
+// de nascimento, CPF, e-mail, endereço, e -- se for menor de idade -- os
+// dados do responsável). Roda DEPOIS de Nome/Celular (que o fluxo de
+// criarAgendamento já preenche) e ANTES de clicar em "Salvar".
+//
+// `dialogo` é o mesmo mat-dialog-container.last() já usado pra Nome/Celular
+// -- os campos abaixo vivem todos nesse mesmo diálogo, só que atrás de duas
+// abas ("Informações adicionais" -- já vem selecionada por padrão -- e
+// "Endereço" -- precisa clicar pra aparecer).
+//
+// Os data-testid foram conferidos manualmente no formulário real do
+// Simples Dental (não documentados em nenhum lugar oficial), então
+// qualquer mudança de layout no site pode quebrar isso silenciosamente.
+async function preencherCadastroCompleto(dialogo, dados) {
+  if (!dados) return;
+
+  // Data de nascimento primeiro -- é ela que faz o Simples Dental decidir
+  // (client-side) se mostra/exige a seção "Dados do responsável".
+  if (dados.dataNascimento) {
+    await preencherCampoComMascara(dialogo.locator('[data-testid="inputDtNascimento"]'), dados.dataNascimento);
+  }
+  if (dados.cpf) {
+    await preencherCampoComMascara(dialogo.locator('[data-testid="inputCpf"]'), somenteDigitos(dados.cpf));
+  }
+
+  if (dados.responsavel) {
+    const r = dados.responsavel;
+    if (r.nome) {
+      await dialogo.locator('[data-testid="inputResponsavel"]').fill(r.nome);
+    }
+    if (r.dataNascimento) {
+      await preencherCampoComMascara(
+        dialogo.locator('[data-testid="inputDtNascimentoResponsavel"]'),
+        r.dataNascimento
+      );
+    }
+    if (r.cpf) {
+      await preencherCampoComMascara(
+        dialogo.locator('[data-testid="inputCpfResponsavelPaciente"]'),
+        somenteDigitos(r.cpf)
+      );
+    }
+    if (r.celular) {
+      await preencherCampoComMascara(
+        dialogo.locator('[data-testid="inputCelularResponsavelPaciente"]'),
+        telefoneLocal(r.celular)
+      );
+    }
+  }
+
+  // E-mail fica na aba "Informações adicionais", que já vem selecionada
+  // por padrão quando o diálogo abre -- não precisa clicar em nada.
+  if (dados.email) {
+    await dialogo.locator('[data-testid="inputEmail"]').fill(dados.email);
+  }
+
+  // Endereço fica atrás da aba "Endereço". Preencher o CEP dispara um
+  // autofill (client-side, provavelmente via ViaCEP) que já resolve Rua/
+  // Bairro/Cidade/Estado sozinho -- só Número (e opcionalmente
+  // Complemento) precisam ser digitados manualmente.
+  if (dados.cep) {
+    await dialogo.getByText(/endereço/i).first().click();
+    await preencherCampoComMascara(dialogo.locator('[data-testid="inputCep"]'), somenteDigitos(dados.cep));
+    // Sem um seletor confirmado pro campo "Rua" pra esperar de forma
+    // ativa (waitForFunction), uma espera fixa é o que temos por ora --
+    // se o autofill do CEP demorar mais que isso em produção, aumentar.
+    await dialogo.page().waitForTimeout(1500);
+    if (dados.numero) {
+      await dialogo.locator('[data-testid="inputNumero"]').fill(dados.numero);
+    }
+    if (dados.complemento) {
+      await dialogo.locator('[data-testid="inputComplemento"]').fill(dados.complemento);
+    }
+  }
+}
+
+async function criarAgendamento({
+  telefone,
+  nomePaciente,
+  data,
+  hora,
+  duracaoMinutos,
+  observacao,
+  categoria,
+  cadastroPaciente,
+}) {
   if (!telefone || !data || !hora) {
     throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
   }
@@ -564,6 +649,11 @@ async function criarAgendamento({ telefone, nomePaciente, data, hora, duracaoMin
 
       await dialogoCadastro.locator('[data-testid="inputNome"]').fill(nomePaciente);
       await dialogoCadastro.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
+
+      // Cadastro completo (data de nascimento, CPF, e-mail, endereço, e
+      // dados do responsável se for menor de idade) -- exigido pela Dra.
+      // Aline pra todo paciente novo, não só nome+telefone.
+      await preencherCadastroCompleto(dialogoCadastro, cadastroPaciente);
 
       // Contorno extra, caso o banner de cookies ainda esteja de pé
       await dispensarBannerCookies(page);
@@ -1617,6 +1707,24 @@ app.post('/verificar-disponibilidade', async (req, res) => {
 //                "hof" | "clareamento" | "limpeza_prevencao" |
 //                "consulta_estetica" | "dor_urgencia" | "outro"  (opcional,
 //                usado só para registrar o evento em eventos_agenda)
+//   "cadastroPaciente": {             (opcional -- só é usado se o paciente
+//                                      for novo no Simples Dental; ignorado
+//                                      se o paciente já existir)
+//     "dataNascimento": "07/05/1989", (do paciente, formato DD/MM/AAAA)
+//     "cpf": "38185854823",           (do paciente, só dígitos ou formatado)
+//     "email": "nome@exemplo.com",
+//     "cep": "13334360",
+//     "numero": "43",
+//     "complemento": "apto 22",       (opcional)
+//     "responsavel": {                (só quando o paciente é menor de
+//                                      idade -- ver seção CONSULTA PARA
+//                                      DEPENDENTE do prompt da Lumi)
+//       "nome": "Nome do Responsável",
+//       "dataNascimento": "10/08/1990",
+//       "cpf": "34404146809",
+//       "celular": "11998092622"
+//     }
+//   }
 // }
 app.post('/criar-agendamento', async (req, res) => {
   try {
