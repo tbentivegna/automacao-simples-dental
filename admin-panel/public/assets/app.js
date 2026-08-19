@@ -580,13 +580,19 @@ function renderizarPacientes(resultado) {
               <span class="selo ${p.bot_disabled ? 'selo-alerta' : 'selo-sucesso'}" data-selo-atendimento>${p.bot_disabled ? 'Com a equipe' : 'Lumi ativa'}</span>
             </div>
           </td>
-          <td>${
-            p.consentimento_lembrete === true
-              ? '<span class="selo selo-sucesso">Aceitou</span>'
-              : p.consentimento_lembrete === false
-                ? '<span class="selo selo-neutro">Recusou</span>'
-                : '<span class="selo selo-neutro">Não perguntado</span>'
-          }</td>
+          <td>
+            <div class="atendimento-toggle">
+              <label class="switch-atendimento" title="${p.consentimento_lembrete === true ? 'Desativar lembrete' : 'Ativar lembrete'}">
+                <input type="checkbox" data-toggle-consentimento="${p.id}" ${p.consentimento_lembrete === true ? 'checked' : ''} />
+                <span class="switch-atendimento__slider"></span>
+              </label>
+              <span class="selo ${
+                p.consentimento_lembrete === true ? 'selo-sucesso' : p.consentimento_lembrete === false ? 'selo-neutro' : 'selo-neutro'
+              }" data-selo-consentimento>${
+                p.consentimento_lembrete === true ? 'Aceitou' : p.consentimento_lembrete === false ? 'Recusou' : 'Não perguntado'
+              }</span>
+            </div>
+          </td>
         </tr>`
     )
     .join('');
@@ -618,23 +624,50 @@ async function carregarPacientes(busca, pagina = 1) {
 // paciente (equivalente a um handoff manual). Atualiza o selo na hora e
 // desfaz o toggle se a chamada falhar.
 document.getElementById('conteudoPacientes').addEventListener('change', async (evento) => {
-  const input = evento.target.closest('input[data-toggle-paciente]');
-  if (!input) return;
-  const id = input.dataset.togglePaciente;
-  const querAtivar = input.checked;
-  const selo = input.closest('td').querySelector('[data-selo-atendimento]');
-  input.disabled = true;
-  try {
-    await chamarApi(`/api/pacientes/${id}/${querAtivar ? 'retomar' : 'pausar'}`, { method: 'POST' });
-    selo.textContent = querAtivar ? 'Lumi ativa' : 'Com a equipe';
-    selo.className = `selo ${querAtivar ? 'selo-sucesso' : 'selo-alerta'}`;
-    input.closest('label').title = querAtivar ? 'Pausar a Lumi pra esse paciente' : 'Devolver pra Lumi';
-    carregarSuspensos();
-  } catch (erro) {
-    input.checked = !querAtivar;
-    alert(erro.message);
-  } finally {
-    input.disabled = false;
+  const inputAtendimento = evento.target.closest('input[data-toggle-paciente]');
+  if (inputAtendimento) {
+    const id = inputAtendimento.dataset.togglePaciente;
+    const querAtivar = inputAtendimento.checked;
+    const selo = inputAtendimento.closest('td').querySelector('[data-selo-atendimento]');
+    inputAtendimento.disabled = true;
+    try {
+      await chamarApi(`/api/pacientes/${id}/${querAtivar ? 'retomar' : 'pausar'}`, { method: 'POST' });
+      selo.textContent = querAtivar ? 'Lumi ativa' : 'Com a equipe';
+      selo.className = `selo ${querAtivar ? 'selo-sucesso' : 'selo-alerta'}`;
+      inputAtendimento.closest('label').title = querAtivar ? 'Pausar a Lumi pra esse paciente' : 'Devolver pra Lumi';
+      carregarSuspensos();
+    } catch (erro) {
+      inputAtendimento.checked = !querAtivar;
+      alert(erro.message);
+    } finally {
+      inputAtendimento.disabled = false;
+    }
+    return;
+  }
+
+  // Switch de consentimento de lembrete -- ajuste manual pra quando o
+  // paciente pede diretamente pra secretária, sem passar pela Lumi.
+  const inputConsentimento = evento.target.closest('input[data-toggle-consentimento]');
+  if (inputConsentimento) {
+    const id = inputConsentimento.dataset.toggleConsentimento;
+    const querAceitar = inputConsentimento.checked;
+    const selo = inputConsentimento.closest('td').querySelector('[data-selo-consentimento]');
+    inputConsentimento.disabled = true;
+    try {
+      await chamarApi(`/api/pacientes/${id}/consentimento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consentimento: querAceitar }),
+      });
+      selo.textContent = querAceitar ? 'Aceitou' : 'Recusou';
+      selo.className = `selo ${querAceitar ? 'selo-sucesso' : 'selo-neutro'}`;
+      inputConsentimento.closest('label').title = querAceitar ? 'Desativar lembrete' : 'Ativar lembrete';
+    } catch (erro) {
+      inputConsentimento.checked = !querAceitar;
+      alert(erro.message);
+    } finally {
+      inputConsentimento.disabled = false;
+    }
   }
 });
 

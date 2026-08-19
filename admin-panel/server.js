@@ -29,6 +29,7 @@ const {
   retomarGlobal,
   retomarPaciente,
   pausarPaciente,
+  definirConsentimentoPaciente,
 } = require('./queries');
 
 if (!process.env.ADMIN_PASSWORD) {
@@ -244,6 +245,23 @@ app.post('/api/pacientes/:id/retomar', exigirAutenticacaoApi, async (req, res) =
   } catch (erro) {
     console.error('Erro em POST /api/pacientes/:id/retomar:', erro);
     res.status(500).json({ erro: 'Falha ao devolver o paciente para a Lumi.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/pacientes/:id/consentimento', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const { consentimento } = req.body || {};
+    if (typeof consentimento !== 'boolean') {
+      return res.status(400).json({ erro: 'consentimento precisa ser true ou false.' });
+    }
+    const encontrou = await definirConsentimentoPaciente(req.params.id, consentimento);
+    if (!encontrou) {
+      return res.status(404).json({ erro: 'Paciente não encontrado.' });
+    }
+    res.json({ ok: true });
+  } catch (erro) {
+    console.error('Erro em POST /api/pacientes/:id/consentimento:', erro);
+    res.status(500).json({ erro: 'Falha ao atualizar consentimento do paciente.', detalhe: erro.message });
   }
 });
 

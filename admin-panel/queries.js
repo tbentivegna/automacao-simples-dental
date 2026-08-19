@@ -353,6 +353,21 @@ async function pausarPaciente(id) {
   return rows.length > 0;
 }
 
+// Ajuste manual do consentimento de lembrete -- a secretária pode ligar/
+// desligar direto no painel quando o próprio paciente pedir por telefone/
+// presencial, sem precisar que ele repita o pedido pra Lumi no WhatsApp.
+// Mesmo efeito da tool "Registrar Consentimento Lembrete" que a Lumi usa.
+async function definirConsentimentoPaciente(id, consentimento) {
+  const { rows } = await pool.query(
+    `UPDATE public.cliente
+     SET consentimento_lembrete = $2, consentimento_lembrete_em = now()
+     WHERE id = $1
+     RETURNING id;`,
+    [id, consentimento]
+  );
+  return rows.length > 0;
+}
+
 module.exports = {
   buscarAnalytics,
   buscarDetalheAgendamentos,
@@ -368,4 +383,5 @@ module.exports = {
   retomarGlobal,
   retomarPaciente,
   pausarPaciente,
+  definirConsentimentoPaciente,
 };
