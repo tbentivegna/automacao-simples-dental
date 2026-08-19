@@ -40,7 +40,7 @@ async function buscarAnalytics(janela) {
     pacientes AS (
       SELECT count(*) AS novos
       FROM public.cliente, parametros
-      WHERE created_at >= parametros.desde
+      WHERE (created_at AT TIME ZONE 'UTC') >= parametros.desde
     ),
     mensagens AS (
       SELECT count(*) AS total
@@ -80,8 +80,8 @@ async function buscarSuspensos() {
       c.nome,
       c.telefone,
       c.human_assigned,
-      to_char(c.last_handoff, 'DD/MM/YYYY "às" HH24:MI') AS last_handoff_formatado,
-      EXTRACT(EPOCH FROM (now() - c.last_handoff)) / 3600 AS horas_desde_handoff
+      to_char(c.last_handoff AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS last_handoff_formatado,
+      EXTRACT(EPOCH FROM (now() - (c.last_handoff AT TIME ZONE 'UTC'))) / 3600 AS horas_desde_handoff
     FROM public.cliente c
     WHERE c.bot_disabled = true
     ORDER BY c.last_handoff ASC NULLS LAST;`
@@ -103,8 +103,8 @@ async function buscarPendencias() {
       aa.detail,
       aa.status,
       aa.assigned_to,
-      to_char(aa.created_at, 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado,
-      EXTRACT(EPOCH FROM (now() - aa.created_at)) / 3600 AS horas_em_aberto,
+      to_char(aa.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado,
+      EXTRACT(EPOCH FROM (now() - (aa.created_at AT TIME ZONE 'UTC'))) / 3600 AS horas_em_aberto,
       (aa.detail LIKE 'URGÊNCIA%') AS urgente
     FROM public.agent_actions aa
     LEFT JOIN public.cliente c ON c.telefone = aa.from_phone
@@ -139,7 +139,7 @@ async function buscarPacientes(busca) {
       c.nome,
       c.telefone,
       c.email,
-      to_char(c.created_at, 'DD/MM/YYYY') AS criado_em_formatado,
+      to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS criado_em_formatado,
       c.bot_disabled,
       c.human_assigned,
       c.consentimento_lembrete
