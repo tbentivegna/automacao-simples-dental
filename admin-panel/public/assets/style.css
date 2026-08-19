@@ -510,10 +510,20 @@ html, body {
   font-weight: 600;
 }
 
+/* Sem altura fixa por linha no tbody: o navegador distribui a sobra da
+   altura do <table> (100% do container) igualmente entre as linhas de
+   dados, fazendo cada paciente "esticar" pra preencher o espaço
+   disponível em vez de deixar vazio embaixo da última linha. O thead
+   recebe altura fixa pra não entrar nessa distribuição e crescer junto. */
 .tabela {
   width: 100%;
+  height: 100%;
   border-collapse: collapse;
   font-size: 15px;
+}
+
+.tabela thead tr {
+  height: 46px;
 }
 
 .tabela th {
