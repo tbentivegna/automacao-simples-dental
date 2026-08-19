@@ -314,6 +314,17 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return { sucesso: true, consentimento: valor };
   }
 
+  // Rastreado à parte (não é o mesmo cadastro do Simples Dental que
+  // pacientesPorTelefone controla) -- espelha a tabela cliente do Postgres,
+  // que é o que a tool real "Atualiza Nome do Paciente" grava.
+  const estadoNomePaciente = { nome: null };
+
+  function atualizar_nome_paciente({ nome } = {}) {
+    if (!nome) throw new Error('Campo obrigatório faltando: nome.');
+    estadoNomePaciente.nome = nome;
+    return { sucesso: true, nome };
+  }
+
   const handlers = {
     verificar_disponibilidade,
     criar_agendamento,
@@ -322,6 +333,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     cancelar_agendamento,
     remarcar_agendamento,
     registrar_consentimento_lembrete,
+    atualizar_nome_paciente,
   };
 
   // Permite pré-popular cenários (ex: paciente já tem uma consulta marcada
@@ -341,7 +353,13 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return id;
   }
 
-  return { handlers, seed, _agenda: agenda, _consentimentoLembrete: estadoConsentimento };
+  return {
+    handlers,
+    seed,
+    _agenda: agenda,
+    _consentimentoLembrete: estadoConsentimento,
+    _nomePacienteAtualizado: estadoNomePaciente,
+  };
 }
 
 module.exports = { criarEstadoFake };

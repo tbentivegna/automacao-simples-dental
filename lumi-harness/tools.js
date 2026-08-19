@@ -236,6 +236,25 @@ const tools = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'atualizar_nome_paciente',
+      // Mesmo padrão do node postgresTool "Registrar Consentimento Lembrete"
+      // acima -- descrição mínima de propósito (ver comentário lá).
+      description:
+        'Executa uma query no Postgres para gravar o nome do paciente no cadastro (cliente.nome) assim que ele for informado nesta conversa.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nome: {
+            type: 'string',
+            description: 'Nome completo do paciente, exatamente como ele informou nesta conversa.',
+          },
+        },
+      },
+    },
+  },
 ];
 
 module.exports = { tools };
