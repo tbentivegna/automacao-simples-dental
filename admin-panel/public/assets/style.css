@@ -82,39 +82,34 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, var(--cor-secundaria) 0%, #34302a 100%);
+  background: radial-gradient(circle at 50% 38%, #1a1a1a 0%, #000000 70%);
   padding: 24px;
 }
 
 .cartao-login {
-  background: var(--cor-cartao);
-  border-radius: var(--raio);
-  box-shadow: var(--sombra-hover);
-  padding: 44px 36px;
   width: 100%;
-  max-width: 360px;
+  max-width: 340px;
   text-align: center;
-  border-top: 3px solid var(--cor-marca);
 }
 
 .cartao-login__marca-img {
   width: 100%;
-  max-width: 150px;
+  max-width: 200px;
   height: auto;
   display: block;
-  margin: 0 auto 10px;
+  margin: 0 auto 4px;
 }
 
 .cartao-login h1 {
   font-size: 1.3rem;
   margin-bottom: 4px;
-  color: var(--cor-secundaria);
+  color: #fff;
 }
 
 .texto-suave {
-  color: var(--cor-texto-suave);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 13px;
-  margin: 0 0 28px;
+  margin: 0 0 32px;
 }
 
 .form-login {
@@ -129,27 +124,28 @@ button {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--cor-texto-suave);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .form-login input {
-  padding: 11px 14px;
-  border: 1px solid var(--cor-borda-forte);
-  border-radius: var(--raio-pequeno);
+  padding: 12px 4px;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
   font-size: 15px;
   font-family: var(--fonte-corpo);
-  background: var(--cor-fundo);
-  color: var(--cor-texto);
+  background: transparent;
+  color: #fff;
 }
 
 .form-login input:focus {
   outline: none;
-  border-color: var(--cor-marca);
-  box-shadow: 0 0 0 3px rgba(184, 154, 104, 0.2);
+  border-bottom-color: var(--cor-marca);
+  box-shadow: 0 1px 0 0 var(--cor-marca);
 }
 
 .form-login button {
-  margin-top: 10px;
+  margin-top: 22px;
   padding: 13px 14px;
   border: 1px solid var(--cor-marca);
   border-radius: var(--raio-pequeno);
@@ -159,16 +155,16 @@ button {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  transition: var(--sombra) 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .form-login button:hover {
-  background: var(--cor-secundaria);
-  border-color: var(--cor-secundaria);
+  background: var(--cor-destaque);
+  border-color: var(--cor-destaque);
 }
 
 .texto-erro {
-  color: var(--cor-urgente);
+  color: #e5867a;
   font-size: 13px;
   margin: 4px 0 0;
 }
