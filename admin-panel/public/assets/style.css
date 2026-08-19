@@ -402,6 +402,33 @@ html, body {
   display: block;
 }
 
+/* Pacientes: a lista ocupa toda a altura disponível do .conteudo, com
+   a paginação fixada embaixo em vez de deixar espaço vazio na tela. */
+#secao-pacientes.ativa {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#secao-pacientes .painel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#conteudoPacientes {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tabela-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
 /* ============================================================
    Componentes
    ============================================================ */

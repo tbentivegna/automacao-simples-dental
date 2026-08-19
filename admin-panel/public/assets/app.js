@@ -317,10 +317,12 @@ function renderizarPacientes(resultado) {
     )
     .join('');
   alvo.innerHTML = `
-    <table class="tabela">
-      <thead><tr><th>Paciente</th><th>Telefone</th><th>Cadastrado em</th><th>Atendimento</th><th>Lembrete</th></tr></thead>
-      <tbody>${linhas}</tbody>
-    </table>
+    <div class="tabela-scroll">
+      <table class="tabela">
+        <thead><tr><th>Paciente</th><th>Telefone</th><th>Cadastrado em</th><th>Atendimento</th><th>Lembrete</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
     ${renderizarPaginacao(resultado)}`;
 }
 
