@@ -102,7 +102,12 @@ async function buscarDetalheAgendamentos(tipo, janela) {
       ea.hora_consulta,
       to_char(ea.criado_em AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
     FROM public.eventos_agenda ea
-    LEFT JOIN public.cliente c ON c.telefone = ea.telefone
+    -- ea.telefone é gravado "cru" (ex: 11992985426), sem o "55" nem o
+    -- sufixo @s.whatsapp.net -- é o formato que o Simples Dental exige
+    -- (ver n8n/lumi-workflow.json, tools de agendamento). cliente.telefone
+    -- guarda o JID completo do WhatsApp, então reconstrói o formato antes
+    -- de casar os dois, senão o JOIN nunca bate e "nome" sempre vem NULL.
+    LEFT JOIN public.cliente c ON c.telefone = ('55' || ea.telefone || '@s.whatsapp.net')
     WHERE ea.tipo = $1 AND ea.criado_em >= ${clausulaDesde('$2')}
     ORDER BY ea.criado_em DESC
     LIMIT 50;`,
