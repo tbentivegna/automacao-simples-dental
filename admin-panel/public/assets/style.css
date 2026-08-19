@@ -1,22 +1,26 @@
 /* ============================================================
-   Painel Administrativo -- Dra. Aline Bentivegna
-   Paleta quente (marrom/dourado), mesmo espírito do 🤎 usado pela Lumi.
+   Painel Administrativo -- Lumi | Dra. Aline Bentivegna
+   Segue a identidade visual da landing page: dourado + grafite,
+   Playfair Display para títulos/marca e Raleway para o corpo.
    ============================================================ */
 
 :root {
-  --cor-fundo: #faf7f4;
-  --cor-fundo-alt: #f2ece5;
+  --cor-fundo: #F8F6F2;
+  --cor-fundo-alt: #efe9e1;
   --cor-cartao: #ffffff;
-  --cor-borda: #e8ddd1;
+  --cor-borda: #e6ded2;
   --cor-borda-forte: #d9c9b6;
 
-  --cor-texto: #2c2117;
-  --cor-texto-suave: #7a6b5c;
-  --cor-texto-fraco: #a3937f;
+  --cor-texto: #333333;
+  --cor-texto-suave: #666666;
+  --cor-texto-fraco: #948a7d;
 
-  --cor-marca: #8a5a34;
-  --cor-marca-escura: #6b4426;
-  --cor-marca-clara: #f4e9dd;
+  --cor-marca: #B89A68;
+  --cor-marca-escura: #96794f;
+  --cor-marca-clara: #f1e9db;
+
+  --cor-secundaria: #1F1F1F;
+  --cor-destaque: #D4B483;
 
   --cor-sucesso: #3f8f52;
   --cor-sucesso-fundo: #e8f4ea;
@@ -27,12 +31,15 @@
   --cor-info: #4a7ba6;
   --cor-info-fundo: #e9f1f7;
 
-  --raio: 12px;
-  --raio-pequeno: 8px;
-  --sombra: 0 1px 2px rgba(44, 33, 23, 0.04), 0 4px 16px rgba(44, 33, 23, 0.06);
-  --sombra-hover: 0 2px 6px rgba(44, 33, 23, 0.08), 0 8px 24px rgba(44, 33, 23, 0.1);
+  --fonte-titulo: 'Playfair Display', serif;
+  --fonte-corpo: 'Raleway', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --raio: 4px;
+  --raio-pequeno: 3px;
+  --sombra: 0 1px 2px rgba(31, 31, 31, 0.04), 0 4px 16px rgba(31, 31, 31, 0.05);
+  --sombra-hover: 0 2px 6px rgba(31, 31, 31, 0.07), 0 8px 24px rgba(31, 31, 31, 0.09);
+
+  font-family: var(--fonte-corpo);
 }
 
 * {
@@ -45,13 +52,15 @@ body {
   color: var(--cor-texto);
   font-size: 15px;
   line-height: 1.5;
+  font-weight: 300;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3 {
   margin: 0;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-family: var(--fonte-titulo);
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 a {
@@ -72,7 +81,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, var(--cor-fundo) 0%, var(--cor-marca-clara) 100%);
+  background: linear-gradient(160deg, var(--cor-secundaria) 0%, #34302a 100%);
   padding: 24px;
 }
 
@@ -80,20 +89,29 @@ button {
   background: var(--cor-cartao);
   border-radius: var(--raio);
   box-shadow: var(--sombra-hover);
-  padding: 40px 36px;
+  padding: 44px 36px;
   width: 100%;
   max-width: 360px;
   text-align: center;
+  border-top: 3px solid var(--cor-marca);
 }
 
 .cartao-login__marca {
-  font-size: 40px;
-  margin-bottom: 8px;
+  font-family: var(--fonte-titulo);
+  font-size: 2rem;
+  letter-spacing: 1px;
+  color: var(--cor-secundaria);
+  margin-bottom: 6px;
+}
+
+.cartao-login__marca span {
+  color: var(--cor-marca);
 }
 
 .cartao-login h1 {
-  font-size: 20px;
+  font-size: 1.3rem;
   margin-bottom: 4px;
+  color: var(--cor-secundaria);
 }
 
 .texto-suave {
@@ -110,8 +128,10 @@ button {
 }
 
 .form-login label {
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   color: var(--cor-texto-suave);
 }
 
@@ -120,6 +140,7 @@ button {
   border: 1px solid var(--cor-borda-forte);
   border-radius: var(--raio-pequeno);
   font-size: 15px;
+  font-family: var(--fonte-corpo);
   background: var(--cor-fundo);
   color: var(--cor-texto);
 }
@@ -127,23 +148,26 @@ button {
 .form-login input:focus {
   outline: none;
   border-color: var(--cor-marca);
-  box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
+  box-shadow: 0 0 0 3px rgba(184, 154, 104, 0.2);
 }
 
 .form-login button {
-  margin-top: 6px;
-  padding: 11px 14px;
-  border: none;
+  margin-top: 10px;
+  padding: 13px 14px;
+  border: 1px solid var(--cor-marca);
   border-radius: var(--raio-pequeno);
   background: var(--cor-marca);
   color: #fff;
-  font-size: 15px;
+  font-size: 0.8rem;
   font-weight: 600;
-  transition: background 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  transition: var(--sombra) 0.15s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .form-login button:hover {
-  background: var(--cor-marca-escura);
+  background: var(--cor-secundaria);
+  border-color: var(--cor-secundaria);
 }
 
 .texto-erro {
@@ -162,37 +186,41 @@ button {
 }
 
 .barra-lateral {
-  width: 232px;
+  width: 240px;
   flex-shrink: 0;
-  background: var(--cor-cartao);
-  border-right: 1px solid var(--cor-borda);
+  background: var(--cor-secundaria);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  padding: 24px 16px;
+  padding: 28px 16px;
 }
 
 .barra-lateral__marca {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 8px 24px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--cor-borda);
+  padding: 0 8px 22px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.barra-lateral__marca span:first-child {
-  font-size: 22px;
-}
-
-.barra-lateral__marca strong {
+.marca-lumi {
   display: block;
-  font-size: 14px;
+  font-family: var(--fonte-titulo);
+  font-size: 1.6rem;
+  letter-spacing: 1px;
+  color: #fff;
   line-height: 1.3;
 }
 
+.marca-lumi span {
+  font-size: 1.1rem;
+}
+
 .barra-lateral__marca small {
-  color: var(--cor-texto-suave);
+  color: var(--cor-destaque);
   font-size: 11px;
+  letter-spacing: 0.3px;
 }
 
 .nav {
@@ -206,10 +234,10 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border-radius: var(--raio-pequeno);
-  color: var(--cor-texto-suave);
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13.5px;
   font-weight: 500;
   text-decoration: none;
   border: none;
@@ -219,13 +247,13 @@ button {
 }
 
 .nav__item:hover {
-  background: var(--cor-fundo-alt);
-  color: var(--cor-texto);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
 }
 
 .nav__item.ativo {
-  background: var(--cor-marca-clara);
-  color: var(--cor-marca-escura);
+  background: rgba(184, 154, 104, 0.16);
+  color: var(--cor-destaque);
 }
 
 .nav__badge {
@@ -248,9 +276,9 @@ button {
 .status-bot {
   margin-top: 12px;
   padding: 12px 12px 10px;
-  border: 1px solid var(--cor-borda);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--raio-pequeno);
-  background: var(--cor-fundo-alt);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .status-bot__linha {
@@ -259,6 +287,7 @@ button {
   gap: 7px;
   font-size: 13px;
   font-weight: 600;
+  color: #fff;
 }
 
 .status-bot__ponto {
@@ -280,6 +309,7 @@ button {
 .status-bot .texto-fraco {
   margin: 3px 0 8px;
   line-height: 1.4;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .status-bot .botao {
@@ -321,17 +351,17 @@ button {
 .botao-sair {
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--cor-borda);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--raio-pequeno);
   background: none;
-  color: var(--cor-texto-suave);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 13px;
   font-weight: 500;
 }
 
 .botao-sair:hover {
-  background: var(--cor-fundo-alt);
-  color: var(--cor-texto);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
 }
 
 .conteudo {
@@ -350,7 +380,8 @@ button {
 }
 
 .cabecalho-secao h2 {
-  font-size: 22px;
+  font-size: 1.7rem;
+  color: var(--cor-secundaria);
 }
 
 .cabecalho-secao p {
@@ -418,9 +449,10 @@ button {
 }
 
 .cartao-stat__valor {
+  font-family: var(--fonte-titulo);
   font-size: 28px;
-  font-weight: 700;
-  color: var(--cor-texto);
+  font-weight: 600;
+  color: var(--cor-secundaria);
   line-height: 1;
 }
 
@@ -569,13 +601,16 @@ button {
 }
 
 .botao {
-  padding: 7px 14px;
+  padding: 8px 16px;
   border-radius: var(--raio-pequeno);
   border: 1px solid var(--cor-borda-forte);
   background: var(--cor-cartao);
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   color: var(--cor-texto);
+  transition: var(--transicao, all 0.2s ease);
 }
 
 .botao:hover {
@@ -589,8 +624,8 @@ button {
 }
 
 .botao-primario:hover {
-  background: var(--cor-marca-escura);
-  border-color: var(--cor-marca-escura);
+  background: var(--cor-secundaria);
+  border-color: var(--cor-secundaria);
 }
 
 .botao:disabled {
