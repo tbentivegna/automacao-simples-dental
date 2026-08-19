@@ -132,10 +132,10 @@ async function resolverPendencia(id, resolvidoPor) {
 
 // Diretório de pacientes, com busca opcional por nome/telefone, em ordem
 // alfabética e paginado (380+ pacientes numa lista só era um scroll infinito).
-async function buscarPacientes(busca, pagina = 1, porPagina = 30) {
+async function buscarPacientes(busca, pagina = 1, porPagina = 10) {
   const termo = (busca || '').trim();
   const paginaSegura = Number.isInteger(pagina) && pagina > 0 ? pagina : 1;
-  const porPaginaSeguro = Number.isInteger(porPagina) && porPagina > 0 && porPagina <= 100 ? porPagina : 30;
+  const porPaginaSeguro = Number.isInteger(porPagina) && porPagina > 0 && porPagina <= 100 ? porPagina : 10;
   const offset = (paginaSegura - 1) * porPaginaSeguro;
 
   const { rows } = await pool.query(

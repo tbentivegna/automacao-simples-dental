@@ -51,7 +51,7 @@ body {
   margin: 0;
   background: var(--cor-fundo);
   color: var(--cor-texto);
-  font-size: 15.5px;
+  font-size: 17.5px;
   line-height: 1.55;
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
@@ -173,19 +173,26 @@ button {
    Layout do painel
    ============================================================ */
 
+html, body {
+  height: 100%;
+}
+
 .app {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .barra-lateral {
-  width: 252px;
+  width: 300px;
   flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
   background: var(--cor-sidebar);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  padding: 28px 18px;
+  padding: 30px 20px;
 }
 
 .barra-lateral__marca {
@@ -193,14 +200,14 @@ button {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 4px 8px 20px;
-  margin-bottom: 14px;
+  padding: 4px 8px 22px;
+  margin-bottom: 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .marca-lumi-img {
   width: 100%;
-  max-width: 168px;
+  max-width: 240px;
   height: auto;
   display: block;
 }
@@ -208,10 +215,10 @@ button {
 .barra-lateral__marca small {
   display: block;
   color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .nav {
@@ -224,11 +231,11 @@ button {
 .nav__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 12px;
+  gap: 11px;
+  padding: 13px 13px;
   border-radius: var(--raio-pequeno);
   color: rgba(255, 255, 255, 0.72);
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 500;
   text-decoration: none;
   border: none;
@@ -276,7 +283,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   color: #fff;
 }
@@ -300,14 +307,14 @@ button {
 .status-bot .texto-fraco {
   margin: 4px 0 8px;
   line-height: 1.5;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: rgba(255, 255, 255, 0.6);
 }
 
 .status-bot .botao {
   width: 100%;
-  padding: 6px 10px;
-  font-size: 12.5px;
+  padding: 7px 10px;
+  font-size: 13px;
 }
 
 .banner-pausado {
@@ -320,7 +327,7 @@ button {
   border: 1px solid rgba(192, 74, 63, 0.3);
   border-radius: var(--raio);
   padding: 12px 16px;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 500;
   margin-bottom: 24px;
 }
@@ -341,13 +348,13 @@ button {
 }
 
 .botao-sair {
-  margin-top: 14px;
-  padding: 11px 12px;
+  margin-top: 16px;
+  padding: 12px 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--raio-pequeno);
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -361,7 +368,9 @@ button {
 
 .conteudo {
   flex: 1;
-  padding: 32px 40px;
+  height: 100%;
+  overflow-y: auto;
+  padding: 36px 44px;
   max-width: 1180px;
 }
 
@@ -375,14 +384,14 @@ button {
 }
 
 .cabecalho-secao h2 {
-  font-size: 1.7rem;
+  font-size: 1.95rem;
   color: var(--cor-secundaria);
 }
 
 .cabecalho-secao p {
   margin: 4px 0 0;
   color: var(--cor-texto-suave);
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .secao {
@@ -408,9 +417,9 @@ button {
 .seletor-janela button {
   border: none;
   background: none;
-  padding: 6px 12px;
+  padding: 7px 14px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--cor-texto-suave);
 }
@@ -432,20 +441,20 @@ button {
   background: var(--cor-cartao);
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio);
-  padding: 18px 20px;
+  padding: 20px 22px;
   box-shadow: var(--sombra);
 }
 
 .cartao-stat__rotulo {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--cor-texto-suave);
   font-weight: 500;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
 
 .cartao-stat__valor {
   font-family: var(--fonte-titulo);
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 600;
   color: var(--cor-secundaria);
   line-height: 1;
@@ -468,22 +477,22 @@ button {
 }
 
 .painel__cabecalho {
-  padding: 16px 20px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--cor-borda);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .tabela {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 15px;
 }
 
 .tabela th {
   text-align: left;
-  padding: 10px 20px;
-  font-size: 11.5px;
+  padding: 11px 22px;
+  font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--cor-texto-fraco);
@@ -492,7 +501,7 @@ button {
 }
 
 .tabela td {
-  padding: 12px 20px;
+  padding: 13px 22px;
   border-bottom: 1px solid var(--cor-borda);
   vertical-align: middle;
 }
@@ -596,11 +605,11 @@ button {
 }
 
 .botao {
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: var(--raio-pequeno);
   border: 1px solid var(--cor-borda-forte);
   background: var(--cor-cartao);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -629,11 +638,11 @@ button {
 }
 
 .campo-busca {
-  padding: 9px 14px;
+  padding: 10px 16px;
   border: 1px solid var(--cor-borda-forte);
   border-radius: var(--raio-pequeno);
-  font-size: 14px;
-  width: 280px;
+  font-size: 15px;
+  width: 300px;
   background: var(--cor-cartao);
 }
 
@@ -672,11 +681,11 @@ button {
   padding: 48px 20px;
   text-align: center;
   color: var(--cor-texto-suave);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .estado-vazio__emoji {
-  font-size: 28px;
+  font-size: 30px;
   margin-bottom: 8px;
   display: block;
 }
@@ -685,12 +694,12 @@ button {
   padding: 40px 20px;
   text-align: center;
   color: var(--cor-texto-fraco);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .texto-fraco {
   color: var(--cor-texto-fraco);
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 
 .nome-paciente {
@@ -704,9 +713,13 @@ button {
 @media (max-width: 860px) {
   .app {
     flex-direction: column;
+    height: auto;
+    overflow: visible;
   }
   .barra-lateral {
     width: 100%;
+    height: auto;
+    overflow: visible;
     flex-direction: row;
     align-items: center;
     padding: 12px 16px;
@@ -725,6 +738,8 @@ button {
     margin: 0 0 0 8px;
   }
   .conteudo {
+    height: auto;
+    overflow: visible;
     padding: 20px;
   }
   .campo-busca {
