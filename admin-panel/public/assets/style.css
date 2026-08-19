@@ -537,6 +537,13 @@ html, body {
   white-space: nowrap;
 }
 
+/* Cabeçalho da tabela de pacientes na mesma cor da barra lateral. */
+#secao-pacientes .tabela th {
+  background: var(--cor-sidebar);
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom-color: var(--cor-sidebar);
+}
+
 .tabela td {
   padding: 13px 22px;
   border-bottom: 1px solid var(--cor-borda);
