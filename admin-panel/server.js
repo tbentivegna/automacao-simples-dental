@@ -167,7 +167,8 @@ app.post('/api/pendencias/:id/resolver', exigirAutenticacaoApi, async (req, res)
 
 app.get('/api/pacientes', exigirAutenticacaoApi, async (req, res) => {
   try {
-    res.json(await buscarPacientes(req.query.busca));
+    const pagina = parseInt(req.query.pagina, 10) || 1;
+    res.json(await buscarPacientes(req.query.busca, pagina));
   } catch (erro) {
     console.error('Erro em /api/pacientes:', erro);
     res.status(500).json({ erro: 'Falha ao buscar pacientes.', detalhe: erro.message });

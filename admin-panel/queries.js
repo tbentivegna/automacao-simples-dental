@@ -130,9 +130,14 @@ async function resolverPendencia(id, resolvidoPor) {
   return rows.length > 0;
 }
 
-// Diretório de pacientes, com busca opcional por nome/telefone.
-async function buscarPacientes(busca) {
+// Diretório de pacientes, com busca opcional por nome/telefone, em ordem
+// alfabética e paginado (380+ pacientes numa lista só era um scroll infinito).
+async function buscarPacientes(busca, pagina = 1, porPagina = 30) {
   const termo = (busca || '').trim();
+  const paginaSegura = Number.isInteger(pagina) && pagina > 0 ? pagina : 1;
+  const porPaginaSeguro = Number.isInteger(porPagina) && porPagina > 0 && porPagina <= 100 ? porPagina : 30;
+  const offset = (paginaSegura - 1) * porPaginaSeguro;
+
   const { rows } = await pool.query(
     `SELECT
       c.id,
@@ -142,14 +147,24 @@ async function buscarPacientes(busca) {
       to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS criado_em_formatado,
       c.bot_disabled,
       c.human_assigned,
-      c.consentimento_lembrete
+      c.consentimento_lembrete,
+      count(*) OVER()::int AS total_geral
     FROM public.cliente c
     WHERE $1 = '' OR c.nome ILIKE '%' || $1 || '%' OR c.telefone ILIKE '%' || $1 || '%'
-    ORDER BY c.created_at DESC
-    LIMIT 200;`,
-    [termo]
+    ORDER BY c.nome ASC NULLS LAST, c.id ASC
+    LIMIT $2 OFFSET $3;`,
+    [termo, porPaginaSeguro, offset]
   );
-  return rows;
+
+  const total = rows[0]?.total_geral ?? 0;
+  const pacientes = rows.map(({ total_geral, ...resto }) => resto);
+  return {
+    pacientes,
+    total,
+    pagina: paginaSegura,
+    porPagina: porPaginaSeguro,
+    totalPaginas: Math.max(1, Math.ceil(total / porPaginaSeguro)),
+  };
 }
 
 // Status do controle global (mesma tabela que o comando ##pausar/##retomar

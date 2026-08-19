@@ -62,7 +62,7 @@ const secoes = {
   'visao-geral': carregarAnalytics,
   'atendimento-humano': carregarSuspensos,
   pendencias: carregarPendencias,
-  pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value),
+  pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
 };
 
 document.querySelectorAll('.nav__item[data-secao]').forEach((botao) => {
@@ -263,8 +263,26 @@ document.getElementById('conteudoPendencias').addEventListener('click', async (e
 // Pacientes
 // ============================================================
 
-function renderizarPacientes(lista) {
+let paginaAtualPacientes = 1;
+
+function renderizarPaginacao(info) {
+  const { pagina, totalPaginas, total } = info;
+  if (totalPaginas <= 1) {
+    return `<div class="paginacao__resumo">${formatarNumero(total)} paciente${total === 1 ? '' : 's'}</div>`;
+  }
+  return `
+    <div class="paginacao">
+      <span class="paginacao__resumo">${formatarNumero(total)} pacientes · página ${pagina} de ${totalPaginas}</span>
+      <div class="paginacao__botoes">
+        <button class="botao" data-pagina-pacientes="${pagina - 1}" ${pagina <= 1 ? 'disabled' : ''}>‹ Anterior</button>
+        <button class="botao" data-pagina-pacientes="${pagina + 1}" ${pagina >= totalPaginas ? 'disabled' : ''}>Próxima ›</button>
+      </div>
+    </div>`;
+}
+
+function renderizarPacientes(resultado) {
   const alvo = document.getElementById('conteudoPacientes');
+  const lista = resultado.pacientes;
   if (lista.length === 0) {
     alvo.innerHTML = '<div class="estado-vazio"><span class="estado-vazio__emoji">🔎</span>Nenhum paciente encontrado.</div>';
     return;
@@ -302,14 +320,19 @@ function renderizarPacientes(lista) {
     <table class="tabela">
       <thead><tr><th>Paciente</th><th>Telefone</th><th>Cadastrado em</th><th>Atendimento</th><th>Lembrete</th></tr></thead>
       <tbody>${linhas}</tbody>
-    </table>`;
+    </table>
+    ${renderizarPaginacao(resultado)}`;
 }
 
-async function carregarPacientes(busca) {
+async function carregarPacientes(busca, pagina = 1) {
   const alvo = document.getElementById('conteudoPacientes');
+  paginaAtualPacientes = pagina;
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
   try {
-    const lista = await chamarApi(`/api/pacientes?busca=${encodeURIComponent(busca || '')}`);
-    renderizarPacientes(lista);
+    const resultado = await chamarApi(
+      `/api/pacientes?busca=${encodeURIComponent(busca || '')}&pagina=${pagina}`
+    );
+    renderizarPacientes(resultado);
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
@@ -339,11 +362,18 @@ document.getElementById('conteudoPacientes').addEventListener('change', async (e
   }
 });
 
+document.getElementById('conteudoPacientes').addEventListener('click', (evento) => {
+  const botao = evento.target.closest('button[data-pagina-pacientes]');
+  if (!botao || botao.disabled) return;
+  const pagina = parseInt(botao.dataset.paginaPacientes, 10);
+  carregarPacientes(document.getElementById('buscaPacientes').value, pagina);
+});
+
 let temporizadorBusca = null;
 document.getElementById('buscaPacientes').addEventListener('input', (evento) => {
   clearTimeout(temporizadorBusca);
   const valor = evento.target.value;
-  temporizadorBusca = setTimeout(() => carregarPacientes(valor), 300);
+  temporizadorBusca = setTimeout(() => carregarPacientes(valor, 1), 300);
 });
 
 // ============================================================
