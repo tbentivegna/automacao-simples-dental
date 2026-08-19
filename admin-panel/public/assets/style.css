@@ -94,10 +94,10 @@ button {
 
 .cartao-login__marca-img {
   width: 100%;
-  max-width: 200px;
+  max-width: 340px;
   height: auto;
   display: block;
-  margin: 0 auto 4px;
+  margin: 0 auto;
 }
 
 .cartao-login h1 {
