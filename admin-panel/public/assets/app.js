@@ -472,6 +472,28 @@ carregarAnalytics();
 carregarStatusGlobal();
 
 // ============================================================
+// Atualização automática
+// ============================================================
+
+// Refresca sozinho o que é leve e não atrapalha se recarregar por baixo do
+// usuário (badges, status da Lumi, e a seção de Visão Geral se for a que
+// está aberta). Pendências e Atendimento Humano têm poucas linhas e são
+// sempre recarregadas -- é o mesmo dado que já mostramos na sidebar.
+// Pacientes fica de fora: recarregar embaixo de uma busca em andamento
+// atrapalharia mais do que ajudaria; lá o F5/troca de página já resolve.
+const INTERVALO_ATUALIZACAO_MS = 45000;
+
+setInterval(() => {
+  if (document.hidden) return; // aba em segundo plano -- não gasta query à toa
+  carregarPendencias();
+  carregarSuspensos();
+  carregarStatusGlobal();
+  if (document.getElementById('secao-visao-geral').classList.contains('ativa')) {
+    carregarAnalytics();
+  }
+}, INTERVALO_ATUALIZACAO_MS);
+
+// ============================================================
 // Sair
 // ============================================================
 
