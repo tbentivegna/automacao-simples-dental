@@ -3,6 +3,20 @@
 const { pool } = require('./db');
 
 const JANELAS_VALIDAS = ['hoje', 'ultimas_24h', 'ultima_semana', 'ultimo_mes', 'tudo'];
+const TIPOS_AGENDAMENTO_VALIDOS = ['criado', 'confirmado', 'cancelado', 'remarcado', 'lembrete_enviado'];
+
+// Mesmo CASE usado em buscarAnalytics, só que como função pra reaproveitar
+// nas queries de detalhe (drill-down dos cards da Visão Geral) sem duplicar
+// o texto em cada uma. `parametro` é o placeholder posicional ($1, $2...).
+function clausulaDesde(parametro) {
+  return `CASE ${parametro}
+      WHEN 'hoje' THEN date_trunc('day', now())
+      WHEN 'ultimas_24h' THEN now() - interval '24 hours'
+      WHEN 'ultima_semana' THEN now() - interval '7 days'
+      WHEN 'ultimo_mes' THEN now() - interval '30 days'
+      ELSE '1970-01-01'::timestamptz
+    END`;
+}
 
 // Mesma janela usada em db/analytics-queries.sql (relatorio_geral), pra
 // manter os números do painel iguais aos que o Analytics Agent já responde
@@ -69,6 +83,98 @@ async function buscarAnalytics(janela) {
   );
 
   return { janela: janelaSegura, ...rows[0] };
+}
+
+// Drill-down do card de agendamento clicado na Visão Geral (criados,
+// confirmados, cancelados, remarcados ou lembretes enviados). Mesmo filtro
+// de janela do card, só trocando COUNT por SELECT.
+async function buscarDetalheAgendamentos(tipo, janela) {
+  const tipoSeguro = TIPOS_AGENDAMENTO_VALIDOS.includes(tipo) ? tipo : 'criado';
+  const janelaSegura = JANELAS_VALIDAS.includes(janela) ? janela : 'hoje';
+
+  const { rows } = await pool.query(
+    `SELECT
+      ea.id,
+      ea.telefone,
+      c.nome,
+      ea.categoria,
+      to_char(ea.data_consulta, 'DD/MM/YYYY') AS data_consulta_formatada,
+      ea.hora_consulta,
+      to_char(ea.criado_em AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
+    FROM public.eventos_agenda ea
+    LEFT JOIN public.cliente c ON c.telefone = ea.telefone
+    WHERE ea.tipo = $1 AND ea.criado_em >= ${clausulaDesde('$2')}
+    ORDER BY ea.criado_em DESC
+    LIMIT 50;`,
+    [tipoSeguro, janelaSegura]
+  );
+  return rows;
+}
+
+// Drill-down do card "Novos pacientes" -- quem entrou na janela selecionada,
+// mais recente primeiro (aqui a ordem por recência importa mais que a
+// alfabética do diretório completo em /api/pacientes).
+async function buscarDetalheNovosPacientes(janela) {
+  const janelaSegura = JANELAS_VALIDAS.includes(janela) ? janela : 'hoje';
+
+  const { rows } = await pool.query(
+    `SELECT
+      c.id,
+      c.nome,
+      c.telefone,
+      to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
+    FROM public.cliente c
+    WHERE (c.created_at AT TIME ZONE 'UTC') >= ${clausulaDesde('$1')}
+    ORDER BY c.created_at DESC
+    LIMIT 50;`,
+    [janelaSegura]
+  );
+  return rows;
+}
+
+// Drill-down do card "Mensagens trocadas" -- não lista mensagem por
+// mensagem (é muita coisa), lista os pacientes mais ativos no período pra
+// depois abrir o preview de UM paciente (buscarMensagensPaciente).
+async function buscarDetalheMensagens(janela) {
+  const janelaSegura = JANELAS_VALIDAS.includes(janela) ? janela : 'hoje';
+
+  const { rows } = await pool.query(
+    `SELECT
+      h.session_id AS telefone,
+      c.nome,
+      count(*)::int AS total_mensagens,
+      to_char(max(h.created_at) AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS ultima_mensagem_formatada
+    FROM public.n8n_chat_histories h
+    LEFT JOIN public.cliente c ON c.telefone = h.session_id
+    WHERE h.created_at >= ${clausulaDesde('$1')}
+    GROUP BY h.session_id, c.nome
+    ORDER BY total_mensagens DESC, max(h.created_at) DESC
+    LIMIT 20;`,
+    [janelaSegura]
+  );
+  return rows;
+}
+
+// Preview da conversa de UM paciente (últimas N mensagens, mais antiga
+// primeiro pra ler de cima pra baixo como um chat). session_id na tabela de
+// memória do n8n é sempre o telefone -- ver n8n/lumi-workflow.json.
+async function buscarMensagensPaciente(telefone, limite = 20) {
+  const telefoneSeguro = (telefone || '').trim();
+  const limiteSeguro = Number.isInteger(limite) && limite > 0 && limite <= 100 ? limite : 20;
+  if (!telefoneSeguro) return [];
+
+  const { rows } = await pool.query(
+    `SELECT
+      message->>'type' AS tipo,
+      message->>'content' AS conteudo,
+      to_char(created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS enviado_em_formatado
+    FROM public.n8n_chat_histories
+    WHERE session_id = $1
+    ORDER BY created_at DESC
+    LIMIT $2;`,
+    [telefoneSeguro, limiteSeguro]
+  );
+  return rows.reverse();
 }
 
 // Pacientes com a Lumi desativada (atendimento humano assumido). Ordenado
@@ -244,6 +350,10 @@ async function pausarPaciente(id) {
 
 module.exports = {
   buscarAnalytics,
+  buscarDetalheAgendamentos,
+  buscarDetalheNovosPacientes,
+  buscarDetalheMensagens,
+  buscarMensagensPaciente,
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,

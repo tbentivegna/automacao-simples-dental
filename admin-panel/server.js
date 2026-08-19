@@ -16,6 +16,10 @@ const {
 } = require('./auth');
 const {
   buscarAnalytics,
+  buscarDetalheAgendamentos,
+  buscarDetalheNovosPacientes,
+  buscarDetalheMensagens,
+  buscarMensagensPaciente,
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
@@ -81,6 +85,48 @@ app.get('/api/analytics', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/analytics:', erro);
     res.status(500).json({ erro: 'Falha ao buscar analytics.', detalhe: erro.message });
+  }
+});
+
+// Drill-down dos cards da Visão Geral -- mesmo dado que já alimenta os
+// números, só que em lista em vez de contagem.
+app.get('/api/analytics/agendamentos', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarDetalheAgendamentos(req.query.tipo, req.query.janela));
+  } catch (erro) {
+    console.error('Erro em /api/analytics/agendamentos:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar detalhe de agendamentos.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/analytics/novos-pacientes', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarDetalheNovosPacientes(req.query.janela));
+  } catch (erro) {
+    console.error('Erro em /api/analytics/novos-pacientes:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar novos pacientes.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/analytics/mensagens', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarDetalheMensagens(req.query.janela));
+  } catch (erro) {
+    console.error('Erro em /api/analytics/mensagens:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar mensagens por paciente.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/mensagens', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const telefone = (req.query.telefone || '').trim();
+    if (!telefone) {
+      return res.status(400).json({ erro: 'telefone é obrigatório.' });
+    }
+    res.json(await buscarMensagensPaciente(telefone, parseInt(req.query.limite, 10) || 20));
+  } catch (erro) {
+    console.error('Erro em /api/mensagens:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar mensagens do paciente.', detalhe: erro.message });
   }
 });
 

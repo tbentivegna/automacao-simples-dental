@@ -107,25 +107,299 @@ async function carregarAnalytics() {
 
     alvo.innerHTML = `
       <div class="grade-cartoes">
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Consultas criadas</div><div class="cartao-stat__valor">${formatarNumero(ag.criados)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Confirmadas</div><div class="cartao-stat__valor">${formatarNumero(ag.confirmados)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Canceladas</div><div class="cartao-stat__valor">${formatarNumero(ag.cancelados)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Remarcadas</div><div class="cartao-stat__valor">${formatarNumero(ag.remarcados)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Lembretes enviados</div><div class="cartao-stat__valor">${formatarNumero(ag.lembretes_enviados)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Novos pacientes</div><div class="cartao-stat__valor">${formatarNumero(d.novos_pacientes)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Mensagens trocadas</div><div class="cartao-stat__valor">${formatarNumero(d.mensagens_trocadas)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Pendências em aberto</div><div class="cartao-stat__valor${Number(pend.urgentes_em_aberto) > 0 ? ' destaque-urgente' : ''}">${formatarNumero(pend.total_em_aberto)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Urgências em aberto</div><div class="cartao-stat__valor${Number(pend.urgentes_em_aberto) > 0 ? ' destaque-urgente' : ''}">${formatarNumero(pend.urgentes_em_aberto)}</div></div>
-        <div class="cartao-stat"><div class="cartao-stat__rotulo">Com atendimento humano</div><div class="cartao-stat__valor${Number(d.pacientes_com_lumi_suspensa) > 0 ? ' destaque-alerta' : ''}">${formatarNumero(d.pacientes_com_lumi_suspensa)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="criado"><div class="cartao-stat__rotulo">Consultas criadas</div><div class="cartao-stat__valor">${formatarNumero(ag.criados)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="confirmado"><div class="cartao-stat__rotulo">Confirmadas</div><div class="cartao-stat__valor">${formatarNumero(ag.confirmados)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="cancelado"><div class="cartao-stat__rotulo">Canceladas</div><div class="cartao-stat__valor">${formatarNumero(ag.cancelados)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="remarcado"><div class="cartao-stat__rotulo">Remarcadas</div><div class="cartao-stat__valor">${formatarNumero(ag.remarcados)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="lembrete_enviado"><div class="cartao-stat__rotulo">Lembretes enviados</div><div class="cartao-stat__valor">${formatarNumero(ag.lembretes_enviados)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="novos_pacientes"><div class="cartao-stat__rotulo">Novos pacientes</div><div class="cartao-stat__valor">${formatarNumero(d.novos_pacientes)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="mensagens_trocadas"><div class="cartao-stat__rotulo">Mensagens trocadas</div><div class="cartao-stat__valor">${formatarNumero(d.mensagens_trocadas)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="pendencias"><div class="cartao-stat__rotulo">Pendências em aberto</div><div class="cartao-stat__valor${Number(pend.urgentes_em_aberto) > 0 ? ' destaque-urgente' : ''}">${formatarNumero(pend.total_em_aberto)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="urgencias"><div class="cartao-stat__rotulo">Urgências em aberto</div><div class="cartao-stat__valor${Number(pend.urgentes_em_aberto) > 0 ? ' destaque-urgente' : ''}">${formatarNumero(pend.urgentes_em_aberto)}</div></div>
+        <div class="cartao-stat cartao-stat--clicavel" data-card="atendimento_humano"><div class="cartao-stat__rotulo">Com atendimento humano</div><div class="cartao-stat__valor${Number(d.pacientes_com_lumi_suspensa) > 0 ? ' destaque-alerta' : ''}">${formatarNumero(d.pacientes_com_lumi_suspensa)}</div></div>
       </div>
       ${categorias ? `<div class="painel"><div class="painel__cabecalho">Consultas criadas por categoria</div><div style="padding:16px 20px; display:flex; flex-wrap:wrap; gap:8px;">${categorias}</div></div>` : ''}
+      <div id="detalheCard" class="detalhe-card" hidden></div>
     `;
 
     atualizarBadges();
+
+    // Se já tinha um card aberto (troca de janela, ou o refresh automático
+    // de 45s), mantém aberto com dado fresco em vez de simplesmente sumir.
+    if (cardAberto) {
+      const elCard = alvo.querySelector(`[data-card="${cardAberto}"]`);
+      if (elCard) elCard.classList.add('cartao-stat--ativo');
+      const container = document.getElementById('detalheCard');
+      container.hidden = false;
+      container.innerHTML = '<div class="carregando">Carregando…</div>';
+      renderizarDetalheCard(cardAberto, container).catch((erro) => {
+        container.innerHTML = elementoErro(erro.message);
+      });
+    }
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
 }
+
+// ------------------------------------------------------------
+// Drill-down dos cards (clicar num card mostra detalhe embaixo do grid)
+// ------------------------------------------------------------
+
+let cardAberto = null;
+
+const TITULOS_CARD = {
+  criado: 'Consultas criadas',
+  confirmado: 'Consultas confirmadas',
+  cancelado: 'Consultas canceladas',
+  remarcado: 'Consultas remarcadas',
+  lembrete_enviado: 'Lembretes enviados',
+  novos_pacientes: 'Novos pacientes',
+  mensagens_trocadas: 'Pacientes mais ativos (mensagens)',
+  pendencias: 'Pendências em aberto',
+  urgencias: 'Urgências em aberto',
+  atendimento_humano: 'Com atendimento humano',
+};
+
+const TITULOS_SECAO = {
+  pacientes: 'Pacientes',
+  pendencias: 'Pendências',
+  'atendimento-humano': 'Atendimento Humano',
+};
+
+function vazioDetalhe(mensagem) {
+  return `<div class="estado-vazio"><span class="estado-vazio__emoji">🔎</span>${escapar(mensagem)}</div>`;
+}
+
+function envolverDetalhe(titulo, corpoHtml, linkSecao, comVoltar) {
+  return `
+    <div class="painel__cabecalho detalhe-card__cabecalho">
+      ${comVoltar ? '<button class="detalhe-card__voltar" data-voltar-mensagens>‹ Voltar</button>' : ''}
+      <span>${escapar(titulo)}</span>
+      <button class="detalhe-card__fechar" data-fechar-detalhe aria-label="Fechar">✕</button>
+    </div>
+    ${corpoHtml}
+    ${linkSecao ? `<div class="detalhe-card__rodape"><button class="botao" data-ir-secao="${linkSecao}">Ver tudo em ${escapar(TITULOS_SECAO[linkSecao] || '')} →</button></div>` : ''}
+  `;
+}
+
+function renderizarTabelaAgendamentos(lista) {
+  if (lista.length === 0) return vazioDetalhe('Nada por aqui nesse período.');
+  const linhas = lista
+    .map(
+      (e) => `
+        <tr>
+          <td>
+            <div class="nome-paciente">${escapar(e.nome || '(paciente não identificado)')}</div>
+            ${e.telefone ? `<div class="texto-fraco">${escapar(e.telefone)}</div>` : ''}
+          </td>
+          <td>${escapar(CATEGORIAS_LEGIVEIS[e.categoria] || e.categoria || '—')}</td>
+          <td>${escapar(e.data_consulta_formatada || '—')}${e.hora_consulta ? ` ${escapar(e.hora_consulta)}` : ''}</td>
+          <td class="texto-fraco">${escapar(e.criado_em_formatado || '—')}</td>
+        </tr>`
+    )
+    .join('');
+  return `<div class="tabela-scroll tabela-scroll--detalhe"><table class="tabela">
+    <thead><tr><th>Paciente</th><th>Categoria</th><th>Consulta</th><th>Registrado em</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table></div>`;
+}
+
+function renderizarTabelaNovosPacientes(lista) {
+  if (lista.length === 0) return vazioDetalhe('Nenhum paciente novo nesse período.');
+  const linhas = lista
+    .map(
+      (p) => `
+        <tr>
+          <td><div class="nome-paciente">${escapar(p.nome || '(sem nome)')}</div></td>
+          <td>${escapar(p.telefone || '—')}</td>
+          <td class="texto-fraco">${escapar(p.criado_em_formatado || '—')}</td>
+        </tr>`
+    )
+    .join('');
+  return `<div class="tabela-scroll tabela-scroll--detalhe"><table class="tabela">
+    <thead><tr><th>Paciente</th><th>Telefone</th><th>Cadastrado em</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table></div>`;
+}
+
+function renderizarTabelaMensagens(lista) {
+  if (lista.length === 0) return vazioDetalhe('Nenhuma mensagem trocada nesse período.');
+  const linhas = lista
+    .map(
+      (m) => `
+        <tr class="linha-clicavel" data-preview-mensagens="${escapar(m.telefone)}" data-preview-nome="${escapar(m.nome || m.telefone || '')}">
+          <td>
+            <div class="nome-paciente">${escapar(m.nome || '(sem nome)')}</div>
+            <div class="texto-fraco">${escapar(m.telefone || '')}</div>
+          </td>
+          <td>${formatarNumero(m.total_mensagens)}</td>
+          <td class="texto-fraco">${escapar(m.ultima_mensagem_formatada || '—')}</td>
+          <td class="texto-fraco">Ver conversa ›</td>
+        </tr>`
+    )
+    .join('');
+  return `<div class="tabela-scroll tabela-scroll--detalhe"><table class="tabela">
+    <thead><tr><th>Paciente</th><th>Mensagens</th><th>Última mensagem</th><th></th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table></div>`;
+}
+
+function renderizarPreviewPendencias(lista) {
+  if (lista.length === 0) return vazioDetalhe('Nenhuma pendência em aberto.');
+  const linhas = lista
+    .slice(0, 5)
+    .map(
+      (p) => `
+        <tr>
+          <td>${p.urgente ? '<span class="selo selo-urgente">Urgência</span>' : `<span class="selo selo-neutro">${escapar(p.action || '—')}</span>`}</td>
+          <td>
+            <div class="nome-paciente">${escapar(p.paciente_nome || '(paciente não identificado)')}</div>
+            <div class="texto-fraco">${escapar(p.from_phone || '')}</div>
+          </td>
+          <td style="max-width:280px;">${escapar(p.detail || '')}</td>
+          <td class="texto-fraco">${formatarHoras(p.horas_em_aberto)} atrás</td>
+        </tr>`
+    )
+    .join('');
+  return `<div class="tabela-scroll tabela-scroll--detalhe"><table class="tabela">
+    <thead><tr><th></th><th>Paciente</th><th>Detalhe</th><th>Aberta há</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table></div>`;
+}
+
+function renderizarPreviewSuspensos(lista) {
+  if (lista.length === 0) return vazioDetalhe('Nenhum paciente com a Lumi pausada agora.');
+  const linhas = lista
+    .slice(0, 5)
+    .map(
+      (p) => `
+        <tr>
+          <td>
+            <div class="nome-paciente">${escapar(p.nome || '(sem nome)')}</div>
+            <div class="texto-fraco">${escapar(p.telefone || '')}</div>
+          </td>
+          <td class="texto-fraco">${formatarHoras(p.horas_desde_handoff)} parado</td>
+        </tr>`
+    )
+    .join('');
+  return `<div class="tabela-scroll tabela-scroll--detalhe"><table class="tabela">
+    <thead><tr><th>Paciente</th><th>Tempo parado</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table></div>`;
+}
+
+const TIPOS_AGENDAMENTO = ['criado', 'confirmado', 'cancelado', 'remarcado', 'lembrete_enviado'];
+
+async function renderizarDetalheCard(tipo, container) {
+  const titulo = TITULOS_CARD[tipo] || 'Detalhe';
+
+  if (TIPOS_AGENDAMENTO.includes(tipo)) {
+    const lista = await chamarApi(`/api/analytics/agendamentos?tipo=${tipo}&janela=${encodeURIComponent(janelaAtual)}`);
+    container.innerHTML = envolverDetalhe(titulo, renderizarTabelaAgendamentos(lista));
+    return;
+  }
+  if (tipo === 'novos_pacientes') {
+    const lista = await chamarApi(`/api/analytics/novos-pacientes?janela=${encodeURIComponent(janelaAtual)}`);
+    container.innerHTML = envolverDetalhe(titulo, renderizarTabelaNovosPacientes(lista), 'pacientes');
+    return;
+  }
+  if (tipo === 'mensagens_trocadas') {
+    const lista = await chamarApi(`/api/analytics/mensagens?janela=${encodeURIComponent(janelaAtual)}`);
+    container.innerHTML = envolverDetalhe(titulo, renderizarTabelaMensagens(lista));
+    return;
+  }
+  if (tipo === 'pendencias' || tipo === 'urgencias') {
+    const lista = await chamarApi('/api/pendencias');
+    const filtrada = tipo === 'urgencias' ? lista.filter((p) => p.urgente) : lista;
+    container.innerHTML = envolverDetalhe(titulo, renderizarPreviewPendencias(filtrada), 'pendencias');
+    return;
+  }
+  if (tipo === 'atendimento_humano') {
+    const lista = await chamarApi('/api/suspensos');
+    container.innerHTML = envolverDetalhe(titulo, renderizarPreviewSuspensos(lista), 'atendimento-humano');
+    return;
+  }
+  container.innerHTML = '';
+}
+
+async function alternarDetalheCard(tipo) {
+  const container = document.getElementById('detalheCard');
+  if (!container) return;
+  const cards = document.querySelectorAll('#conteudoAnalytics [data-card]');
+  const jaAberto = cardAberto === tipo;
+
+  if (jaAberto) {
+    cardAberto = null;
+    cards.forEach((c) => c.classList.remove('cartao-stat--ativo'));
+    container.hidden = true;
+    container.innerHTML = '';
+    return;
+  }
+
+  cardAberto = tipo;
+  cards.forEach((c) => c.classList.toggle('cartao-stat--ativo', c.dataset.card === tipo));
+  container.hidden = false;
+  container.innerHTML = '<div class="carregando">Carregando…</div>';
+  try {
+    await renderizarDetalheCard(tipo, container);
+  } catch (erro) {
+    container.innerHTML = elementoErro(erro.message);
+  }
+}
+
+async function abrirPreviewMensagens(telefone, nome) {
+  const container = document.getElementById('detalheCard');
+  if (!container) return;
+  container.innerHTML = '<div class="carregando">Carregando…</div>';
+  try {
+    const mensagens = await chamarApi(`/api/mensagens?telefone=${encodeURIComponent(telefone)}`);
+    const bolhas = mensagens
+      .map(
+        (m) => `
+          <div class="bolha-mensagem ${m.tipo === 'human' ? 'bolha-mensagem--paciente' : 'bolha-mensagem--lumi'}">
+            <div class="bolha-mensagem__texto">${escapar(m.conteudo || '')}</div>
+            <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
+          </div>`
+      )
+      .join('');
+    container.innerHTML = envolverDetalhe(
+      nome || 'Conversa',
+      `<div class="preview-conversa">${bolhas || vazioDetalhe('Sem mensagens registradas pra esse paciente.')}</div>`,
+      null,
+      true
+    );
+  } catch (erro) {
+    container.innerHTML = elementoErro(erro.message);
+  }
+}
+
+document.getElementById('conteudoAnalytics').addEventListener('click', (evento) => {
+  const card = evento.target.closest('[data-card]');
+  if (card) return alternarDetalheCard(card.dataset.card);
+
+  const fechar = evento.target.closest('[data-fechar-detalhe]');
+  if (fechar) return alternarDetalheCard(cardAberto);
+
+  const irSecao = evento.target.closest('[data-ir-secao]');
+  if (irSecao) return irParaSecao(irSecao.dataset.irSecao);
+
+  const voltar = evento.target.closest('[data-voltar-mensagens]');
+  if (voltar) {
+    const container = document.getElementById('detalheCard');
+    if (container && cardAberto) {
+      container.innerHTML = '<div class="carregando">Carregando…</div>';
+      renderizarDetalheCard(cardAberto, container).catch((erro) => {
+        container.innerHTML = elementoErro(erro.message);
+      });
+    }
+    return;
+  }
+
+  const linhaMensagens = evento.target.closest('[data-preview-mensagens]');
+  if (linhaMensagens) {
+    return abrirPreviewMensagens(linhaMensagens.dataset.previewMensagens, linhaMensagens.dataset.previewNome);
+  }
+});
 
 // ============================================================
 // Atendimento Humano
