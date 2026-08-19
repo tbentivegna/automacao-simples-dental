@@ -303,6 +303,13 @@ button {
   margin-bottom: 24px;
 }
 
+/* O atributo "hidden" tem a mesma especificidade que a classe acima -- sem
+   esta regra, o "display: flex" vence por vir depois no CSS e o banner
+   fica sempre visível mesmo com hidden setado via JS. */
+.banner-pausado[hidden] {
+  display: none;
+}
+
 .banner-pausado strong {
   font-weight: 700;
 }
