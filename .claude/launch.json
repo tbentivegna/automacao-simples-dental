@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin-panel",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["admin-panel/server.js"],
+      "port": 3100
+    }
+  ]
+}

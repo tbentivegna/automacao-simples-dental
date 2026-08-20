@@ -253,6 +253,7 @@ async function buscarPacientes(busca, pagina = 1, porPagina = 10) {
     `SELECT
       c.id,
       c.nome,
+      c.apelido_whatsapp,
       c.telefone,
       c.email,
       to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS criado_em_formatado,
@@ -261,7 +262,10 @@ async function buscarPacientes(busca, pagina = 1, porPagina = 10) {
       c.consentimento_lembrete,
       count(*) OVER()::int AS total_geral
     FROM public.cliente c
-    WHERE $1 = '' OR c.nome ILIKE '%' || $1 || '%' OR c.telefone ILIKE '%' || $1 || '%'
+    WHERE $1 = ''
+      OR c.nome ILIKE '%' || $1 || '%'
+      OR c.apelido_whatsapp ILIKE '%' || $1 || '%'
+      OR c.telefone ILIKE '%' || $1 || '%'
     ORDER BY c.nome ASC NULLS LAST, c.id ASC
     LIMIT $2 OFFSET $3;`,
     [termo, porPaginaSeguro, offset]

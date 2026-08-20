@@ -566,7 +566,13 @@ function renderizarPacientes(resultado) {
       (p) => `
         <tr>
           <td>
-            <div class="nome-paciente">${escapar(p.nome || '(sem nome)')}</div>
+            ${
+              p.nome
+                ? `<div class="nome-paciente">${escapar(p.nome)}</div>`
+                : p.apelido_whatsapp
+                  ? `<div class="nome-paciente nome-paciente--apelido">${escapar(p.apelido_whatsapp)}</div><div class="texto-fraco">perfil do WhatsApp, não confirmado</div>`
+                  : `<div class="nome-paciente">(sem nome)</div>`
+            }
             ${p.email ? `<div class="texto-fraco">${escapar(p.email)}</div>` : ''}
           </td>
           <td>${escapar(p.telefone || '—')}</td>

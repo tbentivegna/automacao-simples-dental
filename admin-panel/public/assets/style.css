@@ -875,6 +875,11 @@ html, body {
   font-weight: 600;
 }
 
+.nome-paciente--apelido {
+  font-style: italic;
+  color: var(--cor-texto-suave);
+}
+
 .nome-paciente + .texto-fraco {
   margin-top: 1px;
 }
