@@ -2,5 +2,6 @@ node_modules/
 .env
 lumi-harness/.env
 admin-panel/.env
+n8n/.env
 auth/
 screenshots/
