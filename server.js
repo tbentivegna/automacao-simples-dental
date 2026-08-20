@@ -60,6 +60,40 @@ async function salvarTelefoneAgendamento({ agendamentoId, telefone }) {
   }
 }
 
+// O Simples Dental exibe o título do evento como "Nome Completo - Dr(a).
+// Fulano" -- tira esse sufixo antes de comparar com public.cliente.nome.
+function nomeSemSufixoProfissional(nomeExibido) {
+  return (nomeExibido || '').replace(/\s*-\s*Dr\(a\)\..*$/i, '').trim();
+}
+
+// Fallback pra quando o agendamento não tem mapeamento em
+// agendamento_telefone (ex: criado manualmente no Simples Dental, sem
+// passar pelo bot) -- tenta achar o telefone pelo nome exibido no
+// calendário, casando contra public.cliente.nome. Só retorna telefone se
+// achar EXATAMENTE UM paciente com esse nome -- em caso de nome ambíguo
+// (mais de um paciente com nome igual/parecido) ou nenhum resultado, prefere
+// não mandar lembrete a mandar pra pessoa errada.
+async function resolverTelefonePorNome(nomeExibido) {
+  const nome = nomeSemSufixoProfissional(nomeExibido);
+  if (!pool || !nome) return null;
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT telefone FROM public.cliente WHERE nome ILIKE $1 LIMIT 2;`,
+      [nome]
+    );
+    // public.cliente.telefone guarda o JID completo do WhatsApp
+    // ("5511999998888@s.whatsapp.net"), mas agendamento_telefone.telefone
+    // (e o resto desta função) guarda só o número local -- telefoneLocal()
+    // converte pro mesmo formato, senão o telefone sai inconsistente
+    // dependendo de qual dos dois caminhos resolveu ele.
+    return rows.length === 1 ? telefoneLocal(rows[0].telefone) : null;
+  } catch (erro) {
+    console.error('[resolverTelefonePorNome] falha ao buscar telefone por nome:', erro.message);
+    return null;
+  }
+}
+
 // Garante que as pastas existem antes de usar
 if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 if (!fs.existsSync(path.dirname(AUTH_FILE))) fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
@@ -1089,6 +1123,14 @@ async function listarLembretesDoDia() {
         } catch (erro) {
           console.error('[lembretesDoDia] falha ao buscar telefone (agendamento fica sem lembrete):', erro.message);
         }
+      }
+
+      // Sem mapeamento em agendamento_telefone (comum pra agendamento
+      // criado manualmente, direto no Simples Dental, sem passar pelo
+      // bot) -- tenta achar o paciente pelo nome, já que ele pode muito
+      // bem já existir em public.cliente (ex: veio da importação em lote).
+      if (!telefone) {
+        telefone = await resolverTelefonePorNome(c.paciente);
       }
 
       const diaISO = formatadorDiaISO.format(new Date(c.inicio));
