@@ -10,6 +10,17 @@ function escapar(texto) {
   return div.innerHTML;
 }
 
+// Nome oficial (confirmado pela Lumi) tem prioridade; sem ele, cai pro
+// apelido do perfil do WhatsApp (auto-declarado, só pra identificação --
+// nunca usado como nome oficial em nenhum outro lugar do sistema).
+function nomeExibicao(nome, apelidoWhatsapp, textoVazio) {
+  if (nome) return `<div class="nome-paciente">${escapar(nome)}</div>`;
+  if (apelidoWhatsapp) {
+    return `<div class="nome-paciente nome-paciente--apelido">${escapar(apelidoWhatsapp)}</div><div class="texto-fraco">perfil do WhatsApp, não confirmado</div>`;
+  }
+  return `<div class="nome-paciente">${escapar(textoVazio)}</div>`;
+}
+
 function formatarNumero(valor) {
   return new Intl.NumberFormat('pt-BR').format(Number(valor) || 0);
 }
@@ -189,7 +200,7 @@ function renderizarTabelaAgendamentos(lista) {
       (e) => `
         <tr>
           <td>
-            <div class="nome-paciente">${escapar(e.nome || '(paciente não identificado)')}</div>
+            ${nomeExibicao(e.nome, e.apelido_whatsapp, '(paciente não identificado)')}
             ${e.telefone ? `<div class="texto-fraco">${escapar(e.telefone)}</div>` : ''}
           </td>
           <td>${escapar(CATEGORIAS_LEGIVEIS[e.categoria] || e.categoria || '—')}</td>
@@ -210,7 +221,7 @@ function renderizarTabelaNovosPacientes(lista) {
     .map(
       (p) => `
         <tr>
-          <td><div class="nome-paciente">${escapar(p.nome || '(sem nome)')}</div></td>
+          <td>${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}</td>
           <td>${escapar(p.telefone || '—')}</td>
           <td class="texto-fraco">${escapar(p.criado_em_formatado || '—')}</td>
         </tr>`
@@ -227,9 +238,9 @@ function renderizarTabelaMensagens(lista) {
   const linhas = lista
     .map(
       (m) => `
-        <tr class="linha-clicavel" data-preview-mensagens="${escapar(m.telefone)}" data-preview-nome="${escapar(m.nome || m.telefone || '')}">
+        <tr class="linha-clicavel" data-preview-mensagens="${escapar(m.telefone)}" data-preview-nome="${escapar(m.nome || m.apelido_whatsapp || m.telefone || '')}">
           <td>
-            <div class="nome-paciente">${escapar(m.nome || '(sem nome)')}</div>
+            ${nomeExibicao(m.nome, m.apelido_whatsapp, '(sem nome)')}
             <div class="texto-fraco">${escapar(m.telefone || '')}</div>
           </td>
           <td>${formatarNumero(m.total_mensagens)}</td>
@@ -253,7 +264,7 @@ function renderizarPreviewPendencias(lista) {
         <tr>
           <td>${p.urgente ? '<span class="selo selo-urgente">Urgência</span>' : `<span class="selo selo-neutro">${escapar(p.action || '—')}</span>`}</td>
           <td>
-            <div class="nome-paciente">${escapar(p.paciente_nome || '(paciente não identificado)')}</div>
+            ${nomeExibicao(p.paciente_nome, p.paciente_apelido_whatsapp, '(paciente não identificado)')}
             <div class="texto-fraco">${escapar(p.from_phone || '')}</div>
           </td>
           <td style="max-width:280px;">${escapar(p.detail || '')}</td>
@@ -275,7 +286,7 @@ function renderizarPreviewSuspensos(lista) {
       (p) => `
         <tr>
           <td>
-            <div class="nome-paciente">${escapar(p.nome || '(sem nome)')}</div>
+            ${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}
             <div class="texto-fraco">${escapar(p.telefone || '')}</div>
           </td>
           <td class="texto-fraco">${formatarHoras(p.horas_desde_handoff)} parado</td>
@@ -422,7 +433,7 @@ async function carregarSuspensos() {
         return `
           <tr data-linha-suspenso="${p.id}">
             <td>
-              <div class="nome-paciente">${escapar(p.nome || '(sem nome)')}</div>
+              ${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}
               <div class="texto-fraco">${escapar(p.telefone || '')}</div>
             </td>
             <td>${p.human_assigned ? '<span class="selo selo-info">com a equipe</span>' : '<span class="selo selo-neutro">—</span>'}</td>
@@ -485,7 +496,7 @@ async function carregarPendencias() {
           <tr data-linha-pendencia="${p.id}">
             <td>${p.urgente ? '<span class="selo selo-urgente">Urgência</span>' : `<span class="selo selo-neutro">${escapar(p.action || '—')}</span>`}</td>
             <td>
-              <div class="nome-paciente">${escapar(p.paciente_nome || '(paciente não identificado)')}</div>
+              ${nomeExibicao(p.paciente_nome, p.paciente_apelido_whatsapp, '(paciente não identificado)')}
               <div class="texto-fraco">${escapar(p.from_phone || '')}</div>
             </td>
             <td>${escapar(p.domain || '—')}</td>
@@ -566,13 +577,7 @@ function renderizarPacientes(resultado) {
       (p) => `
         <tr>
           <td>
-            ${
-              p.nome
-                ? `<div class="nome-paciente">${escapar(p.nome)}</div>`
-                : p.apelido_whatsapp
-                  ? `<div class="nome-paciente nome-paciente--apelido">${escapar(p.apelido_whatsapp)}</div><div class="texto-fraco">perfil do WhatsApp, não confirmado</div>`
-                  : `<div class="nome-paciente">(sem nome)</div>`
-            }
+            ${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}
             ${p.email ? `<div class="texto-fraco">${escapar(p.email)}</div>` : ''}
           </td>
           <td>${escapar(p.telefone || '—')}</td>

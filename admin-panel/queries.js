@@ -97,6 +97,7 @@ async function buscarDetalheAgendamentos(tipo, janela) {
       ea.id,
       ea.telefone,
       c.nome,
+      c.apelido_whatsapp,
       ea.categoria,
       to_char(ea.data_consulta, 'DD/MM/YYYY') AS data_consulta_formatada,
       ea.hora_consulta,
@@ -126,6 +127,7 @@ async function buscarDetalheNovosPacientes(janela) {
     `SELECT
       c.id,
       c.nome,
+      c.apelido_whatsapp,
       c.telefone,
       to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
     FROM public.cliente c
@@ -147,12 +149,13 @@ async function buscarDetalheMensagens(janela) {
     `SELECT
       h.session_id AS telefone,
       c.nome,
+      c.apelido_whatsapp,
       count(*)::int AS total_mensagens,
       to_char(max(h.created_at) AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS ultima_mensagem_formatada
     FROM public.n8n_chat_histories h
     LEFT JOIN public.cliente c ON c.telefone = h.session_id
     WHERE h.created_at >= ${clausulaDesde('$1')}
-    GROUP BY h.session_id, c.nome
+    GROUP BY h.session_id, c.nome, c.apelido_whatsapp
     ORDER BY total_mensagens DESC, max(h.created_at) DESC
     LIMIT 20;`,
     [janelaSegura]
@@ -189,6 +192,7 @@ async function buscarSuspensos() {
     `SELECT
       c.id,
       c.nome,
+      c.apelido_whatsapp,
       c.telefone,
       c.human_assigned,
       to_char(c.last_handoff AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS last_handoff_formatado,
@@ -209,6 +213,7 @@ async function buscarPendencias() {
       aa.id,
       aa.from_phone,
       c.nome AS paciente_nome,
+      c.apelido_whatsapp AS paciente_apelido_whatsapp,
       aa.action,
       aa.domain,
       aa.detail,
