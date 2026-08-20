@@ -175,7 +175,7 @@ async function buscarMensagensPaciente(telefone, limite = 20) {
       to_char(created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS enviado_em_formatado
     FROM public.n8n_chat_histories
     WHERE session_id = $1
-    ORDER BY created_at DESC
+    ORDER BY created_at DESC, id DESC
     LIMIT $2;`,
     [telefoneSeguro, limiteSeguro]
   );
