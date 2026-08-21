@@ -5,3 +5,4 @@ admin-panel/.env
 n8n/.env
 auth/
 screenshots/
+logs/
