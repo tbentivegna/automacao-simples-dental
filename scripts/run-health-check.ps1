@@ -20,8 +20,18 @@ if (-not (Test-Path $logDir)) {
 Set-Location $repoDir
 $prompt = Get-Content -Raw -Path $promptPath -Encoding UTF8
 
+# Primeira checagem do dia (gatilho das 8h) manda um heartbeat sempre --
+# ver secao "Heartbeat da primeira checagem do dia" no prompt. As demais
+# (12h, 16h) seguem so a regra normal de alertar-so-se-achar-problema.
+$hora = (Get-Date).Hour
+if ($hora -lt 10) {
+  $env:HEALTH_CHECK_SLOT = "manha"
+} else {
+  $env:HEALTH_CHECK_SLOT = ""
+}
+
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-"[$timestamp] iniciando checagem..." | Out-File -Append -FilePath $runLog -Encoding utf8
+"[$timestamp] iniciando checagem... (slot=$($env:HEALTH_CHECK_SLOT))" | Out-File -Append -FilePath $runLog -Encoding utf8
 
 try {
   $output = claude -p $prompt --dangerously-skip-permissions --model claude-sonnet-5 2>&1

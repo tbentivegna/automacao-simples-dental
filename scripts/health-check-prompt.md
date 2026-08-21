@@ -31,6 +31,14 @@ body: { number: "5511981174657", text: "🩺 *Monitor automático:* <resumo do p
 
 Não responda a nenhuma mensagem recebida nesse número -- essa checagem só ENVIA, nunca processa réplicas (isso é feito por outro workflow, não é sua responsabilidade aqui).
 
+### Heartbeat da primeira checagem do dia
+
+Se a variável de ambiente `HEALTH_CHECK_SLOT` for `manha`, esta é a primeira checagem do dia -- **sempre** mande uma mensagem de WhatsApp curta pelo mesmo caminho acima, independente de ter achado problema ou não (é o "sinal de vida" de que todo o pipeline -- PC ligado, tarefa agendada, Claude, Evolution API -- está funcionando):
+- Se não achou nada de errado: prefixo "✅ *Monitor automático:*" seguido de uma linha só, tipo "tudo ok, nenhum problema encontrado".
+- Se achou algo: use o alerta normal ("🩺 *Monitor automático:* ...") -- não manda os dois, só um.
+
+Nas checagens seguintes do mesmo dia (`HEALTH_CHECK_SLOT` vazio ou diferente de `manha`), siga só a regra normal: alerta apenas se achar problema real, sem heartbeat.
+
 ## Sempre faça, alertando ou não
 
 Anexe uma linha em `logs/health-check.log` (crie a pasta/arquivo se não existir) no formato:
