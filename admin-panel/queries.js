@@ -5,12 +5,22 @@ const { pool } = require('./db');
 const JANELAS_VALIDAS = ['hoje', 'ultimas_24h', 'ultima_semana', 'ultimo_mes', 'tudo'];
 const TIPOS_AGENDAMENTO_VALIDOS = ['criado', 'confirmado', 'cancelado', 'remarcado', 'lembrete_enviado'];
 
+// db.js já fixa a sessão do pool pra 'America/Sao_Paulo' (ver comentário lá),
+// então to_char() de uma coluna "with time zone" de verdade já sai certo por
+// padrão -- mas usamos AT TIME ZONE explícito mesmo assim, pra não depender
+// silenciosamente desse hook em nenhum lugar. ATENÇÃO: cliente.created_at,
+// cliente.last_handoff e agent_actions.created_at são "timestamp without
+// time zone" mas guardam hora UTC por baixo (gravadas pelo n8n) -- SEMPRE
+// reinterpretar com "(coluna AT TIME ZONE 'UTC')" ANTES de converter pro
+// fuso da clínica, senão a comparação/formatação erra em 3h (ver db.js).
+const FUSO_CLINICA = 'America/Sao_Paulo';
+
 // Mesmo CASE usado em buscarAnalytics, só que como função pra reaproveitar
 // nas queries de detalhe (drill-down dos cards da Visão Geral) sem duplicar
 // o texto em cada uma. `parametro` é o placeholder posicional ($1, $2...).
 function clausulaDesde(parametro) {
   return `CASE ${parametro}
-      WHEN 'hoje' THEN date_trunc('day', now())
+      WHEN 'hoje' THEN date_trunc('day', now() AT TIME ZONE '${FUSO_CLINICA}') AT TIME ZONE '${FUSO_CLINICA}'
       WHEN 'ultimas_24h' THEN now() - interval '24 hours'
       WHEN 'ultima_semana' THEN now() - interval '7 days'
       WHEN 'ultimo_mes' THEN now() - interval '30 days'
@@ -27,7 +37,7 @@ async function buscarAnalytics(janela) {
   const { rows } = await pool.query(
     `WITH parametros AS (
       SELECT CASE $1
-        WHEN 'hoje' THEN date_trunc('day', now())
+        WHEN 'hoje' THEN date_trunc('day', now() AT TIME ZONE '${FUSO_CLINICA}') AT TIME ZONE '${FUSO_CLINICA}'
         WHEN 'ultimas_24h' THEN now() - interval '24 hours'
         WHEN 'ultima_semana' THEN now() - interval '7 days'
         WHEN 'ultimo_mes' THEN now() - interval '30 days'
@@ -101,7 +111,7 @@ async function buscarDetalheAgendamentos(tipo, janela) {
       ea.categoria,
       to_char(ea.data_consulta, 'DD/MM/YYYY') AS data_consulta_formatada,
       ea.hora_consulta,
-      to_char(ea.criado_em AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
+      to_char(ea.criado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
     FROM public.eventos_agenda ea
     -- ea.telefone é gravado "cru" (ex: 11992985426), sem o "55" nem o
     -- sufixo @s.whatsapp.net -- é o formato que o Simples Dental exige
@@ -129,7 +139,7 @@ async function buscarDetalheNovosPacientes(janela) {
       c.nome,
       c.apelido_whatsapp,
       c.telefone,
-      to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
+      to_char((c.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
     FROM public.cliente c
     WHERE (c.created_at AT TIME ZONE 'UTC') >= ${clausulaDesde('$1')}
     ORDER BY c.created_at DESC
@@ -151,14 +161,14 @@ async function buscarDetalheMensagens(janela) {
       c.nome,
       c.apelido_whatsapp,
       count(*)::int AS total_mensagens,
-      to_char(max(h.created_at) AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS ultima_mensagem_formatada
+      to_char(max(h.created_at) AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS ultima_mensagem_formatada
     FROM public.n8n_chat_histories h
     LEFT JOIN public.cliente c ON c.telefone = h.session_id
     WHERE h.created_at >= ${clausulaDesde('$1')}
       AND h.message->>'type' IN ('human', 'ai')
       AND coalesce(h.message->>'content', '') NOT IN ('', '[]')
     GROUP BY h.session_id, c.nome, c.apelido_whatsapp
-    ORDER BY total_mensagens DESC, max(h.created_at) DESC
+    ORDER BY max(h.created_at) DESC, total_mensagens DESC
     LIMIT 20;`,
     [janelaSegura]
   );
@@ -178,7 +188,7 @@ async function buscarMensagensPaciente(telefone, limite = 20) {
       message->>'type' AS tipo,
       message->>'content' AS conteudo,
       message->'tool_calls'->0->>'name' AS tool_chamada,
-      to_char(created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS enviado_em_formatado
+      to_char(created_at AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS enviado_em_formatado
     FROM public.n8n_chat_histories
     WHERE session_id = $1
       AND message->>'type' IN ('human', 'ai')
@@ -203,7 +213,7 @@ async function buscarSuspensos() {
       c.apelido_whatsapp,
       c.telefone,
       c.human_assigned,
-      to_char(c.last_handoff AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS last_handoff_formatado,
+      to_char((c.last_handoff AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS last_handoff_formatado,
       EXTRACT(EPOCH FROM (now() - (c.last_handoff AT TIME ZONE 'UTC'))) / 3600 AS horas_desde_handoff
     FROM public.cliente c
     WHERE c.bot_disabled = true
@@ -227,7 +237,7 @@ async function buscarPendencias() {
       aa.detail,
       aa.status,
       aa.assigned_to,
-      to_char(aa.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado,
+      to_char((aa.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado,
       EXTRACT(EPOCH FROM (now() - (aa.created_at AT TIME ZONE 'UTC'))) / 3600 AS horas_em_aberto,
       (aa.detail LIKE 'URGÊNCIA%') AS urgente
     FROM public.agent_actions aa
@@ -269,7 +279,7 @@ async function buscarPacientes(busca, pagina = 1, porPagina = 10) {
       c.apelido_whatsapp,
       c.telefone,
       c.email,
-      to_char(c.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS criado_em_formatado,
+      to_char((c.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY') AS criado_em_formatado,
       c.bot_disabled,
       c.human_assigned,
       c.consentimento_lembrete,
@@ -302,9 +312,9 @@ async function buscarStatusGlobal() {
     `SELECT
       bot_pausado,
       pausado_por,
-      to_char(pausado_em, 'DD/MM/YYYY "às" HH24:MI') AS pausado_em_formatado,
+      to_char(pausado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS pausado_em_formatado,
       retomado_por,
-      to_char(retomado_em, 'DD/MM/YYYY "às" HH24:MI') AS retomado_em_formatado
+      to_char(retomado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS retomado_em_formatado
     FROM public.controle_sistema
     WHERE id = 1;`
   );
