@@ -43,6 +43,51 @@ async function registrarEventoAgenda({ tipo, telefone, categoria, data, hora }) 
 }
 
 // Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
+// Abre (ou reaproveita) a tentativa de agendamento em andamento pro
+// telefone, sempre que a Lumi mostra horários reais ao paciente. Se já
+// existir uma tentativa em_andamento pro mesmo telefone, só atualiza
+// ultima_interacao_em (evita duplicar tentativa quando o paciente pergunta
+// disponibilidade várias vezes na mesma conversa). `telefone` já deve vir no
+// formato completo (5511999998888@s.whatsapp.net), igual ao resto do banco.
+async function abrirOuAtualizarFunil({ telefone, instancia }) {
+  if (!pool || !telefone) return;
+  try {
+    const atualizado = await pool.query(
+      `UPDATE public.funil_agendamento
+       SET ultima_interacao_em = now()
+       WHERE telefone = $1 AND status = 'em_andamento'`,
+      [telefone]
+    );
+    if (atualizado.rowCount === 0) {
+      await pool.query(
+        `INSERT INTO public.funil_agendamento (telefone, instancia)
+         VALUES ($1, $2)`,
+        [telefone, instancia || null]
+      );
+    }
+  } catch (erro) {
+    console.error('[funilAgendamento] falha ao abrir/atualizar tentativa (não afeta a resposta ao paciente):', erro.message);
+  }
+}
+
+// Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
+// Fecha a tentativa em_andamento pro telefone (agendamento confirmado --
+// não faz mais sentido mandar resgate pra essa tentativa).
+async function fecharFunil({ telefone, status }) {
+  if (!pool || !telefone) return;
+  try {
+    await pool.query(
+      `UPDATE public.funil_agendamento
+       SET status = $2, concluido_em = now()
+       WHERE telefone = $1 AND status = 'em_andamento'`,
+      [telefone, status]
+    );
+  } catch (erro) {
+    console.error('[funilAgendamento] falha ao fechar tentativa (não afeta a resposta ao paciente):', erro.message);
+  }
+}
+
+// Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
 // Mapeia agendamento (Simples Dental) -> telefone, pra o workflow de
 // lembretes conseguir descobrir quem avisar sem depender de casar por nome
 // -- o calendário do Simples Dental nunca expõe telefone, só nome.
@@ -1013,6 +1058,7 @@ async function criarAgendamento({
 
     await registrarEventoAgenda({ tipo: 'criado', telefone, categoria, data, hora });
     await salvarTelefoneAgendamento({ agendamentoId: idCriado, telefone });
+    await fecharFunil({ telefone: `55${telefoneLocal(telefone)}@s.whatsapp.net`, status: 'concluido' });
 
     return {
       sucesso: true,
@@ -1779,6 +1825,8 @@ app.get('/health', (req, res) => {
 app.post('/verificar-disponibilidade', async (req, res) => {
   try {
     const resultado = await comFilaSegura(() => verificarDisponibilidade(req.body || {}));
+    const { telefone, instancia } = req.body || {};
+    await abrirOuAtualizarFunil({ telefone, instancia });
     res.json(resultado);
   } catch (erro) {
     console.error('Erro ao verificar disponibilidade:', erro);
