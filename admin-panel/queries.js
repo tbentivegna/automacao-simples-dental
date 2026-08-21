@@ -155,6 +155,8 @@ async function buscarDetalheMensagens(janela) {
     FROM public.n8n_chat_histories h
     LEFT JOIN public.cliente c ON c.telefone = h.session_id
     WHERE h.created_at >= ${clausulaDesde('$1')}
+      AND h.message->>'type' IN ('human', 'ai')
+      AND coalesce(h.message->>'content', '') NOT IN ('', '[]')
     GROUP BY h.session_id, c.nome, c.apelido_whatsapp
     ORDER BY total_mensagens DESC, max(h.created_at) DESC
     LIMIT 20;`,
@@ -175,9 +177,15 @@ async function buscarMensagensPaciente(telefone, limite = 20) {
     `SELECT
       message->>'type' AS tipo,
       message->>'content' AS conteudo,
+      message->'tool_calls'->0->>'name' AS tool_chamada,
       to_char(created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY "às" HH24:MI') AS enviado_em_formatado
     FROM public.n8n_chat_histories
     WHERE session_id = $1
+      AND message->>'type' IN ('human', 'ai')
+      AND (
+        coalesce(message->>'content', '') NOT IN ('', '[]')
+        OR message->'tool_calls'->0->>'name' IS NOT NULL
+      )
     ORDER BY created_at DESC, id DESC
     LIMIT $2;`,
     [telefoneSeguro, limiteSeguro]

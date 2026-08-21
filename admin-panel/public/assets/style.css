@@ -570,8 +570,8 @@ html, body {
 }
 
 .tabela-scroll--detalhe {
-  max-height: 360px;
-  overflow-y: auto;
+  /* sem max-height/overflow proprio -- a tabela cresce com o conteudo e
+     quem rola é a página inteira, não uma caixa dentro da caixa. */
 }
 
 .linha-clicavel {
@@ -618,6 +618,20 @@ html, body {
   opacity: 0.65;
   margin-top: 4px;
   text-align: right;
+}
+
+.bolha-mensagem--tool {
+  align-self: center;
+  max-width: 85%;
+  background: transparent;
+  border: 1px dashed var(--cor-borda);
+  color: var(--cor-texto-suave);
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.bolha-mensagem--tool .bolha-mensagem__hora {
+  text-align: center;
 }
 
 .painel {

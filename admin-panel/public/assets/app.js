@@ -45,6 +45,24 @@ const CATEGORIAS_LEGIVEIS = {
   outro: 'Outro',
 };
 
+// Nome da tool como a Lumi chama internamente (n8n troca espaço por "_")
+// -> rótulo legível pro preview de conversa. Cai pro nome bruto (com "_"
+// virando espaço) se aparecer uma tool nova que ainda não está no mapa.
+const TOOLS_LEGIVEIS = {
+  Verifica_Disponibilidade: 'Verifica Disponibilidade',
+  Cria_Agendamento: 'Cria Agendamento',
+  Busca_Agendamentos_Paciente: 'Busca Agendamentos do Paciente',
+  Confirmar_Agendamento: 'Confirma Agendamento',
+  Cancelar_Agendamento: 'Cancela Agendamento',
+  Remarcar_Agendamento: 'Remarca Agendamento',
+  Registrar_Consentimento_Lembrete: 'Registra Consentimento de Lembrete',
+  Atualiza_Nome_do_Paciente: 'Atualiza Nome do Paciente',
+};
+
+function nomeLegivelTool(nomeTool) {
+  return TOOLS_LEGIVEIS[nomeTool] || nomeTool.replace(/_/g, ' ');
+}
+
 async function chamarApi(caminho, opcoes) {
   const resposta = await fetch(caminho, opcoes);
   if (resposta.status === 401) {
@@ -142,10 +160,17 @@ async function carregarAnalytics() {
       if (elCard) elCard.classList.add('cartao-stat--ativo');
       const container = document.getElementById('detalheCard');
       container.hidden = false;
-      container.innerHTML = '<div class="carregando">Carregando…</div>';
-      renderizarDetalheCard(cardAberto, container).catch((erro) => {
-        container.innerHTML = elementoErro(erro.message);
-      });
+      if (previewMensagensAberto) {
+        // usuário está dentro da conversa de UM paciente -- reabre a mesma
+        // conversa, não a lista do card (ver previewMensagensAberto acima).
+        const { telefone, nome } = previewMensagensAberto;
+        abrirPreviewMensagens(telefone, nome);
+      } else {
+        container.innerHTML = '<div class="carregando">Carregando…</div>';
+        renderizarDetalheCard(cardAberto, container).catch((erro) => {
+          container.innerHTML = elementoErro(erro.message);
+        });
+      }
     }
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
@@ -157,6 +182,12 @@ async function carregarAnalytics() {
 // ------------------------------------------------------------
 
 let cardAberto = null;
+
+// Quando o usuário entra na conversa de UM paciente dentro do card
+// "mensagens_trocadas", guarda quem é -- senão o refresh automático de 45s
+// (carregarAnalytics) só sabia reabrir a LISTA do card, jogando o usuário de
+// volta pra fora da conversa que ele estava lendo.
+let previewMensagensAberto = null;
 
 const TITULOS_CARD = {
   criado: 'Consultas criadas',
@@ -338,6 +369,7 @@ async function alternarDetalheCard(tipo) {
   if (!container) return;
   const cards = document.querySelectorAll('#conteudoAnalytics [data-card]');
   const jaAberto = cardAberto === tipo;
+  previewMensagensAberto = null;
 
   if (jaAberto) {
     cardAberto = null;
@@ -361,17 +393,26 @@ async function alternarDetalheCard(tipo) {
 async function abrirPreviewMensagens(telefone, nome) {
   const container = document.getElementById('detalheCard');
   if (!container) return;
+  previewMensagensAberto = { telefone, nome };
   container.innerHTML = '<div class="carregando">Carregando…</div>';
   try {
     const mensagens = await chamarApi(`/api/mensagens?telefone=${encodeURIComponent(telefone)}`);
     const bolhas = mensagens
-      .map(
-        (m) => `
+      .map((m) => {
+        const chamouTool = m.tipo === 'ai' && (!m.conteudo || m.conteudo === '[]') && m.tool_chamada;
+        if (chamouTool) {
+          return `
+            <div class="bolha-mensagem bolha-mensagem--tool">
+              <div class="bolha-mensagem__texto">🔧 chamou ${escapar(nomeLegivelTool(m.tool_chamada))}</div>
+              <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
+            </div>`;
+        }
+        return `
           <div class="bolha-mensagem ${m.tipo === 'human' ? 'bolha-mensagem--paciente' : 'bolha-mensagem--lumi'}">
             <div class="bolha-mensagem__texto">${escapar(m.conteudo || '')}</div>
             <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
-          </div>`
-      )
+          </div>`;
+      })
       .join('');
     container.innerHTML = envolverDetalhe(
       nome || 'Conversa',
@@ -396,6 +437,7 @@ document.getElementById('conteudoAnalytics').addEventListener('click', (evento) 
 
   const voltar = evento.target.closest('[data-voltar-mensagens]');
   if (voltar) {
+    previewMensagensAberto = null;
     const container = document.getElementById('detalheCard');
     if (container && cardAberto) {
       container.innerHTML = '<div class="carregando">Carregando…</div>';
