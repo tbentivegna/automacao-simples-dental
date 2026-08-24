@@ -933,4 +933,39 @@ html, body {
   .campo-busca {
     width: 100%;
   }
+
+  /* Visão Geral: 10 cartões empilhados em 1 coluna forçavam rolagem enorme
+     no celular. 2 colunas + cartões mais compactos cabem ~5 linhas em vez
+     de 10, sem perder nenhuma informação. */
+  .cabecalho-secao {
+    margin-bottom: 16px;
+  }
+
+  .cabecalho-secao h2 {
+    font-size: 1.5rem;
+  }
+
+  .seletor-janela {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .grade-cartoes {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .cartao-stat {
+    padding: 14px 14px;
+  }
+
+  .cartao-stat__rotulo {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .cartao-stat__valor {
+    font-size: 23px;
+  }
 }

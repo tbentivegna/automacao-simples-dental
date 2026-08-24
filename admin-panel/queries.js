@@ -200,7 +200,7 @@ async function buscarMensagensPaciente(telefone, limite = 20) {
     LIMIT $2;`,
     [telefoneSeguro, limiteSeguro]
   );
-  return rows.reverse();
+  return rows;
 }
 
 // Pacientes com a Lumi desativada (atendimento humano assumido). Ordenado
