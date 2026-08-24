@@ -453,6 +453,54 @@ html, body {
   overflow-wrap: break-word;
 }
 
+/* <details>/<summary> nativo -- clique (não hover) pra mostrar a mensagem,
+   funciona igual em mobile (toque) e desktop, sem precisar posicionar um
+   tooltip flutuante (que tem problema de cortar em tabela com scroll). Ao
+   abrir, o balão empurra a linha pra baixo em vez de flutuar por cima. */
+.popover-mensagem {
+  display: inline-block;
+}
+
+.botao-ver {
+  cursor: pointer;
+  list-style: none;
+  display: inline-block;
+  padding: 4px 12px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+  background: var(--cor-fundo-alt);
+  user-select: none;
+}
+
+.botao-ver::-webkit-details-marker {
+  display: none;
+}
+
+.botao-ver::marker {
+  content: '';
+}
+
+.popover-mensagem[open] .botao-ver {
+  background: var(--cor-marca-clara);
+  border-color: var(--cor-marca);
+  color: var(--cor-marca-escura);
+}
+
+.balao-mensagem {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--cor-fundo-alt);
+  border: 1px solid var(--cor-borda);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 280px;
+  white-space: pre-wrap;
+}
+
 /* ============================================================
    Componentes
    ============================================================ */

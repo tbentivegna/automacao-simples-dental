@@ -681,19 +681,22 @@ function renderizarOportunidades() {
 
   const linhas = lista
     .map((o) => {
-      const mensagem = (o.ultima_mensagem_paciente || '').slice(0, 90);
+      const nomeCurto = o.nome || '(sem nome)';
       const botaoReativar = PODE_REATIVAR.has(o.status)
         ? `<button class="botao" data-reativar-oportunidade="${o.id}">Reativar</button>`
         : '<span class="texto-fraco">—</span>';
+      const verMensagem = o.ultima_mensagem_paciente
+        ? `<details class="popover-mensagem">
+             <summary class="botao-ver">Ver</summary>
+             <div class="balao-mensagem">${escapar(o.ultima_mensagem_paciente)}</div>
+           </details>`
+        : '<span class="texto-fraco">—</span>';
       return `
         <tr data-linha-oportunidade="${o.id}">
-          <td>
-            ${nomeExibicao(o.nome_confirmado ? o.nome : null, o.nome_confirmado ? null : o.nome, '(sem nome)')}
-            <div class="texto-fraco">${escapar(o.telefone || '')}</div>
-          </td>
+          <td>${escapar(nomeCurto)}</td>
           <td>${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
           <td>${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
-          <td>${escapar(mensagem)}${(o.ultima_mensagem_paciente || '').length > 90 ? '…' : ''}</td>
+          <td>${verMensagem}</td>
           <td>${escapar(o.ultima_interacao_formatado || '—')}</td>
           <td>${escapar(proximoPassoOportunidade(o))}</td>
           <td>${botaoReativar}</td>
@@ -704,10 +707,10 @@ function renderizarOportunidades() {
     <div class="tabela-scroll-x">
       <table class="tabela tabela--oportunidades">
         <colgroup>
-          <col style="width:19%"><col style="width:9%"><col style="width:9%">
-          <col style="width:18%"><col style="width:13%"><col style="width:17%"><col style="width:12%">
+          <col style="width:18%"><col style="width:11%"><col style="width:11%">
+          <col style="width:8%"><col style="width:16%"><col style="width:22%"><col style="width:14%">
         </colgroup>
-        <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>O que perguntou</th><th>Última interação</th><th>Próximo passo</th><th></th></tr></thead>
+        <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>Mensagem</th><th>Última interação</th><th>Próximo passo</th><th></th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
     </div>`;
