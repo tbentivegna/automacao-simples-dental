@@ -276,8 +276,13 @@ async function buscarOportunidades() {
           AND h.message->>'type' = 'human'
           AND h.created_at > f.ultima_interacao_em
       ) AS paciente_ja_respondeu_depois,
+      -- mesmo filtro de "mensagem com conteúdo de verdade" (>15 chars) que
+      -- o workflow de resgate usa pra montar a mensagem -- assim o painel
+      -- mostra a mesma coisa que vai ser citada pro paciente, e não uma
+      -- resposta curta tipo "sim"/"ok"/"limpeza" sem contexto.
       (SELECT h.message->>'content' FROM public.n8n_chat_histories h
        WHERE h.session_id = f.telefone AND h.message->>'type' = 'human'
+         AND char_length(h.message->>'content') > 15
        ORDER BY h.created_at DESC LIMIT 1) AS ultima_mensagem_paciente
     FROM public.funil_agendamento f
     LEFT JOIN public.cliente c ON c.telefone = f.telefone
