@@ -98,7 +98,25 @@ document.querySelectorAll('.nav__item[data-secao]').forEach((botao) => {
   botao.addEventListener('click', () => irParaSecao(botao.dataset.secao));
 });
 
+// Menu hambúrguer (mobile): abre a barra lateral escondida, fecha sozinho
+// depois que uma seção é escolhida -- em desktop essa classe não faz nada
+// (o CSS só reage a ela dentro do media query mobile).
+const barraLateral = document.getElementById('barraLateral');
+const botaoMenu = document.getElementById('botaoMenu');
+if (botaoMenu && barraLateral) {
+  botaoMenu.addEventListener('click', () => {
+    const aberto = barraLateral.classList.toggle('menu-aberto');
+    botaoMenu.setAttribute('aria-expanded', String(aberto));
+  });
+}
+
+function fecharMenuMobile() {
+  if (barraLateral) barraLateral.classList.remove('menu-aberto');
+  if (botaoMenu) botaoMenu.setAttribute('aria-expanded', 'false');
+}
+
 function irParaSecao(nome) {
+  fecharMenuMobile();
   document.querySelectorAll('.nav__item[data-secao]').forEach((b) => {
     b.classList.toggle('ativo', b.dataset.secao === nome);
   });

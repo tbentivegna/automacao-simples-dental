@@ -898,6 +898,29 @@ html, body {
   margin-top: 1px;
 }
 
+/* Barra lateral mobile: desktop mostra a marca + nav sempre visíveis;
+   mobile esconde tudo isso atrás de um menu hambúrguer, deixando só uma
+   faixa fina no topo com o botão e a logo -- antes ficava um cabeçalho
+   feio com todos os itens de nav espremidos numa fileira rolável. */
+.barra-lateral__topo-mobile {
+  display: none;
+}
+
+.botao-menu {
+  border: none;
+  background: none;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.marca-lumi-img--mobile {
+  height: 34px;
+  width: auto;
+  max-width: none;
+}
+
 @media (max-width: 860px) {
   .app {
     flex-direction: column;
@@ -908,22 +931,36 @@ html, body {
     width: 100%;
     height: auto;
     overflow: visible;
-    flex-direction: row;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 16px;
+  }
+  .barra-lateral__topo-mobile {
+    display: flex;
     align-items: center;
-    padding: 12px 16px;
-    overflow-x: auto;
+    justify-content: space-between;
   }
   .barra-lateral__marca {
     display: none;
   }
-  .nav {
-    flex-direction: row;
-  }
-  .status-bot {
+  .nav,
+  .status-bot,
+  .botao-sair {
     display: none;
   }
+  .barra-lateral.menu-aberto .nav {
+    display: flex;
+  }
+  .barra-lateral.menu-aberto .status-bot,
+  .barra-lateral.menu-aberto .botao-sair {
+    display: block;
+  }
+  .nav {
+    flex-direction: column;
+    margin-top: 10px;
+  }
   .botao-sair {
-    margin: 0 0 0 8px;
+    margin-top: 10px;
   }
   .conteudo {
     height: auto;
