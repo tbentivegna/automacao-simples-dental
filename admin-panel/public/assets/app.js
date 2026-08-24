@@ -91,6 +91,7 @@ const secoes = {
   'visao-geral': carregarAnalytics,
   'atendimento-humano': carregarSuspensos,
   pendencias: carregarPendencias,
+  oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
 };
 
@@ -603,6 +604,71 @@ document.getElementById('conteudoPendencias').addEventListener('click', async (e
     alert(erro.message);
   }
 });
+
+// ============================================================
+// Oportunidades (funil de resgate)
+// ============================================================
+
+const ETAPA_LEGIVEL = {
+  interesse: '<span class="selo selo-info">Interesse</span>',
+  horario_oferecido: '<span class="selo selo-alerta">Horário oferecido</span>',
+};
+
+const STATUS_OPORTUNIDADE_LEGIVEL = {
+  em_andamento: '<span class="selo selo-alerta">Em andamento</span>',
+  resgate_enviado: '<span class="selo selo-info">Resgate enviado</span>',
+  concluido: '<span class="selo selo-sucesso">Convertido</span>',
+  expirado: '<span class="selo selo-neutro">Expirado</span>',
+};
+
+// Calculado no front (não no SQL) pra ficar fácil de ajustar o texto sem
+// mexer na query -- depende só de status + tempo desde a última interação,
+// os mesmos dados que já vêm na resposta da API.
+function proximoPassoOportunidade(o) {
+  if (o.status === 'concluido') return 'Nada a fazer — já agendou 🎉';
+  if (o.status === 'expirado') return 'Resgate enviado, sem retorno do paciente';
+  if (o.status === 'resgate_enviado') return 'Resgate enviado, aguardando resposta';
+  if (o.paciente_ja_respondeu_depois) return 'Paciente já respondeu — resgate automático não será enviado';
+  const horas = Number(o.horas_desde_ultima_interacao);
+  if (horas < 4) return 'Aguardando (dentro do prazo normal de resposta)';
+  return 'Resgate será enviado no próximo horário comercial';
+}
+
+async function carregarOportunidades() {
+  const alvo = document.getElementById('conteudoOportunidades');
+  try {
+    const lista = await chamarApi('/api/oportunidades');
+    if (lista.length === 0) {
+      alvo.innerHTML =
+        '<div class="estado-vazio"><span class="estado-vazio__emoji">🎯</span>Nenhuma oportunidade registrada ainda.</div>';
+      return;
+    }
+    const linhas = lista
+      .map((o) => {
+        const mensagem = (o.ultima_mensagem_paciente || '').slice(0, 90);
+        return `
+          <tr>
+            <td>
+              ${nomeExibicao(o.nome_confirmado ? o.nome : null, o.nome_confirmado ? null : o.nome, '(sem nome)')}
+              <div class="texto-fraco">${escapar(o.telefone || '')}</div>
+            </td>
+            <td>${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
+            <td>${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
+            <td style="max-width:280px;">${escapar(mensagem)}${(o.ultima_mensagem_paciente || '').length > 90 ? '…' : ''}</td>
+            <td>${escapar(o.ultima_interacao_formatado || '—')}</td>
+            <td>${escapar(proximoPassoOportunidade(o))}</td>
+          </tr>`;
+      })
+      .join('');
+    alvo.innerHTML = `
+      <table class="tabela">
+        <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>O que perguntou</th><th>Última interação</th><th>Próximo passo</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>`;
+  } catch (erro) {
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
 
 // ============================================================
 // Pacientes

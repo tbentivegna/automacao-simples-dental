@@ -248,6 +248,47 @@ async function buscarPendencias() {
   return rows;
 }
 
+// Oportunidades do funil de resgate (funil_agendamento) -- tentativas
+// "em_andamento" primeiro (precisam de atenção), depois resgate_enviado,
+// depois concluido/expirado por último (histórico). ultima_mensagem_paciente
+// é a mesma usada pra montar a mensagem de resgate na etapa "interesse" --
+// mostrar aqui deixa claro pro painel o que gerou a oportunidade.
+async function buscarOportunidades() {
+  const { rows } = await pool.query(
+    `SELECT
+      f.id,
+      f.telefone,
+      coalesce(c.nome, c.apelido_whatsapp) AS nome,
+      (c.nome IS NOT NULL) AS nome_confirmado,
+      f.etapa,
+      f.status,
+      to_char(f.iniciado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS iniciado_em_formatado,
+      to_char(f.ultima_interacao_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS ultima_interacao_formatado,
+      EXTRACT(EPOCH FROM (now() - f.ultima_interacao_em)) / 3600 AS horas_desde_ultima_interacao,
+      (f.resgate_enviado_em IS NOT NULL) AS resgate_enviado,
+      to_char(f.resgate_enviado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS resgate_enviado_formatado,
+      -- mesma checagem que "Busca Funil Parado" usa pra excluir do envio --
+      -- se o paciente já respondeu depois da última marcação, o resgate
+      -- automático não vai disparar, mesmo com status ainda em_andamento.
+      EXISTS (
+        SELECT 1 FROM public.n8n_chat_histories h
+        WHERE h.session_id = f.telefone
+          AND h.message->>'type' = 'human'
+          AND h.created_at > f.ultima_interacao_em
+      ) AS paciente_ja_respondeu_depois,
+      (SELECT h.message->>'content' FROM public.n8n_chat_histories h
+       WHERE h.session_id = f.telefone AND h.message->>'type' = 'human'
+       ORDER BY h.created_at DESC LIMIT 1) AS ultima_mensagem_paciente
+    FROM public.funil_agendamento f
+    LEFT JOIN public.cliente c ON c.telefone = f.telefone
+    ORDER BY
+      CASE f.status WHEN 'em_andamento' THEN 0 WHEN 'resgate_enviado' THEN 1 ELSE 2 END,
+      f.ultima_interacao_em DESC
+    LIMIT 100;`
+  );
+  return rows;
+}
+
 // Marca como resolvida -- WHERE resolved_at IS NULL na própria query
 // evita corrida (dois cliques quase simultâneos): só o primeiro afeta uma
 // linha, o segundo não encontra nada pra atualizar.
@@ -404,6 +445,7 @@ module.exports = {
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
+  buscarOportunidades,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,

@@ -23,6 +23,7 @@ const {
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
+  buscarOportunidades,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,
@@ -191,6 +192,15 @@ app.get('/api/pendencias', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/pendencias:', erro);
     res.status(500).json({ erro: 'Falha ao buscar pendências.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/oportunidades', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarOportunidades());
+  } catch (erro) {
+    console.error('Erro em /api/oportunidades:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar oportunidades.', detalhe: erro.message });
   }
 });
 
