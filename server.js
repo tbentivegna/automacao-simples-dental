@@ -49,20 +49,24 @@ async function registrarEventoAgenda({ tipo, telefone, categoria, data, hora }) 
 // ultima_interacao_em (evita duplicar tentativa quando o paciente pergunta
 // disponibilidade várias vezes na mesma conversa). `telefone` já deve vir no
 // formato completo (5511999998888@s.whatsapp.net), igual ao resto do banco.
-async function abrirOuAtualizarFunil({ telefone, instancia }) {
+// Só é chamada a partir de /verificar-disponibilidade, então sempre marca
+// (ou promove) a tentativa pra etapa "horario_oferecido" -- uma tentativa
+// aberta antes como "interesse" (paciente só perguntou sobre procedimento/
+// valor) é promovida aqui, nunca rebaixada de volta.
+async function abrirOuAtualizarFunil({ telefone, instancia, etapa = 'horario_oferecido' }) {
   if (!pool || !telefone) return;
   try {
     const atualizado = await pool.query(
       `UPDATE public.funil_agendamento
-       SET ultima_interacao_em = now()
+       SET ultima_interacao_em = now(), etapa = $2
        WHERE telefone = $1 AND status = 'em_andamento'`,
-      [telefone]
+      [telefone, etapa]
     );
     if (atualizado.rowCount === 0) {
       await pool.query(
-        `INSERT INTO public.funil_agendamento (telefone, instancia)
-         VALUES ($1, $2)`,
-        [telefone, instancia || null]
+        `INSERT INTO public.funil_agendamento (telefone, instancia, etapa)
+         VALUES ($1, $2, $3)`,
+        [telefone, instancia || null, etapa]
       );
     }
   } catch (erro) {
