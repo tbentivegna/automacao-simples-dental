@@ -634,41 +634,97 @@ function proximoPassoOportunidade(o) {
   return 'Resgate será enviado no próximo horário comercial';
 }
 
+// Filtro é só client-side (a lista inteira já cabe numa página, sem
+// paginação) -- guarda a última resposta da API aqui e re-renderiza na
+// hora quando o usuário digita/troca um filtro, sem bater na API de novo.
+let oportunidadesCache = [];
+
+const PODE_REATIVAR = new Set(['resgate_enviado', 'expirado']);
+
 async function carregarOportunidades() {
   const alvo = document.getElementById('conteudoOportunidades');
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
   try {
-    const lista = await chamarApi('/api/oportunidades');
-    if (lista.length === 0) {
-      alvo.innerHTML =
-        '<div class="estado-vazio"><span class="estado-vazio__emoji">🎯</span>Nenhuma oportunidade registrada ainda.</div>';
-      return;
-    }
-    const linhas = lista
-      .map((o) => {
-        const mensagem = (o.ultima_mensagem_paciente || '').slice(0, 90);
-        return `
-          <tr>
-            <td>
-              ${nomeExibicao(o.nome_confirmado ? o.nome : null, o.nome_confirmado ? null : o.nome, '(sem nome)')}
-              <div class="texto-fraco">${escapar(o.telefone || '')}</div>
-            </td>
-            <td>${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
-            <td>${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
-            <td style="max-width:280px;">${escapar(mensagem)}${(o.ultima_mensagem_paciente || '').length > 90 ? '…' : ''}</td>
-            <td>${escapar(o.ultima_interacao_formatado || '—')}</td>
-            <td>${escapar(proximoPassoOportunidade(o))}</td>
-          </tr>`;
-      })
-      .join('');
-    alvo.innerHTML = `
-      <table class="tabela">
-        <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>O que perguntou</th><th>Última interação</th><th>Próximo passo</th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>`;
+    oportunidadesCache = await chamarApi('/api/oportunidades');
+    renderizarOportunidades();
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
 }
+
+function renderizarOportunidades() {
+  const alvo = document.getElementById('conteudoOportunidades');
+  const termo = (document.getElementById('buscaOportunidades')?.value || '').trim().toLowerCase();
+  const etapaFiltro = document.getElementById('filtroEtapaOportunidades')?.value || '';
+  const statusFiltro = document.getElementById('filtroStatusOportunidades')?.value || '';
+
+  const lista = oportunidadesCache.filter((o) => {
+    if (etapaFiltro && o.etapa !== etapaFiltro) return false;
+    if (statusFiltro && o.status !== statusFiltro) return false;
+    if (termo) {
+      const alvoTexto = `${o.nome || ''} ${o.telefone || ''}`.toLowerCase();
+      if (!alvoTexto.includes(termo)) return false;
+    }
+    return true;
+  });
+
+  if (oportunidadesCache.length === 0) {
+    alvo.innerHTML =
+      '<div class="estado-vazio"><span class="estado-vazio__emoji">🎯</span>Nenhuma oportunidade registrada ainda.</div>';
+    return;
+  }
+  if (lista.length === 0) {
+    alvo.innerHTML = '<div class="estado-vazio"><span class="estado-vazio__emoji">🔍</span>Nada encontrado com esse filtro.</div>';
+    return;
+  }
+
+  const linhas = lista
+    .map((o) => {
+      const mensagem = (o.ultima_mensagem_paciente || '').slice(0, 90);
+      const botaoReativar = PODE_REATIVAR.has(o.status)
+        ? `<button class="botao" data-reativar-oportunidade="${o.id}">Reativar</button>`
+        : '<span class="texto-fraco">—</span>';
+      return `
+        <tr data-linha-oportunidade="${o.id}">
+          <td>
+            ${nomeExibicao(o.nome_confirmado ? o.nome : null, o.nome_confirmado ? null : o.nome, '(sem nome)')}
+            <div class="texto-fraco">${escapar(o.telefone || '')}</div>
+          </td>
+          <td>${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
+          <td>${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
+          <td style="max-width:280px;">${escapar(mensagem)}${(o.ultima_mensagem_paciente || '').length > 90 ? '…' : ''}</td>
+          <td>${escapar(o.ultima_interacao_formatado || '—')}</td>
+          <td>${escapar(proximoPassoOportunidade(o))}</td>
+          <td>${botaoReativar}</td>
+        </tr>`;
+    })
+    .join('');
+  alvo.innerHTML = `
+    <table class="tabela">
+      <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>O que perguntou</th><th>Última interação</th><th>Próximo passo</th><th></th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+}
+
+['buscaOportunidades', 'filtroEtapaOportunidades', 'filtroStatusOportunidades'].forEach((id) => {
+  document.getElementById(id)?.addEventListener('input', renderizarOportunidades);
+});
+
+document.getElementById('conteudoOportunidades').addEventListener('click', async (evento) => {
+  const botao = evento.target.closest('button[data-reativar-oportunidade]');
+  if (!botao) return;
+  const id = botao.dataset.reativarOportunidade;
+  botao.disabled = true;
+  botao.textContent = 'Reativando…';
+  try {
+    await chamarApi(`/api/oportunidades/${id}/reativar`, { method: 'POST' });
+    await carregarOportunidades();
+  } catch (erro) {
+    botao.disabled = false;
+    botao.textContent = 'Reativar';
+    alert(erro.message);
+  }
+});
 
 // ============================================================
 // Pacientes

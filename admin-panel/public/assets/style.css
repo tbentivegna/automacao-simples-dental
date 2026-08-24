@@ -835,6 +835,31 @@ html, body {
   box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
 }
 
+.filtros-oportunidades {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filtros-oportunidades .campo-busca {
+  width: 280px;
+}
+
+.filtros-oportunidades select {
+  padding: 10px 14px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  font-size: 14px;
+  background: var(--cor-cartao);
+  color: var(--cor-texto);
+}
+
+.filtros-oportunidades select:focus {
+  outline: none;
+  border-color: var(--cor-marca);
+}
+
 .paginacao {
   display: flex;
   align-items: center;

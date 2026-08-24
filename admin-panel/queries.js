@@ -294,6 +294,26 @@ async function buscarOportunidades() {
   return rows;
 }
 
+// Reabre manualmente uma tentativa que já teve resgate enviado (sem
+// resposta) ou expirou -- volta pra em_andamento, limpa a trava de resgate
+// (resgate_enviado_em) e reseta ultima_interacao_em pra agora, então o
+// cron de resgate só volta a considerar essa tentativa depois do limiar de
+// silêncio normal (4h) -- não dispara na hora, só reabre a "fila".
+// Só reativa se ainda estiver resgate_enviado/expirado -- não mexe em
+// em_andamento (já está ativa) nem em concluido (já converteu).
+async function reativarOportunidade(id) {
+  const { rows } = await pool.query(
+    `UPDATE public.funil_agendamento
+     SET status = 'em_andamento',
+         resgate_enviado_em = NULL,
+         ultima_interacao_em = now()
+     WHERE id = $1 AND status IN ('resgate_enviado', 'expirado')
+     RETURNING id;`,
+    [id]
+  );
+  return rows.length > 0;
+}
+
 // Marca como resolvida -- WHERE resolved_at IS NULL na própria query
 // evita corrida (dois cliques quase simultâneos): só o primeiro afeta uma
 // linha, o segundo não encontra nada pra atualizar.
@@ -451,6 +471,7 @@ module.exports = {
   buscarPendencias,
   resolverPendencia,
   buscarOportunidades,
+  reativarOportunidade,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,

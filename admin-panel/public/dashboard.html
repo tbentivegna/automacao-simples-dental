@@ -109,6 +109,21 @@
             <p>Conversas que pararam antes de virar consulta — funil de resgate por etapa.</p>
           </div>
         </div>
+        <div class="filtros-oportunidades">
+          <input type="search" class="campo-busca" id="buscaOportunidades" placeholder="Buscar por paciente ou telefone…" />
+          <select id="filtroEtapaOportunidades">
+            <option value="">Todas as etapas</option>
+            <option value="interesse">Interesse</option>
+            <option value="horario_oferecido">Horário oferecido</option>
+          </select>
+          <select id="filtroStatusOportunidades">
+            <option value="">Todos os status</option>
+            <option value="em_andamento">Em andamento</option>
+            <option value="resgate_enviado">Resgate enviado</option>
+            <option value="concluido">Convertido</option>
+            <option value="expirado">Expirado</option>
+          </select>
+        </div>
         <div class="painel">
           <div id="conteudoOportunidades"><div class="carregando">Carregando…</div></div>
         </div>

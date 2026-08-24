@@ -24,6 +24,7 @@ const {
   buscarPendencias,
   resolverPendencia,
   buscarOportunidades,
+  reativarOportunidade,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,
@@ -201,6 +202,20 @@ app.get('/api/oportunidades', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/oportunidades:', erro);
     res.status(500).json({ erro: 'Falha ao buscar oportunidades.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/oportunidades/:id/reativar', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const reativou = await reativarOportunidade(id);
+    if (!reativou) {
+      return res.status(409).json({ erro: 'Essa oportunidade não pode ser reativada (já está em andamento ou convertida).' });
+    }
+    res.json({ sucesso: true });
+  } catch (erro) {
+    console.error('Erro em /api/oportunidades/:id/reativar:', erro);
+    res.status(500).json({ erro: 'Falha ao reativar oportunidade.', detalhe: erro.message });
   }
 });
 
