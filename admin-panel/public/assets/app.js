@@ -628,6 +628,7 @@ function proximoPassoOportunidade(o) {
   if (o.status === 'concluido') return 'Nada a fazer — já agendou 🎉';
   if (o.status === 'expirado') return 'Resgate enviado, sem retorno do paciente';
   if (o.status === 'resgate_enviado') return 'Resgate enviado, aguardando resposta';
+  if (o.atendimento_humano_ativo) return 'Com atendimento humano — resgate automático não entra';
   if (o.paciente_ja_respondeu_depois) return 'Paciente já respondeu — resgate automático não será enviado';
   const horas = Number(o.horas_desde_ultima_interacao);
   if (horas < 4) return 'Aguardando (dentro do prazo normal de resposta)';

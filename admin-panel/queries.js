@@ -267,6 +267,11 @@ async function buscarOportunidades() {
       EXTRACT(EPOCH FROM (now() - f.ultima_interacao_em)) / 3600 AS horas_desde_ultima_interacao,
       (f.resgate_enviado_em IS NOT NULL) AS resgate_enviado,
       to_char(f.resgate_enviado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS resgate_enviado_formatado,
+      -- se a equipe já assumiu essa conversa (bot_disabled), o resgate
+      -- automático não entra -- não pode interromper/contradizer um
+      -- atendimento humano em andamento. Mesma checagem que "Busca Funil
+      -- Parado" usa pra excluir do envio.
+      coalesce(c.bot_disabled, false) AS atendimento_humano_ativo,
       -- mesma checagem que "Busca Funil Parado" usa pra excluir do envio --
       -- se o paciente já respondeu depois da última marcação, o resgate
       -- automático não vai disparar, mesmo com status ainda em_andamento.
