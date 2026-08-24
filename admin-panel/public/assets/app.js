@@ -693,7 +693,7 @@ function renderizarOportunidades() {
           </td>
           <td>${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
           <td>${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
-          <td style="max-width:280px;">${escapar(mensagem)}${(o.ultima_mensagem_paciente || '').length > 90 ? '…' : ''}</td>
+          <td>${escapar(mensagem)}${(o.ultima_mensagem_paciente || '').length > 90 ? '…' : ''}</td>
           <td>${escapar(o.ultima_interacao_formatado || '—')}</td>
           <td>${escapar(proximoPassoOportunidade(o))}</td>
           <td>${botaoReativar}</td>
@@ -701,14 +701,27 @@ function renderizarOportunidades() {
     })
     .join('');
   alvo.innerHTML = `
-    <table class="tabela">
-      <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>O que perguntou</th><th>Última interação</th><th>Próximo passo</th><th></th></tr></thead>
-      <tbody>${linhas}</tbody>
-    </table>`;
+    <div class="tabela-scroll-x">
+      <table class="tabela tabela--oportunidades">
+        <colgroup>
+          <col style="width:19%"><col style="width:9%"><col style="width:9%">
+          <col style="width:18%"><col style="width:13%"><col style="width:17%"><col style="width:12%">
+        </colgroup>
+        <thead><tr><th>Paciente</th><th>Etapa</th><th>Status</th><th>O que perguntou</th><th>Última interação</th><th>Próximo passo</th><th></th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>`;
 }
 
 ['buscaOportunidades', 'filtroEtapaOportunidades', 'filtroStatusOportunidades'].forEach((id) => {
   document.getElementById(id)?.addEventListener('input', renderizarOportunidades);
+});
+
+document.getElementById('botaoLimparFiltrosOportunidades')?.addEventListener('click', () => {
+  document.getElementById('buscaOportunidades').value = '';
+  document.getElementById('filtroEtapaOportunidades').value = '';
+  document.getElementById('filtroStatusOportunidades').value = '';
+  renderizarOportunidades();
 });
 
 document.getElementById('conteudoOportunidades').addEventListener('click', async (evento) => {

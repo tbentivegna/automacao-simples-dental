@@ -432,6 +432,27 @@ html, body {
   overflow-y: auto;
 }
 
+/* Rola só horizontalmente se as colunas não couberem (telas menores) --
+   sem isso o "painel" (overflow:hidden) simplesmente cortava a última
+   coluna (o botão Reativar) em vez de deixar acessível. */
+.tabela-scroll-x {
+  overflow-x: auto;
+}
+
+/* table-layout:auto (padrão) deixa a tabela crescer pro tamanho "natural"
+   do conteúdo, ignorando max-width em th/td -- por isso o botão Reativar
+   ficava cortado mesmo com colunas de texto encolhidas. Com "fixed" +
+   colgroup (definido no JS), as larguras são respeitadas de verdade e o
+   texto quebra em vez de empurrar a tabela pra fora do painel. */
+.tabela--oportunidades {
+  table-layout: fixed;
+}
+
+.tabela--oportunidades td,
+.tabela--oportunidades th {
+  overflow-wrap: break-word;
+}
+
 /* ============================================================
    Componentes
    ============================================================ */
