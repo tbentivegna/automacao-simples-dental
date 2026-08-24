@@ -578,6 +578,47 @@ async function carregarPendencias() {
   }
 }
 
+// Nova pendência manual -- botão abre um formulário simples (2 campos),
+// cancelar/enviar com sucesso fecham e recarregam a lista.
+const formNovaPendencia = document.getElementById('formNovaPendencia');
+
+function abrirFormNovaPendencia() {
+  formNovaPendencia.hidden = false;
+  document.getElementById('novaPendenciaDetalhe').focus();
+}
+
+function fecharFormNovaPendencia() {
+  formNovaPendencia.hidden = true;
+  formNovaPendencia.reset();
+}
+
+document.getElementById('botaoNovaPendencia').addEventListener('click', abrirFormNovaPendencia);
+document.getElementById('botaoCancelarNovaPendencia').addEventListener('click', fecharFormNovaPendencia);
+
+formNovaPendencia.addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const paciente = document.getElementById('novaPendenciaPaciente').value;
+  const detalhe = document.getElementById('novaPendenciaDetalhe').value.trim();
+  if (!detalhe) return;
+  const botaoEnviar = formNovaPendencia.querySelector('button[type="submit"]');
+  botaoEnviar.disabled = true;
+  botaoEnviar.textContent = 'Adicionando…';
+  try {
+    await chamarApi('/api/pendencias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paciente, detalhe }),
+    });
+    fecharFormNovaPendencia();
+    await carregarPendencias();
+  } catch (erro) {
+    alert(erro.message);
+  } finally {
+    botaoEnviar.disabled = false;
+    botaoEnviar.textContent = 'Adicionar';
+  }
+});
+
 document.getElementById('conteudoPendencias').addEventListener('click', async (evento) => {
   const botao = evento.target.closest('button[data-resolver]');
   if (!botao) return;

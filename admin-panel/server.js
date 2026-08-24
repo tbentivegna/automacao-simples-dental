@@ -23,6 +23,7 @@ const {
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
+  criarPendenciaManual,
   buscarOportunidades,
   reativarOportunidade,
   buscarPacientes,
@@ -216,6 +217,20 @@ app.post('/api/oportunidades/:id/reativar', exigirAutenticacaoApi, async (req, r
   } catch (erro) {
     console.error('Erro em /api/oportunidades/:id/reativar:', erro);
     res.status(500).json({ erro: 'Falha ao reativar oportunidade.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/pendencias', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const detalhe = (req.body?.detalhe || '').trim();
+    if (!detalhe) {
+      return res.status(400).json({ erro: 'Descreva o que precisa ser feito.' });
+    }
+    const criada = await criarPendenciaManual({ paciente: req.body?.paciente, detalhe });
+    res.json({ sucesso: true, id: criada.id });
+  } catch (erro) {
+    console.error('Erro em /api/pendencias (criar):', erro);
+    res.status(500).json({ erro: 'Falha ao criar pendência.', detalhe: erro.message });
   }
 });
 

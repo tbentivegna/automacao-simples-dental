@@ -248,6 +248,27 @@ async function buscarPendencias() {
   return rows;
 }
 
+// Pendência criada manualmente pela equipe (ex: secretária), pra situação
+// que não passou pela Lumi -- mesma tabela/formato das automáticas, só
+// com action fixo "OUTROS" (não tenta adivinhar categoria) e domain
+// "Geral". from_phone é NOT NULL na tabela; sem paciente informado, usa um
+// marcador em vez de travar a criação.
+async function criarPendenciaManual({ paciente, detalhe }) {
+  const fromPhone = (paciente || '').trim() || '(pendência manual, sem paciente vinculado)';
+  // created_at é "timestamp without time zone" mas o resto do banco guarda
+  // hora UTC nela (ver FUSO_CLINICA acima) -- o DEFAULT now() da coluna,
+  // se deixado agir sozinho, gravaria hora BRT (sessão deste pool está em
+  // America/Sao_Paulo, ver db.js), quebrando a leitura em buscarPendencias.
+  // Escreve explícito com a mesma conversão que pausarPaciente() já usa.
+  const { rows } = await pool.query(
+    `INSERT INTO public.agent_actions (from_phone, action, domain, detail, created_at)
+     VALUES ($1, 'OUTROS', 'Geral', $2, (now() AT TIME ZONE 'UTC'))
+     RETURNING id;`,
+    [fromPhone, detalhe]
+  );
+  return rows[0];
+}
+
 // Oportunidades do funil de resgate (funil_agendamento) -- tentativas
 // "em_andamento" primeiro (precisam de atenção), depois resgate_enviado,
 // depois concluido/expirado por último (histórico). ultima_mensagem_paciente
@@ -475,6 +496,7 @@ module.exports = {
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
+  criarPendenciaManual,
   buscarOportunidades,
   reativarOportunidade,
   buscarPacientes,

@@ -95,7 +95,16 @@
             <h2>Pendências</h2>
             <p>Situações que a Lumi encaminhou para a equipe. Urgências aparecem primeiro.</p>
           </div>
+          <button class="botao botao-primario" id="botaoNovaPendencia">+ Nova pendência</button>
         </div>
+        <form class="form-nova-pendencia" id="formNovaPendencia" hidden>
+          <input type="text" id="novaPendenciaPaciente" placeholder="Paciente (nome ou telefone) — opcional" />
+          <textarea id="novaPendenciaDetalhe" placeholder="O que precisa ser feito?" rows="2" required></textarea>
+          <div class="form-nova-pendencia__acoes">
+            <button type="button" class="botao" id="botaoCancelarNovaPendencia">Cancelar</button>
+            <button type="submit" class="botao botao-primario">Adicionar</button>
+          </div>
+        </form>
         <div class="painel">
           <div id="conteudoPendencias"><div class="carregando">Carregando…</div></div>
         </div>

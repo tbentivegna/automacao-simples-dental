@@ -904,6 +904,42 @@ html, body {
   box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
 }
 
+.form-nova-pendencia {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--cor-cartao);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.form-nova-pendencia input,
+.form-nova-pendencia textarea {
+  padding: 10px 14px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--cor-fundo);
+  resize: vertical;
+}
+
+.form-nova-pendencia input:focus,
+.form-nova-pendencia textarea:focus {
+  outline: none;
+  border-color: var(--cor-marca);
+  box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
+}
+
+.form-nova-pendencia__acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .filtros-oportunidades {
   display: flex;
   gap: 10px;
