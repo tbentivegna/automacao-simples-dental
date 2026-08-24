@@ -916,6 +916,13 @@ html, body {
   margin-bottom: 16px;
 }
 
+/* Mesma pegadinha do banner-pausado: [hidden] tem a mesma especificidade
+   que a classe acima, e "display: flex" vence por vir depois -- sem isto
+   o formulário aparece aberto mesmo com o atributo hidden setado. */
+.form-nova-pendencia[hidden] {
+  display: none;
+}
+
 .form-nova-pendencia input,
 .form-nova-pendencia textarea {
   padding: 10px 14px;
