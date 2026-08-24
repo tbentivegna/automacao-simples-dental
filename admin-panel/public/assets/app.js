@@ -595,6 +595,34 @@ function fecharFormNovaPendencia() {
 document.getElementById('botaoNovaPendencia').addEventListener('click', abrirFormNovaPendencia);
 document.getElementById('botaoCancelarNovaPendencia').addEventListener('click', fecharFormNovaPendencia);
 
+// Autocomplete do campo Paciente -- sugere paciente real conforme digita,
+// mas nunca trava: se não achar nada, ou se for algo que não é paciente
+// (ex: "Comprar botox"), o campo aceita o texto livre normalmente.
+let timeoutSugestoesPaciente = null;
+document.getElementById('novaPendenciaPaciente').addEventListener('input', (evento) => {
+  clearTimeout(timeoutSugestoesPaciente);
+  const termo = evento.target.value.trim();
+  const lista = document.getElementById('sugestoesPacientePendencia');
+  if (termo.length < 2) {
+    lista.innerHTML = '';
+    return;
+  }
+  timeoutSugestoesPaciente = setTimeout(async () => {
+    try {
+      const sugestoes = await chamarApi(`/api/pacientes/sugestoes?q=${encodeURIComponent(termo)}`);
+      lista.innerHTML = sugestoes
+        .map((p) => {
+          const nome = p.nome || p.apelido_whatsapp || p.telefone;
+          return `<option value="${escapar(p.telefone)}" label="${escapar(nome)}">${escapar(nome)}</option>`;
+        })
+        .join('');
+    } catch {
+      // busca de sugestão falhando não pode atrapalhar quem só quer digitar
+      lista.innerHTML = '';
+    }
+  }, 250);
+});
+
 formNovaPendencia.addEventListener('submit', async (evento) => {
   evento.preventDefault();
   const paciente = document.getElementById('novaPendenciaPaciente').value;

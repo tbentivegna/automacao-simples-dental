@@ -98,7 +98,8 @@
           <button class="botao botao-primario" id="botaoNovaPendencia">+ Nova pendência</button>
         </div>
         <form class="form-nova-pendencia" id="formNovaPendencia" hidden>
-          <input type="text" id="novaPendenciaPaciente" placeholder="Paciente (nome ou telefone) — opcional" />
+          <input type="text" id="novaPendenciaPaciente" list="sugestoesPacientePendencia" autocomplete="off" placeholder="Paciente (nome ou telefone) — opcional, ou descreva livremente" />
+          <datalist id="sugestoesPacientePendencia"></datalist>
           <textarea id="novaPendenciaDetalhe" placeholder="O que precisa ser feito?" rows="2" required></textarea>
           <div class="form-nova-pendencia__acoes">
             <button type="button" class="botao" id="botaoCancelarNovaPendencia">Cancelar</button>

@@ -248,6 +248,26 @@ async function buscarPendencias() {
   return rows;
 }
 
+// Sugestões pro autocomplete do campo "Paciente" ao criar pendência manual
+// -- só dispara com 2+ caracteres, retorna poucos resultados. Não é pra
+// travar quem quer digitar algo que não é paciente nenhum (ex: "Comprar
+// botox"), só ajudar a achar rápido quando for o caso.
+async function buscarSugestoesPacientes(termo) {
+  const termoSeguro = (termo || '').trim();
+  if (termoSeguro.length < 2) return [];
+  const { rows } = await pool.query(
+    `SELECT nome, apelido_whatsapp, telefone
+     FROM public.cliente
+     WHERE nome ILIKE '%' || $1 || '%'
+        OR apelido_whatsapp ILIKE '%' || $1 || '%'
+        OR telefone ILIKE '%' || $1 || '%'
+     ORDER BY nome ASC NULLS LAST
+     LIMIT 8;`,
+    [termoSeguro]
+  );
+  return rows;
+}
+
 // Pendência criada manualmente pela equipe (ex: secretária), pra situação
 // que não passou pela Lumi -- mesma tabela/formato das automáticas, só
 // com action fixo "OUTROS" (não tenta adivinhar categoria) e domain
@@ -499,6 +519,7 @@ module.exports = {
   criarPendenciaManual,
   buscarOportunidades,
   reativarOportunidade,
+  buscarSugestoesPacientes,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,

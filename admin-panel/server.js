@@ -26,6 +26,7 @@ const {
   criarPendenciaManual,
   buscarOportunidades,
   reativarOportunidade,
+  buscarSugestoesPacientes,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,
@@ -217,6 +218,15 @@ app.post('/api/oportunidades/:id/reativar', exigirAutenticacaoApi, async (req, r
   } catch (erro) {
     console.error('Erro em /api/oportunidades/:id/reativar:', erro);
     res.status(500).json({ erro: 'Falha ao reativar oportunidade.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/pacientes/sugestoes', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarSugestoesPacientes(req.query.q));
+  } catch (erro) {
+    console.error('Erro em /api/pacientes/sugestoes:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar sugestões.', detalhe: erro.message });
   }
 });
 
