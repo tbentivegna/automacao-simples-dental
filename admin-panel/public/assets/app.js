@@ -94,6 +94,7 @@ const secoes = {
   oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
   agenda: () => carregarAgenda(semanaAtualAgenda),
+  mensagens: () => carregarConversas(document.getElementById('buscaConversas').value),
   analytics: carregarPaginaAnalytics,
 };
 
@@ -1172,6 +1173,157 @@ document.getElementById('botaoRemarcarConsulta').addEventListener('click', async
     botao.textContent = 'Remarcar';
   }
 });
+
+// ============================================================
+// Mensagens (chat direto com o paciente -- envia pela Evolution API; o
+// próprio n8n detecta que não foi a Lumi que mandou -- texto sem "[Lumi]" --
+// e pausa a IA + grava a mensagem sozinho, o painel não escreve no banco
+// nesse caminho)
+// ============================================================
+
+let conversaAtivaTelefone = null;
+let conversaAtivaNome = '';
+
+async function carregarConversas(termo) {
+  const alvo = document.getElementById('listaConversas');
+  try {
+    const conversas = await chamarApi(`/api/mensagens/conversas?termo=${encodeURIComponent(termo || '')}`);
+    if (!conversas.length) {
+      alvo.innerHTML = vazioDetalhe('Nenhuma conversa encontrada.');
+      return;
+    }
+    alvo.innerHTML = conversas
+      .map((c) => {
+        const nome = c.nome || c.apelido_whatsapp || c.telefone;
+        const ativo = c.telefone === conversaAtivaTelefone;
+        const aguardando = c.ultimo_tipo === 'human';
+        let previa = c.ultima_mensagem || '';
+        if (previa.startsWith('[Equipe da clínica]: ')) previa = previa.slice('[Equipe da clínica]: '.length);
+        return `
+          <button class="lista-conversas__item${ativo ? ' lista-conversas__item--ativo' : ''}" data-telefone="${escapar(c.telefone)}" data-nome="${escapar(nome)}">
+            <div class="lista-conversas__topo">
+              <span class="lista-conversas__nome">${escapar(nome)}</span>
+              ${c.bot_disabled ? '<span class="selo selo-alerta">🤖 pausada</span>' : ''}
+            </div>
+            <div class="lista-conversas__previa${aguardando ? ' lista-conversas__previa--aguardando' : ''}">${escapar(previa).slice(0, 80)}</div>
+            <div class="lista-conversas__hora">${escapar(c.ultima_em_formatada || '')}</div>
+          </button>`;
+      })
+      .join('');
+  } catch (erro) {
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
+
+document.getElementById('listaConversas').addEventListener('click', (evento) => {
+  const item = evento.target.closest('[data-telefone]');
+  if (!item) return;
+  abrirConversa(item.dataset.telefone, item.dataset.nome);
+});
+
+let temporizadorBuscaConversas = null;
+document.getElementById('buscaConversas').addEventListener('input', (evento) => {
+  clearTimeout(temporizadorBuscaConversas);
+  const valor = evento.target.value;
+  temporizadorBuscaConversas = setTimeout(() => carregarConversas(valor), 300);
+});
+
+function bolhaMensagem(m) {
+  const chamouTool = m.tipo === 'ai' && (!m.conteudo || m.conteudo === '[]') && m.tool_chamada;
+  if (chamouTool) {
+    return `
+      <div class="bolha-mensagem bolha-mensagem--tool">
+        <div class="bolha-mensagem__texto">🔧 chamou ${escapar(nomeLegivelTool(m.tool_chamada))}</div>
+        <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
+      </div>`;
+  }
+  const prefixoEquipe = '[Equipe da clínica]: ';
+  const daEquipe = m.tipo === 'ai' && (m.conteudo || '').startsWith(prefixoEquipe);
+  const texto = daEquipe ? m.conteudo.slice(prefixoEquipe.length) : m.conteudo || '';
+  const classe = m.tipo === 'human' ? 'bolha-mensagem--paciente' : daEquipe ? 'bolha-mensagem--equipe' : 'bolha-mensagem--lumi';
+  return `
+    <div class="bolha-mensagem ${classe}">
+      <div class="bolha-mensagem__texto">${escapar(texto)}</div>
+      <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
+    </div>`;
+}
+
+async function abrirConversa(telefone, nome) {
+  conversaAtivaTelefone = telefone;
+  conversaAtivaNome = nome;
+  document.querySelectorAll('#listaConversas [data-telefone]').forEach((el) => {
+    el.classList.toggle('lista-conversas__item--ativo', el.dataset.telefone === telefone);
+  });
+
+  const alvo = document.getElementById('threadMensagens');
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
+  try {
+    const mensagens = await chamarApi(`/api/mensagens?telefone=${encodeURIComponent(telefone)}&limite=50`);
+    renderizarThread(nome, [...mensagens].reverse());
+  } catch (erro) {
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
+
+function renderizarThread(nome, mensagensCronologicas) {
+  const alvo = document.getElementById('threadMensagens');
+  const bolhas = mensagensCronologicas.map(bolhaMensagem).join('');
+  alvo.innerHTML = `
+    <div class="thread-mensagens__cabecalho">${escapar(nome || 'Conversa')}</div>
+    <div class="thread-mensagens__corpo" id="threadMensagensCorpo">
+      ${bolhas || vazioDetalhe('Sem mensagens registradas pra esse paciente.')}
+    </div>
+    <form class="composer-mensagem" id="composerMensagem">
+      <textarea id="composerMensagemTexto" placeholder="Escreva uma mensagem…" rows="2" required></textarea>
+      <button type="submit" class="botao botao-primario">Enviar</button>
+    </form>
+  `;
+  const corpo = document.getElementById('threadMensagensCorpo');
+  corpo.scrollTop = corpo.scrollHeight;
+  document.getElementById('composerMensagem').addEventListener('submit', enviarMensagemPainel);
+}
+
+async function enviarMensagemPainel(evento) {
+  evento.preventDefault();
+  const textarea = document.getElementById('composerMensagemTexto');
+  const botao = evento.target.querySelector('button[type="submit"]');
+  const texto = textarea.value.trim();
+  if (!texto || !conversaAtivaTelefone) return;
+
+  const telefone = conversaAtivaTelefone;
+  botao.disabled = true;
+  botao.textContent = 'Enviando…';
+
+  const corpo = document.getElementById('threadMensagensCorpo');
+  const bolhaOtimista = document.createElement('div');
+  bolhaOtimista.className = 'bolha-mensagem bolha-mensagem--equipe bolha-mensagem--enviando';
+  bolhaOtimista.innerHTML = `<div class="bolha-mensagem__texto">${escapar(texto)}</div><div class="bolha-mensagem__hora">enviando…</div>`;
+  corpo.appendChild(bolhaOtimista);
+  corpo.scrollTop = corpo.scrollHeight;
+
+  try {
+    await chamarApi('/api/mensagens/enviar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefone, texto }),
+    });
+    textarea.value = '';
+    botao.disabled = false;
+    botao.textContent = 'Enviar';
+    // O n8n grava a mensagem de verdade (com o prefixo "[Equipe da clínica]:")
+    // alguns segundos depois de a Evolution API confirmar o envio -- espera
+    // um pouco e busca de novo pra reconciliar a bolha otimista com a real.
+    setTimeout(() => {
+      if (conversaAtivaTelefone === telefone) abrirConversa(telefone, conversaAtivaNome);
+      carregarConversas(document.getElementById('buscaConversas').value);
+    }, 2500);
+  } catch (erro) {
+    bolhaOtimista.classList.add('bolha-mensagem--erro');
+    bolhaOtimista.querySelector('.bolha-mensagem__hora').textContent = `falhou: ${erro.message}`;
+    botao.disabled = false;
+    botao.textContent = 'Enviar';
+  }
+}
 
 // ============================================================
 // Analytics (tendência + funil de resgate + nuvem de palavras)

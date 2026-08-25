@@ -225,6 +225,50 @@ async function buscarDetalheMensagens(janela) {
   return rows;
 }
 
+// Lista de conversas pra página Mensagens -- sem filtro de janela (ao
+// contrário de buscarDetalheMensagens, que é só o drill-down de um card da
+// Visão Geral). Traz bot_disabled/human_assigned pra badge de "pausada" e
+// quem mandou a última mensagem (indicador de "aguardando resposta" quando
+// foi o paciente). Busca opcional por nome/apelido/telefone, mesmo padrão
+// ILIKE de buscarPacientes.
+async function buscarConversas(termo = '', limite = 50) {
+  const termoSeguro = (termo || '').trim();
+  const limiteSeguro = Number.isInteger(limite) && limite > 0 && limite <= 100 ? limite : 50;
+
+  const { rows } = await pool.query(
+    `SELECT
+      h.session_id AS telefone,
+      c.nome,
+      c.apelido_whatsapp,
+      coalesce(c.bot_disabled, false) AS bot_disabled,
+      coalesce(c.human_assigned, false) AS human_assigned,
+      (SELECT m.message->>'type' FROM public.n8n_chat_histories m
+        WHERE m.session_id = h.session_id AND m.message->>'type' IN ('human', 'ai')
+          AND coalesce(m.message->>'content', '') NOT IN ('', '[]')
+        ORDER BY m.created_at DESC LIMIT 1) AS ultimo_tipo,
+      (SELECT m.message->>'content' FROM public.n8n_chat_histories m
+        WHERE m.session_id = h.session_id AND m.message->>'type' IN ('human', 'ai')
+          AND coalesce(m.message->>'content', '') NOT IN ('', '[]')
+        ORDER BY m.created_at DESC LIMIT 1) AS ultima_mensagem,
+      to_char(max(h.created_at) AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS ultima_em_formatada
+    FROM public.n8n_chat_histories h
+    LEFT JOIN public.cliente c ON c.telefone = h.session_id
+    WHERE h.message->>'type' IN ('human', 'ai')
+      AND coalesce(h.message->>'content', '') NOT IN ('', '[]')
+      AND (
+        $1 = ''
+        OR c.nome ILIKE '%' || $1 || '%'
+        OR c.apelido_whatsapp ILIKE '%' || $1 || '%'
+        OR h.session_id ILIKE '%' || $1 || '%'
+      )
+    GROUP BY h.session_id, c.nome, c.apelido_whatsapp, c.bot_disabled, c.human_assigned
+    ORDER BY max(h.created_at) DESC
+    LIMIT $2;`,
+    [termoSeguro, limiteSeguro]
+  );
+  return rows;
+}
+
 // Preview da conversa de UM paciente (últimas N mensagens, mais antiga
 // primeiro pra ler de cima pra baixo como um chat). session_id na tabela de
 // memória do n8n é sempre o telefone -- ver n8n/lumi-workflow.json.
@@ -542,6 +586,51 @@ async function pausarPaciente(id) {
   return rows.length > 0;
 }
 
+// Contrapartida de pausarPaciente() por telefone (em vez de id) -- usado
+// pela página Mensagens depois de um envio pela Evolution API.
+//
+// Descoberto na prática 25/08/2026: ao contrário de uma resposta digitada
+// no WhatsApp do celular (que a Evolution reemite como evento
+// "messages.upsert" com fromMe:true, pego pelo node "fromMe" do workflow
+// Lumi e tratado automaticamente -- ver Desativar IA / Grava Mensagem
+// Equipe), uma mensagem mandada pela API da Evolution NÃO dispara esse
+// mesmo webhook (confirmado com um envio de teste real: a mensagem chegou
+// no WhatsApp, mas nenhuma execução do workflow Lumi correspondeu a ela, e
+// bot_disabled continuou false -- a Lumi seguiu respondendo normalmente
+// por cima da mensagem da equipe). Então o painel precisa fazer as duas
+// coisas que o n8n faria sozinho nesse outro caminho: pausar E gravar.
+async function pausarPacientePorTelefone(telefone) {
+  await pool.query(
+    `UPDATE public.cliente
+     SET bot_disabled = true, human_assigned = true, last_handoff = (now() AT TIME ZONE 'UTC')
+     WHERE telefone = $1 AND bot_disabled = false;`,
+    [telefone]
+  );
+}
+
+// Mesmo formato de linha que o node "Grava Mensagem Equipe" do n8n grava --
+// tipo 'ai' com o prefixo "[Equipe da clínica]: ", pra ficar indistinguível
+// de uma mensagem que o n8n tivesse gravado, e pra buscarMensagensPaciente/
+// buscarConversas reconhecerem e estilizarem como bolha da equipe.
+async function registrarMensagemEquipe(telefone, texto) {
+  await pausarPacientePorTelefone(telefone);
+  await pool.query(
+    `INSERT INTO public.n8n_chat_histories (session_id, message)
+     VALUES ($1, $2::jsonb);`,
+    [
+      telefone,
+      JSON.stringify({
+        type: 'ai',
+        content: `[Equipe da clínica]: ${texto}`,
+        tool_calls: [],
+        additional_kwargs: {},
+        response_metadata: {},
+        invalid_tool_calls: [],
+      }),
+    ]
+  );
+}
+
 // Ajuste manual do consentimento de lembrete -- a secretária pode ligar/
 // desligar direto no painel quando o próprio paciente pedir por telefone/
 // presencial, sem precisar que ele repita o pedido pra Lumi no WhatsApp.
@@ -788,6 +877,8 @@ module.exports = {
   buscarDetalheNovosPacientes,
   buscarDetalheMensagens,
   buscarMensagensPaciente,
+  buscarConversas,
+  registrarMensagemEquipe,
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,

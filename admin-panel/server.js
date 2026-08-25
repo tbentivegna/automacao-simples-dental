@@ -20,6 +20,8 @@ const {
   buscarDetalheNovosPacientes,
   buscarDetalheMensagens,
   buscarMensagensPaciente,
+  buscarConversas,
+  registrarMensagemEquipe,
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
@@ -38,6 +40,7 @@ const {
   buscarNuvemPalavras,
 } = require('./queries');
 const { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
+const { enviarMensagem } = require('./evolution');
 
 if (!process.env.ADMIN_PASSWORD) {
   throw new Error('ADMIN_PASSWORD não configurada -- veja .env.example.');
@@ -135,6 +138,30 @@ app.get('/api/mensagens', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/mensagens:', erro);
     res.status(500).json({ erro: 'Falha ao buscar mensagens do paciente.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/mensagens/conversas', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarConversas(req.query.termo, 50));
+  } catch (erro) {
+    console.error('Erro em /api/mensagens/conversas:', erro);
+    res.status(500).json({ erro: 'Falha ao listar conversas.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/mensagens/enviar', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const { telefone, texto } = req.body || {};
+    if (!telefone || !(texto || '').trim()) {
+      return res.status(400).json({ erro: 'telefone e texto são obrigatórios.' });
+    }
+    const resultado = await enviarMensagem({ telefone, texto: texto.trim() });
+    await registrarMensagemEquipe(telefone, texto.trim());
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro em POST /api/mensagens/enviar:', erro);
+    res.status(502).json({ erro: 'Falha ao enviar mensagem.', detalhe: erro.message });
   }
 });
 

@@ -35,6 +35,7 @@
         <button class="nav__item" data-secao="oportunidades">🎯 Oportunidades</button>
         <button class="nav__item" data-secao="pacientes">👥 Pacientes</button>
         <button class="nav__item" data-secao="agenda">🗓️ Agenda</button>
+        <button class="nav__item" data-secao="mensagens">💬 Mensagens</button>
         <button class="nav__item" data-secao="analytics">📈 Analytics</button>
       </nav>
 
@@ -210,6 +211,26 @@
 
         <div class="painel">
           <div id="conteudoAgenda"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+
+      <!-- ============ MENSAGENS ============ -->
+      <section class="secao" id="secao-mensagens">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Mensagens</h2>
+            <p>Converse com pacientes direto pelo painel — a Lumi é pausada automaticamente pra essa conversa.</p>
+          </div>
+          <input type="search" class="campo-busca" id="buscaConversas" placeholder="Buscar por nome ou telefone…" />
+        </div>
+
+        <div class="mensagens-layout">
+          <div class="lista-conversas" id="listaConversas">
+            <div class="carregando">Carregando…</div>
+          </div>
+          <div class="thread-mensagens" id="threadMensagens">
+            <div class="thread-mensagens__vazio">Selecione uma conversa à esquerda.</div>
+          </div>
         </div>
       </section>
 
