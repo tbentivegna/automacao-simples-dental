@@ -159,6 +159,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     hora,
     observacao,
     categoria,
+    rotulo,
     dataNascimentoPaciente,
     cpfPaciente,
     email,
@@ -201,6 +202,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       status: 'Agendada',
       observacao: observacao || null,
       categoria: categoria || null,
+      rotulo: rotulo || null,
       // Registrado só pra inspeção nos testes (ver 30/31-cadastro-*.js) --
       // o mock não valida nada aqui, é o server.js real que preenche esses
       // campos no Simples Dental de verdade.

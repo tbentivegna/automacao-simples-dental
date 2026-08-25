@@ -78,6 +78,21 @@ const tools = [
             description:
               'Categoria que melhor representa o motivo identificado nesta conversa (a mesma lista usada na seção IDENTIFICAÇÃO DA QUEIXA do seu prompt). Use "odontopediatria" quando o motivo for ortodontia infantil/Invisalign First em criança. Use "outro" se não se encaixar em nenhuma categoria específica. Só usada para registro interno, nunca mencione essa categoria ao paciente.',
           },
+          rotulo: {
+            type: 'string',
+            enum: [
+              'Primeira Consulta',
+              'Clínica Geral',
+              'Ortodontia',
+              'INVISALIGN',
+              'HOF',
+              'Clareamento',
+              'Profilaxia',
+              'Urgência',
+            ],
+            description:
+              'Rótulo do Simples Dental que melhor representa o tipo desta consulta, com base no que foi identificado na conversa. Escolha EXATAMENTE um destes valores, com a mesma grafia. Se não tiver certeza ou a conversa não se encaixar claramente em nenhum, use "Clínica Geral". Só para uso interno do sistema de agenda, nunca mencione ao paciente.',
+          },
           dataNascimentoPaciente: {
             type: 'string',
             description:
