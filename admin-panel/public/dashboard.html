@@ -34,6 +34,7 @@
         </button>
         <button class="nav__item" data-secao="oportunidades">🎯 Oportunidades</button>
         <button class="nav__item" data-secao="pacientes">👥 Pacientes</button>
+        <button class="nav__item" data-secao="agenda">🗓️ Agenda</button>
         <button class="nav__item" data-secao="analytics">📈 Analytics</button>
       </nav>
 
@@ -155,6 +156,47 @@
         </div>
       </section>
 
+      <!-- ============ AGENDA ============ -->
+      <section class="secao" id="secao-agenda">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Agenda</h2>
+            <p>Consultas no Simples Dental — dados ao vivo, atualize manualmente.</p>
+          </div>
+          <div class="cabecalho-secao__acoes">
+            <button class="botao" id="botaoAtualizarAgenda">↻ Atualizar</button>
+            <button class="botao botao-primario" id="botaoNovaConsulta">+ Nova consulta</button>
+          </div>
+        </div>
+
+        <div class="seletor-janela" id="seletorSemanaAgenda">
+          <button data-semana="0" class="ativo">Esta semana</button>
+          <button data-semana="1">+1 semana</button>
+          <button data-semana="2">+2 semanas</button>
+          <button data-semana="3">+3 semanas</button>
+        </div>
+
+        <form class="form-nova-pendencia" id="formNovaConsulta" hidden>
+          <input type="text" id="novaConsultaPaciente" list="sugestoesPacienteConsulta" autocomplete="off" placeholder="Paciente (nome ou telefone)" required />
+          <datalist id="sugestoesPacienteConsulta"></datalist>
+          <input type="date" id="novaConsultaData" required />
+          <input type="time" id="novaConsultaHora" required />
+          <input type="number" id="novaConsultaDuracao" placeholder="Duração em minutos (opcional)" min="15" step="15" />
+          <select id="novaConsultaCategoria">
+            <option value="">Categoria (opcional)</option>
+          </select>
+          <textarea id="novaConsultaObservacao" placeholder="Observação (opcional)" rows="2"></textarea>
+          <div class="form-nova-pendencia__acoes">
+            <button type="button" class="botao" id="botaoCancelarNovaConsulta">Cancelar</button>
+            <button type="submit" class="botao botao-primario">Agendar</button>
+          </div>
+        </form>
+
+        <div class="painel">
+          <div id="conteudoAgenda"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+
       <!-- ============ ANALYTICS ============ -->
       <section class="secao" id="secao-analytics">
         <div class="cabecalho-secao">
@@ -235,6 +277,33 @@
         <button type="button" class="modal-fechar" id="botaoFecharModalMensagem" aria-label="Fechar">✕</button>
       </div>
       <div class="modal-corpo" id="modalMensagemCorpo"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalConsulta" hidden>
+    <div class="modal-caixa" role="dialog" aria-modal="true" aria-labelledby="modalConsultaTitulo">
+      <div class="modal-cabecalho">
+        <h3 id="modalConsultaTitulo">Consulta</h3>
+        <button type="button" class="modal-fechar" id="botaoFecharModalConsulta" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-corpo">
+        <div id="modalConsultaInfo"></div>
+
+        <div class="modal-consulta__bloco">
+          <label for="modalConsultaStatus">Status</label>
+          <select id="modalConsultaStatus"></select>
+          <button type="button" class="botao botao-primario" id="botaoSalvarStatusConsulta">Salvar status</button>
+        </div>
+
+        <div class="modal-consulta__bloco">
+          <label>Remarcar</label>
+          <input type="date" id="modalConsultaRemarcarData" />
+          <input type="time" id="modalConsultaRemarcarHora" />
+          <input type="number" id="modalConsultaRemarcarDuracao" placeholder="Duração em minutos (opcional)" min="15" step="15" />
+          <textarea id="modalConsultaRemarcarObservacao" placeholder="Observação (opcional)" rows="2"></textarea>
+          <button type="button" class="botao" id="botaoRemarcarConsulta">Remarcar</button>
+        </div>
+      </div>
     </div>
   </div>
 

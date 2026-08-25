@@ -8,6 +8,23 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
+// Chave compartilhada exigida em toda chamada (exceto /health), enviada no
+// header X-Bridge-Key. Sem isso, qualquer um que descobrisse a URL pública
+// deste serviço conseguiria criar/cancelar/remarcar consulta de verdade na
+// agenda da clínica -- hoje esse serviço não tem NENHUMA autenticação.
+// Quem chama (n8n, e agora também o admin-panel) precisa mandar o mesmo
+// valor configurado aqui via BRIDGE_API_KEY.
+const BRIDGE_API_KEY = process.env.BRIDGE_API_KEY;
+if (!BRIDGE_API_KEY) {
+  console.warn('[auth] BRIDGE_API_KEY não configurada -- rotas de automação ficam abertas! Configure antes de produção.');
+}
+function exigirChaveBridge(req, res, next) {
+  if (!BRIDGE_API_KEY) return next(); // sem chave configurada (dev local) não trava
+  if (req.headers['x-bridge-key'] === BRIDGE_API_KEY) return next();
+  res.status(401).json({ erro: 'Chave de autenticação inválida ou ausente (X-Bridge-Key).' });
+}
+app.use((req, res, next) => (req.path === '/health' ? next() : exigirChaveBridge(req, res, next)));
+
 const PORT = process.env.PORT || 3000;
 const AUTH_FILE = path.join(__dirname, 'auth', 'sessao.json');
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
@@ -148,6 +165,13 @@ if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR, { recursive: 
 if (!fs.existsSync(path.dirname(AUTH_FILE))) fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
 
 let browserCompartilhado = null;
+
+// Cache curto (1 min) da leitura da agenda da semana -- evita martelar o
+// Simples Dental de verdade a cada troca de aba/reload da página Agenda do
+// painel. Chave = número de semanas pedido. Toda escrita (criar/mudar
+// status/remarcar) precisa limpar isso, senão a Agenda mostra dado velho
+// logo depois de uma ação que já funcionou.
+const cacheAgenda = new Map();
 
 // Fila simples: garante que só uma operação de automação roda por vez,
 // evitando duas tarefas brigando pelo mesmo navegador.
@@ -447,15 +471,28 @@ async function coletarCompromissosVariasSemanas(page, semanas) {
     // instante depois que a grade aparece.
     await page.waitForTimeout(800);
 
+    // rotulo/rotuloCor: o Simples Dental mostra opcionalmente uma bolinha
+    // colorida com o tipo de consulta (ex: "INVISALIGN", "Primeira
+    // Consulta") dentro de .float-section, irmão de .fc-event-time -- não
+    // é uma categoria da Lumi, é nativo do próprio calendário, e cobre
+    // QUALQUER consulta (marcada pela Lumi ou não). Nem toda consulta tem
+    // (é opcional, setado na hora de criar no Simples Dental). Extraído do
+    // mesmo HTML que já lemos aqui, sem clique/chamada extra por evento.
     const eventosDaSemana = await page.evaluate(() => {
       const eventos = Array.from(document.querySelectorAll('a.fc-event'));
-      return eventos.map((el) => ({
-        id: el.getAttribute('data-consulta-id'),
-        inicio: Number(el.getAttribute('data-start')) || 0,
-        fim: Number(el.getAttribute('data-end')) || 0,
-        status: el.querySelector('.fc-event-main-frame')?.getAttribute('title') || null,
-        paciente: el.querySelector('.fc-event-title')?.textContent.trim() || null,
-      }));
+      return eventos.map((el) => {
+        const rotuloEl = el.querySelector('.float-section .label.rotulo');
+        const corMatch = rotuloEl?.getAttribute('style')?.match(/background-color:\s*(#[0-9a-fA-F]{3,6})/);
+        return {
+          id: el.getAttribute('data-consulta-id'),
+          inicio: Number(el.getAttribute('data-start')) || 0,
+          fim: Number(el.getAttribute('data-end')) || 0,
+          status: el.querySelector('.fc-event-main-frame')?.getAttribute('title') || null,
+          paciente: el.querySelector('.fc-event-title')?.textContent.trim() || null,
+          rotulo: rotuloEl?.getAttribute('title') || null,
+          rotuloCor: corMatch ? corMatch[1] : null,
+        };
+      });
     });
 
     todosCompromissos.push(...eventosDaSemana);
@@ -522,6 +559,28 @@ function formatarCompromissos(compromissos) {
       fimFormatado: null,
     };
   });
+}
+
+// Lista os compromissos das próximas N semanas pra visão de agenda do
+// painel administrativo -- ao contrário de listarLembretesDoDia, NÃO filtra
+// cancelados (a Agenda é uma visão completa; cancelados ficam visualmente
+// distintos no front, não somem). Cache de 1 min (cacheAgenda) evita reler
+// o Simples Dental de verdade a cada troca de aba/reload no painel.
+async function listarAgendaSemana({ semanas } = {}) {
+  const totalSemanas = Math.min(4, Math.max(1, Number(semanas) || Number(process.env.SEMANAS_A_VERIFICAR) || 4));
+
+  const cacheado = cacheAgenda.get(totalSemanas);
+  if (cacheado && cacheado.expiraEm > Date.now()) return cacheado.dados;
+
+  const { context, page } = await abrirPaginaLogada();
+  try {
+    const compromissos = await coletarCompromissosVariasSemanas(page, totalSemanas);
+    const dados = { semanasVerificadas: totalSemanas, compromissos: formatarCompromissos(compromissos) };
+    cacheAgenda.set(totalSemanas, { expiraEm: Date.now() + 60_000, dados });
+    return dados;
+  } finally {
+    await context.close();
+  }
 }
 
 async function verificarDisponibilidade({ diaSemana, periodo } = {}) {
@@ -1063,6 +1122,7 @@ async function criarAgendamento({
     await registrarEventoAgenda({ tipo: 'criado', telefone, categoria, data, hora });
     await salvarTelefoneAgendamento({ agendamentoId: idCriado, telefone });
     await fecharFunil({ telefone: `55${telefoneLocal(telefone)}@s.whatsapp.net`, status: 'concluido' });
+    cacheAgenda.clear();
 
     return {
       sucesso: true,
@@ -1302,11 +1362,20 @@ async function mudarStatusAgendamento({ id, status, telefone }) {
       .click({ timeout: 3000 })
       .catch(() => {});
 
-    await registrarEventoAgenda({
-      tipo: status === 'Confirmada' ? 'confirmado' : 'cancelado',
-      telefone,
-    });
+    // Só Confirmada/Cancelada* têm um "tipo" correspondente em
+    // eventos_agenda (usado pelo Analytics) -- os outros 4 status
+    // (Agendada, Em atendimento, Falta) não têm equivalente e não devem
+    // logar nada, senão contaminava a contagem de cancelamento/confirmação.
+    // Isso só passou a importar agora que existe uma rota genérica
+    // (/alterar-status-agendamento) que permite os 6 valores -- antes só
+    // /confirmar-agendamento e /cancelar-agendamento chamavam esta função,
+    // então o ternário antigo nunca via os outros 4 valores.
+    const tipoEvento = status === 'Confirmada' ? 'confirmado' : status.startsWith('Cancelada') ? 'cancelado' : null;
+    if (tipoEvento) {
+      await registrarEventoAgenda({ tipo: tipoEvento, telefone });
+    }
     await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
+    cacheAgenda.clear();
 
     return { sucesso: true, id, status };
   } catch (erro) {
@@ -1790,6 +1859,7 @@ async function remarcarAgendamento({
 
     await registrarEventoAgenda({ tipo: 'remarcado', telefone, data, hora });
     await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
+    cacheAgenda.clear();
 
     return {
       sucesso: true,
@@ -1941,6 +2011,37 @@ app.post('/lembretes-do-dia', async (req, res) => {
       erro: 'Falha ao listar lembretes do dia',
       detalhe: erro.message,
     });
+  }
+});
+
+// Usada pela página Agenda do painel administrativo (não é ferramenta da
+// Lumi). Query param opcional "semanas" (1-4, padrão SEMANAS_A_VERIFICAR ou
+// 4). Devolve TODOS os compromissos das próximas N semanas, incluindo
+// cancelados (ao contrário de /lembretes-do-dia) -- quem decide esconder ou
+// não é o front, aqui é só leitura completa.
+app.get('/agenda-semana', async (req, res) => {
+  try {
+    const resultado = await comFilaSegura(() => listarAgendaSemana({ semanas: req.query.semanas }));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao listar agenda da semana:', erro);
+    res.status(500).json({ erro: 'Falha ao listar agenda da semana', detalhe: erro.message });
+  }
+});
+
+// Usada pela página Agenda do painel administrativo (não é ferramenta da
+// Lumi) -- ao contrário de /confirmar-agendamento e /cancelar-agendamento
+// (que só cobrem 2 dos 6 status possíveis), esta rota aceita qualquer valor
+// de STATUS_VALIDOS. Espera receber:
+// { "idAgendamento": "310729432", "status": "Em atendimento", "telefone": "11991234567" }
+app.post('/alterar-status-agendamento', async (req, res) => {
+  try {
+    const { idAgendamento: id, status, telefone } = req.body || {};
+    const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status, telefone }));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao alterar status do agendamento:', erro);
+    res.status(500).json({ erro: 'Falha ao alterar status do agendamento', detalhe: erro.message });
   }
 });
 

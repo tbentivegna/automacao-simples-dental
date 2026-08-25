@@ -93,6 +93,7 @@ const secoes = {
   pendencias: carregarPendencias,
   oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
+  agenda: () => carregarAgenda(semanaAtualAgenda),
   analytics: carregarPaginaAnalytics,
 };
 
@@ -840,6 +841,306 @@ document.getElementById('modalMensagem')?.addEventListener('click', (evento) => 
 
 document.addEventListener('keydown', (evento) => {
   if (evento.key === 'Escape' && !document.getElementById('modalMensagem').hidden) fecharModalMensagem();
+});
+
+// ============================================================
+// Agenda (lê/cria/altera consultas de verdade no Simples Dental, via o
+// serviço de automação -- server.js na raiz do repo, chamado pelo painel
+// através de /api/agenda*)
+// ============================================================
+
+// Mesma lista de STATUS_VALIDOS do servidor de automação (server.js) --
+// são só 6 valores fixos do Simples Dental, sem endpoint pra buscar isso
+// dinamicamente. Se um dia mudar lá, precisa mudar aqui também.
+const STATUS_CONSULTA = [
+  'Agendada',
+  'Confirmada',
+  'Em atendimento',
+  'Falta',
+  'Cancelada pelo paciente',
+  'Cancelada pelo profissional',
+];
+
+let semanaAtualAgenda = 0;
+let agendaCache = [];
+let consultaSelecionada = null;
+
+async function carregarAgenda(semanas) {
+  const alvo = document.getElementById('conteudoAgenda');
+  alvo.innerHTML = '<div class="carregando">Carregando…</div>';
+  try {
+    const dados = await chamarApi(`/api/agenda?semanas=${semanas + 1}`);
+    agendaCache = dados.compromissos || [];
+    renderizarAgenda();
+  } catch (erro) {
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
+
+// Segunda-feira da semana atual + deslocamento de N semanas -- usado só
+// pra filtrar, no navegador, qual fatia do lote já buscado (carregarAgenda
+// pede sempre "semanas+1" semanas inteiras) mostrar na aba selecionada.
+function limitesSemana(deslocamentoSemanas) {
+  const agora = new Date();
+  const diaSemana = agora.getDay(); // 0 = domingo
+  const deslocamentoAteSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
+  const segunda = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + deslocamentoAteSegunda);
+  segunda.setDate(segunda.getDate() + deslocamentoSemanas * 7);
+  segunda.setHours(0, 0, 0, 0);
+  const proximaSegunda = new Date(segunda);
+  proximaSegunda.setDate(proximaSegunda.getDate() + 7);
+  return { inicioSemana: segunda.getTime(), fimSemana: proximaSegunda.getTime() };
+}
+
+function renderizarAgenda() {
+  const alvo = document.getElementById('conteudoAgenda');
+  const { inicioSemana, fimSemana } = limitesSemana(semanaAtualAgenda);
+  const daSemana = agendaCache
+    .filter((c) => c.fim > c.inicio) // descarta bloqueios de dia inteiro
+    .filter((c) => c.inicio >= inicioSemana && c.inicio < fimSemana)
+    .sort((a, b) => a.inicio - b.inicio);
+
+  if (daSemana.length === 0) {
+    alvo.innerHTML = '<div class="estado-vazio"><span class="estado-vazio__emoji">🗓️</span>Nenhuma consulta nessa semana.</div>';
+    return;
+  }
+
+  const linhas = daSemana
+    .map((c) => {
+      const cancelada = (c.status || '').startsWith('Cancelada');
+      const rotulo = c.rotulo
+        ? `<span class="ponto-rotulo" style="background:${escapar(c.rotuloCor || '#999')}"></span>${escapar(c.rotulo)}`
+        : '<span class="texto-fraco">—</span>';
+      const horario = c.fimFormatado ? `${escapar(c.inicioFormatado || '—')} – ${escapar(c.fimFormatado)}` : escapar(c.inicioFormatado || '—');
+      return `
+        <tr data-consulta-id="${escapar(c.id || '')}"${cancelada ? ' class="linha-cancelada"' : ''}>
+          <td>${horario}</td>
+          <td>${escapar(c.paciente || '(sem nome)')}</td>
+          <td><span class="selo selo-neutro">${escapar(c.status || '—')}</span></td>
+          <td>${rotulo}</td>
+        </tr>`;
+    })
+    .join('');
+
+  alvo.innerHTML = `
+    <div class="tabela-scroll-x">
+      <table class="tabela">
+        <thead><tr><th>Horário</th><th>Paciente</th><th>Status</th><th>Rótulo</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>`;
+}
+
+document.getElementById('conteudoAgenda').addEventListener('click', (evento) => {
+  const linha = evento.target.closest('tr[data-consulta-id]');
+  if (!linha || !linha.dataset.consultaId) return;
+  const compromisso = agendaCache.find((c) => String(c.id) === linha.dataset.consultaId);
+  if (compromisso) abrirModalConsulta(compromisso);
+});
+
+document.getElementById('seletorSemanaAgenda').addEventListener('click', (evento) => {
+  const botao = evento.target.closest('button[data-semana]');
+  if (!botao) return;
+  semanaAtualAgenda = Number(botao.dataset.semana);
+  document.querySelectorAll('#seletorSemanaAgenda button').forEach((b) => b.classList.toggle('ativo', b === botao));
+  carregarAgenda(semanaAtualAgenda);
+});
+
+document.getElementById('botaoAtualizarAgenda').addEventListener('click', () => carregarAgenda(semanaAtualAgenda));
+
+// Nova consulta -- mesmo padrão do formulário de nova pendência (abre/
+// fecha, autocomplete de paciente por datalist que nunca trava digitação
+// livre).
+const formNovaConsulta = document.getElementById('formNovaConsulta');
+
+function abrirFormNovaConsulta() {
+  formNovaConsulta.hidden = false;
+  document.getElementById('novaConsultaPaciente').focus();
+}
+
+function fecharFormNovaConsulta() {
+  formNovaConsulta.hidden = true;
+  formNovaConsulta.reset();
+}
+
+document.getElementById('botaoNovaConsulta').addEventListener('click', abrirFormNovaConsulta);
+document.getElementById('botaoCancelarNovaConsulta').addEventListener('click', fecharFormNovaConsulta);
+
+// Reaproveita CATEGORIAS_LEGIVEIS (já existe, usado na Visão Geral) --
+// mesma lista que a Lumi usa, sem duplicar os valores aqui.
+(function popularCategoriaNovaConsulta() {
+  const select = document.getElementById('novaConsultaCategoria');
+  for (const [valor, rotulo] of Object.entries(CATEGORIAS_LEGIVEIS)) {
+    const option = document.createElement('option');
+    option.value = valor;
+    option.textContent = rotulo;
+    select.appendChild(option);
+  }
+})();
+
+let timeoutSugestoesConsulta = null;
+document.getElementById('novaConsultaPaciente').addEventListener('input', (evento) => {
+  clearTimeout(timeoutSugestoesConsulta);
+  const termo = evento.target.value.trim();
+  const lista = document.getElementById('sugestoesPacienteConsulta');
+  if (termo.length < 2) {
+    lista.innerHTML = '';
+    return;
+  }
+  timeoutSugestoesConsulta = setTimeout(async () => {
+    try {
+      const sugestoes = await chamarApi(`/api/pacientes/sugestoes?q=${encodeURIComponent(termo)}`);
+      lista.innerHTML = sugestoes
+        .map((p) => {
+          const nome = p.nome || p.apelido_whatsapp || p.telefone;
+          return `<option value="${escapar(p.telefone)}" label="${escapar(nome)}">${escapar(nome)}</option>`;
+        })
+        .join('');
+    } catch {
+      lista.innerHTML = '';
+    }
+  }, 250);
+});
+
+formNovaConsulta.addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const telefone = document.getElementById('novaConsultaPaciente').value.trim();
+  const dataInput = document.getElementById('novaConsultaData').value; // YYYY-MM-DD
+  const hora = document.getElementById('novaConsultaHora').value; // HH:MM
+  if (!telefone || !dataInput || !hora) return;
+  const [ano, mes, dia] = dataInput.split('-');
+  const duracaoMinutos = document.getElementById('novaConsultaDuracao').value;
+  const categoria = document.getElementById('novaConsultaCategoria').value;
+  const observacao = document.getElementById('novaConsultaObservacao').value.trim();
+
+  const botaoEnviar = formNovaConsulta.querySelector('button[type="submit"]');
+  botaoEnviar.disabled = true;
+  botaoEnviar.textContent = 'Agendando…';
+  try {
+    await chamarApi('/api/agenda/consultas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telefone,
+        data: `${dia}/${mes}/${ano}`,
+        hora,
+        duracaoMinutos: duracaoMinutos ? Number(duracaoMinutos) : undefined,
+        categoria: categoria || undefined,
+        observacao: observacao || undefined,
+      }),
+    });
+    fecharFormNovaConsulta();
+    await carregarAgenda(semanaAtualAgenda);
+  } catch (erro) {
+    alert(erro.message);
+  } finally {
+    botaoEnviar.disabled = false;
+    botaoEnviar.textContent = 'Agendar';
+  }
+});
+
+// Modal de detalhe da consulta -- mesmo padrão open/close/Escape/clique-
+// fora do modal de "ver mensagem" da Oportunidades.
+function abrirModalConsulta(compromisso) {
+  consultaSelecionada = compromisso;
+
+  const rotuloHtml = compromisso.rotulo
+    ? `<span class="ponto-rotulo" style="background:${escapar(compromisso.rotuloCor || '#999')}"></span>${escapar(compromisso.rotulo)}`
+    : 'Sem rótulo';
+  const horario = compromisso.fimFormatado
+    ? `${escapar(compromisso.inicioFormatado || '—')} – ${escapar(compromisso.fimFormatado)}`
+    : escapar(compromisso.inicioFormatado || '—');
+  document.getElementById('modalConsultaInfo').innerHTML = `
+    <p><strong>${escapar(compromisso.paciente || '(sem nome)')}</strong></p>
+    <p>${horario}</p>
+    <p>${rotuloHtml}</p>
+  `;
+
+  const selectStatus = document.getElementById('modalConsultaStatus');
+  selectStatus.innerHTML = STATUS_CONSULTA.map(
+    (s) => `<option value="${escapar(s)}"${s === compromisso.status ? ' selected' : ''}>${escapar(s)}</option>`
+  ).join('');
+
+  document.getElementById('modalConsultaRemarcarData').value = '';
+  document.getElementById('modalConsultaRemarcarHora').value = '';
+  document.getElementById('modalConsultaRemarcarDuracao').value = '';
+  document.getElementById('modalConsultaRemarcarObservacao').value = '';
+
+  document.getElementById('modalConsultaTitulo').textContent = compromisso.paciente || 'Consulta';
+  document.getElementById('modalConsulta').hidden = false;
+}
+
+function fecharModalConsulta() {
+  document.getElementById('modalConsulta').hidden = true;
+  consultaSelecionada = null;
+}
+
+document.getElementById('botaoFecharModalConsulta')?.addEventListener('click', fecharModalConsulta);
+
+document.getElementById('modalConsulta')?.addEventListener('click', (evento) => {
+  if (evento.target.id === 'modalConsulta') fecharModalConsulta();
+});
+
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape' && !document.getElementById('modalConsulta').hidden) fecharModalConsulta();
+});
+
+document.getElementById('botaoSalvarStatusConsulta').addEventListener('click', async () => {
+  if (!consultaSelecionada) return;
+  const status = document.getElementById('modalConsultaStatus').value;
+  const botao = document.getElementById('botaoSalvarStatusConsulta');
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+  try {
+    await chamarApi(`/api/agenda/consultas/${consultaSelecionada.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    fecharModalConsulta();
+    await carregarAgenda(semanaAtualAgenda);
+  } catch (erro) {
+    alert(erro.message);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar status';
+  }
+});
+
+document.getElementById('botaoRemarcarConsulta').addEventListener('click', async () => {
+  if (!consultaSelecionada) return;
+  const dataInput = document.getElementById('modalConsultaRemarcarData').value;
+  const hora = document.getElementById('modalConsultaRemarcarHora').value;
+  if (!dataInput || !hora) {
+    alert('Informe data e hora pra remarcar.');
+    return;
+  }
+  const [ano, mes, dia] = dataInput.split('-');
+  const duracaoMinutos = document.getElementById('modalConsultaRemarcarDuracao').value;
+  const observacao = document.getElementById('modalConsultaRemarcarObservacao').value.trim();
+
+  const botao = document.getElementById('botaoRemarcarConsulta');
+  botao.disabled = true;
+  botao.textContent = 'Remarcando…';
+  try {
+    await chamarApi(`/api/agenda/consultas/${consultaSelecionada.id}/remarcar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: `${dia}/${mes}/${ano}`,
+        hora,
+        duracaoMinutos: duracaoMinutos ? Number(duracaoMinutos) : undefined,
+        observacao: observacao || undefined,
+      }),
+    });
+    fecharModalConsulta();
+    await carregarAgenda(semanaAtualAgenda);
+  } catch (erro) {
+    alert(erro.message);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Remarcar';
+  }
 });
 
 // ============================================================

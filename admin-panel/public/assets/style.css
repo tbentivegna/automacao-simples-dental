@@ -959,18 +959,21 @@ html, body {
 }
 
 .form-nova-pendencia input,
-.form-nova-pendencia textarea {
+.form-nova-pendencia textarea,
+.form-nova-pendencia select {
   padding: 10px 14px;
   border: 1px solid var(--cor-borda-forte);
   border-radius: var(--raio-pequeno);
   font-size: 15px;
   font-family: inherit;
   background: var(--cor-fundo);
+  color: var(--cor-texto);
   resize: vertical;
 }
 
 .form-nova-pendencia input:focus,
-.form-nova-pendencia textarea:focus {
+.form-nova-pendencia textarea:focus,
+.form-nova-pendencia select:focus {
   outline: none;
   border-color: var(--cor-marca);
   box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
@@ -980,6 +983,79 @@ html, body {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* Cabeçalho de seção com mais de um botão (Agenda: Atualizar + Nova
+   consulta) -- as outras seções só tinham 1 botão e não precisavam disto. */
+.cabecalho-secao__acoes {
+  display: flex;
+  gap: 10px;
+}
+
+/* Bloco de ação dentro do modal de consulta (status / remarcar) -- mesmo
+   visual de campo do form-nova-pendencia, mas fora dele (o modal não é um
+   <form> só, são duas ações independentes). */
+.modal-consulta__bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.modal-consulta__bloco:first-of-type {
+  padding-top: 0;
+  margin-top: 16px;
+}
+
+.modal-consulta__bloco label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.modal-consulta__bloco input,
+.modal-consulta__bloco textarea,
+.modal-consulta__bloco select {
+  padding: 10px 14px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  resize: vertical;
+}
+
+.modal-consulta__bloco input:focus,
+.modal-consulta__bloco textarea:focus,
+.modal-consulta__bloco select:focus {
+  outline: none;
+  border-color: var(--cor-marca);
+  box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
+}
+
+/* Linha cancelada na Agenda -- continua visível (a visão precisa mostrar
+   tudo), só marcada visualmente pra não confundir com uma consulta ativa. */
+.linha-cancelada td {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+/* Bolinha colorida do rótulo nativo do Simples Dental (ex: "INVISALIGN"),
+   cor vem dinâmica do próprio Simples Dental via style inline no JS. */
+.ponto-rotulo {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+#conteudoAgenda .tabela tbody tr {
+  cursor: pointer;
 }
 
 .filtros-oportunidades {

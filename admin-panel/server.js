@@ -37,6 +37,7 @@ const {
   buscarAnalyticsTendencia,
   buscarNuvemPalavras,
 } = require('./queries');
+const { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta } = require('./bridge');
 
 if (!process.env.ADMIN_PASSWORD) {
   throw new Error('ADMIN_PASSWORD não configurada -- veja .env.example.');
@@ -335,6 +336,47 @@ app.get('/api/analytics/nuvem', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/analytics/nuvem:', erro);
     res.status(500).json({ erro: 'Falha ao buscar nuvem de palavras.', detalhe: erro.message });
+  }
+});
+
+// ============================================================
+// Agenda (chama o serviço de automação -- server.js na raiz do repo --
+// que lê/cria/altera agendamentos de verdade no Simples Dental)
+// ============================================================
+app.get('/api/agenda', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarAgendaSemana(req.query.semanas));
+  } catch (erro) {
+    console.error('Erro em /api/agenda:', erro);
+    res.status(502).json({ erro: 'Falha ao buscar agenda no Simples Dental.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/agenda/consultas', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await criarConsulta(req.body || {}));
+  } catch (erro) {
+    console.error('Erro em POST /api/agenda/consultas:', erro);
+    res.status(502).json({ erro: 'Falha ao criar consulta.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/agenda/consultas/:id/status', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const { status, telefone } = req.body || {};
+    res.json(await mudarStatusConsulta({ idAgendamento: req.params.id, status, telefone }));
+  } catch (erro) {
+    console.error('Erro em POST /api/agenda/consultas/:id/status:', erro);
+    res.status(502).json({ erro: 'Falha ao alterar status da consulta.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/agenda/consultas/:id/remarcar', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await remarcarConsulta({ idAgendamento: req.params.id, ...req.body }));
+  } catch (erro) {
+    console.error('Erro em POST /api/agenda/consultas/:id/remarcar:', erro);
+    res.status(502).json({ erro: 'Falha ao remarcar consulta.', detalhe: erro.message });
   }
 });
 
