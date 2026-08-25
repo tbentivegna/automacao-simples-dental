@@ -34,9 +34,6 @@ priorizado).
 - [ ] **Abrir a conversa de um paciente direto da busca** — hoje o histórico
   só aparece via drill-down agregado do card "Mensagens trocadas", sem link
   direto por paciente. Serve: Recepção, Clínica.
-- [ ] **Gráfico de tendência ao longo do tempo** — toda métrica hoje é um
-  número pontual da janela selecionada, sem visão de mês a mês. Serve:
-  Marketing, Clínica.
 - [ ] **Formatar telefone pra leitura humana** — aparece como
   `5511999999999@s.whatsapp.net` em toda tela que lista paciente. Pequeno,
   mas é fricção constante. Serve: Recepção.
@@ -59,4 +56,7 @@ priorizado).
 
 ## Concluído
 
-*(nada ainda — essa avaliação é o ponto de partida)*
+- [x] **Gráfico de tendência ao longo do tempo** (25/08/2026) — nova página
+  Analytics: gráfico de tendência (Dia/Semana/Mês/Trimestre/Ano) dos
+  indicadores da Visão Geral, cards de funil de resgate (recuperados/
+  tentativas/taxa) e nuvem de palavras das mensagens (paciente/Lumi/ambos).
