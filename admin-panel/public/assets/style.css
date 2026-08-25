@@ -1059,6 +1059,13 @@ html, body {
   border-color: var(--cor-marca);
 }
 
+.nota-cabecalho {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cor-texto-suave);
+  margin-top: 2px;
+}
+
 .grafico-container {
   padding: 20px;
   height: 320px;

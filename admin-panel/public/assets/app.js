@@ -884,6 +884,8 @@ async function carregarTendencia() {
   const cartoesEl = document.getElementById('cartoesOportunidadesAnalytics');
   try {
     tendenciaCache = await chamarApi(`/api/analytics/tendencia?granularidade=${encodeURIComponent(granularidadeAtual)}`);
+    const nota = document.getElementById('tendenciaDadosDesde');
+    if (nota) nota.textContent = tendenciaCache.desdeFormatado ? `Dados desde ${tendenciaCache.desdeFormatado}` : '';
     renderizarGraficoTendencia();
     renderizarCartoesOportunidades(tendenciaCache.resumoOportunidades);
   } catch (erro) {

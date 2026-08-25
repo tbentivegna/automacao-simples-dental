@@ -29,6 +29,19 @@ const GRANULARIDADES = {
 
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
+// Tudo antes de 16/08/2026 era ambiente de teste, não conversa/atendimento
+// real (pedido do Tiago) -- usado pra "aparar" a página inteira de
+// Analytics (tendência, funil de resgate, nuvem de palavras), não só a
+// nuvem. Cada uso interpola isso de um jeito diferente (naive-local pra
+// bucket de série temporal, timestamptz pra filtro direto), ver os
+// comentários nos pontos de uso. É auto-suficiente: pra granularidades
+// pequenas (dia/semana) o "piso" para de fazer diferença sozinho assim que
+// a janela padrão passar dessa data -- só trimestre/ano continuam limitados
+// por mais tempo, o que é o comportamento certo (não tem sentido mostrar
+// "1 trimestre" ou "1 ano" cheio de linha zerada de antes do sistema
+// existir de verdade).
+const DADOS_REAIS_DESDE = '2026-08-16 00:00:00';
+
 // periodoIso vem como "YYYY-MM-DDTHH:MM:SS" (sem fuso, já em hora local --
 // ver to_char no SELECT final de buscarAnalyticsTendencia). Extrai ano/mês/
 // dia direto da string em vez de deixar o Date reinterpretar como UTC, pelo
@@ -556,7 +569,10 @@ async function buscarAnalyticsTendencia(granularidade) {
   const { rows } = await pool.query(
     `WITH parametros AS (
       SELECT
-        date_trunc('${unit}', now() AT TIME ZONE '${FUSO_CLINICA}') - interval '${lookback}' AS inicio_local,
+        GREATEST(
+          date_trunc('${unit}', now() AT TIME ZONE '${FUSO_CLINICA}') - interval '${lookback}',
+          date_trunc('${unit}', '${DADOS_REAIS_DESDE}'::timestamp)
+        ) AS inicio_local,
         date_trunc('${unit}', now() AT TIME ZONE '${FUSO_CLINICA}') AS fim_local
     ),
     serie AS (
@@ -642,8 +658,14 @@ async function buscarAnalyticsTendencia(granularidade) {
   // estado atual (não faz sentido "somar" isso ao longo do tempo).
   const { rows: resumoRows } = await pool.query(
     `SELECT
-      count(*) FILTER (WHERE resgate_enviado_em IS NOT NULL AND resgate_enviado_em >= now() - interval '${lookback}')::int AS tentativas_resgate,
-      count(*) FILTER (WHERE status = 'concluido' AND resgate_enviado_em IS NOT NULL AND concluido_em >= now() - interval '${lookback}')::int AS recuperados,
+      count(*) FILTER (
+        WHERE resgate_enviado_em IS NOT NULL
+          AND resgate_enviado_em >= GREATEST(now() - interval '${lookback}', ('${DADOS_REAIS_DESDE}'::timestamp AT TIME ZONE '${FUSO_CLINICA}'))
+      )::int AS tentativas_resgate,
+      count(*) FILTER (
+        WHERE status = 'concluido' AND resgate_enviado_em IS NOT NULL
+          AND concluido_em >= GREATEST(now() - interval '${lookback}', ('${DADOS_REAIS_DESDE}'::timestamp AT TIME ZONE '${FUSO_CLINICA}'))
+      )::int AS recuperados,
       count(*) FILTER (WHERE status = 'em_andamento')::int AS em_andamento_agora,
       count(*) FILTER (WHERE status = 'expirado')::int AS expirados_agora
     FROM public.funil_agendamento;`
@@ -651,7 +673,15 @@ async function buscarAnalyticsTendencia(granularidade) {
   const resumo = resumoRows[0];
   const taxaRecuperacao = resumo.tentativas_resgate > 0 ? resumo.recuperados / resumo.tentativas_resgate : null;
 
-  return { granularidade: g, buckets, resumoOportunidades: { ...resumo, taxa_recuperacao: taxaRecuperacao } };
+  // DD/MM/AAAA do primeiro bucket de verdade -- já reflete o piso de
+  // DADOS_REAIS_DESDE quando ele for o fator limitante (ver GREATEST em
+  // "parametros" acima), sem precisar duplicar a lógica de novo aqui.
+  const primeiroBucket = buckets[0]?.periodo;
+  const desdeFormatado = primeiroBucket
+    ? (([ano, mes, dia]) => `${dia}/${mes}/${ano}`)(primeiroBucket.split('T')[0].split('-'))
+    : null;
+
+  return { granularidade: g, buckets, desdeFormatado, resumoOportunidades: { ...resumo, taxa_recuperacao: taxaRecuperacao } };
 }
 
 // Stopwords em PT-BR pra nuvem de palavras -- sem isso, as palavras mais
@@ -702,23 +732,19 @@ function tokenizarTexto(texto) {
     .filter((palavra) => palavra.length >= 3 && !STOPWORDS_PT.has(palavra));
 }
 
-// origem: 'paciente' (mensagens do paciente), 'lumi' (respostas da IA) ou
-// 'ambos'. Últimos 30 dias, mas nunca antes de 16/08/2026 -- tudo anterior a
-// essa data era ambiente de teste, não conversa real de paciente (pedido do
-// Tiago). Esse "piso" fica sem efeito sozinho assim que os últimos 30 dias
-// rolarem pra depois de 16/08 (a partir de meados de setembro/2026) -- não
-// precisa remover isso depois, só faz diferença enquanto a janela de 30 dias
-// ainda inclui o período de teste.
-const NUVEM_PISO_DATA = '2026-08-16 00:00:00';
-
 // Brasil não observa mais horário de verão desde 2019 -- América/São_Paulo é
 // sempre UTC-3, então é seguro fixar o offset aqui em vez de precisar de
-// suporte a timezone no JS puro.
+// suporte a timezone no JS puro. Usado pra mostrar a data real usada como
+// piso (pode ser o piso fixo, ou a janela normal, o que for mais recente).
 function calcularDesdeNuvem() {
-  const piso = new Date(`${NUVEM_PISO_DATA.replace(' ', 'T')}-03:00`);
+  const piso = new Date(`${DADOS_REAIS_DESDE.replace(' ', 'T')}-03:00`);
   const trintaDiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   return trintaDiasAtras > piso ? trintaDiasAtras : piso;
 }
+
+// origem: 'paciente' (mensagens do paciente), 'lumi' (respostas da IA) ou
+// 'ambos'. Últimos 30 dias, com o mesmo piso em 16/08/2026 (ver
+// DADOS_REAIS_DESDE) usado no resto da página Analytics.
 
 async function buscarNuvemPalavras(origem) {
   const tipoSql =
@@ -730,7 +756,7 @@ async function buscarNuvemPalavras(origem) {
      WHERE (message->>'type') ${tipoSql}
        AND created_at >= GREATEST(
          now() - interval '30 days',
-         ('${NUVEM_PISO_DATA}'::timestamp AT TIME ZONE '${FUSO_CLINICA}')
+         ('${DADOS_REAIS_DESDE}'::timestamp AT TIME ZONE '${FUSO_CLINICA}')
        )
        AND message->>'content' IS NOT NULL;`
   );
