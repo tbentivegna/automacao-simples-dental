@@ -505,10 +505,12 @@ async function carregarSuspensos() {
       })
       .join('');
     alvo.innerHTML = `
-      <table class="tabela">
-        <thead><tr><th>Paciente</th><th>Status</th><th>Assumido em</th><th>Tempo parado</th><th></th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>`;
+      <div class="tabela-scroll-x">
+        <table class="tabela">
+          <thead><tr><th>Paciente</th><th>Status</th><th>Assumido em</th><th>Tempo parado</th><th></th></tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>`;
     atualizarBadges(lista.length);
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
@@ -568,10 +570,12 @@ async function carregarPendencias() {
       )
       .join('');
     alvo.innerHTML = `
-      <table class="tabela">
-        <thead><tr><th></th><th>Paciente</th><th>Domínio</th><th>Detalhe</th><th>Aberta em</th><th></th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>`;
+      <div class="tabela-scroll-x">
+        <table class="tabela">
+          <thead><tr><th></th><th>Paciente</th><th>Domínio</th><th>Detalhe</th><th>Aberta em</th><th></th></tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>`;
     atualizarBadgePendencias(lista.length);
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
