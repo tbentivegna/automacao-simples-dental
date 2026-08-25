@@ -743,8 +743,16 @@ async function preencherCadastroCompleto(dialogo, dados) {
 // Se `nomeBuscado` bater com mais de uma opção, ou não bater com nenhuma
 // (ex: telefone já tem outros filhos cadastrados, mas não esse), trata como
 // "não encontrado" -- é alguém novo usando o mesmo telefone da família.
+// telefoneLocal() (não somenteDigitos()) porque o campo de busca do
+// Simples Dental guarda o número sem o "55" -- um telefone recebido como
+// JID completo (ex: vindo direto de public.cliente.telefone, como faz o
+// formulário de Nova Consulta do painel) nunca batia com nenhum resultado
+// e caía sempre no caminho de "paciente não encontrado", mesmo quando o
+// paciente já existia. Achado testando a Agenda do painel em 25/08 --
+// o node do n8n que a Lumi usa já mandava o telefone sem o "55" hoje em
+// dia, então esse bug nunca afetou o fluxo da Lumi, só o painel.
 async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
-  await campoBusca.fill(somenteDigitos(telefone));
+  await campoBusca.fill(telefoneLocal(telefone));
   const opcoes = page.locator('.sd-pacientes-autocomplete__option');
   const apareceu = await aparece(opcoes.first(), 6000);
   if (!apareceu) return { opcao: null, nome: null };
