@@ -1011,6 +1011,7 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
   const [ano, mes, dia] = dataInput.split('-');
   const duracaoMinutos = document.getElementById('novaConsultaDuracao').value;
   const categoria = document.getElementById('novaConsultaCategoria').value;
+  const rotulo = document.getElementById('novaConsultaRotulo').value.trim();
   const observacao = document.getElementById('novaConsultaObservacao').value.trim();
 
   const botaoEnviar = formNovaConsulta.querySelector('button[type="submit"]');
@@ -1026,6 +1027,7 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
         hora,
         duracaoMinutos: duracaoMinutos ? Number(duracaoMinutos) : undefined,
         categoria: categoria || undefined,
+        rotulo: rotulo || undefined,
         observacao: observacao || undefined,
       }),
     });
@@ -1060,6 +1062,8 @@ function abrirModalConsulta(compromisso) {
   selectStatus.innerHTML = STATUS_CONSULTA.map(
     (s) => `<option value="${escapar(s)}"${s === compromisso.status ? ' selected' : ''}>${escapar(s)}</option>`
   ).join('');
+
+  document.getElementById('modalConsultaRotulo').value = compromisso.rotulo || '';
 
   document.getElementById('modalConsultaRemarcarData').value = '';
   document.getElementById('modalConsultaRemarcarHora').value = '';
@@ -1104,6 +1108,32 @@ document.getElementById('botaoSalvarStatusConsulta').addEventListener('click', a
   } finally {
     botao.disabled = false;
     botao.textContent = 'Salvar status';
+  }
+});
+
+document.getElementById('botaoSalvarRotuloConsulta').addEventListener('click', async () => {
+  if (!consultaSelecionada) return;
+  const rotulo = document.getElementById('modalConsultaRotulo').value.trim();
+  if (!rotulo) {
+    alert('Digite o nome exato de um rótulo já existente no Simples Dental.');
+    return;
+  }
+  const botao = document.getElementById('botaoSalvarRotuloConsulta');
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+  try {
+    await chamarApi(`/api/agenda/consultas/${consultaSelecionada.id}/rotulo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rotulo }),
+    });
+    fecharModalConsulta();
+    await carregarAgenda(semanaAtualAgenda);
+  } catch (erro) {
+    alert(erro.message);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar rótulo';
   }
 });
 

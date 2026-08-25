@@ -37,7 +37,7 @@ const {
   buscarAnalyticsTendencia,
   buscarNuvemPalavras,
 } = require('./queries');
-const { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta } = require('./bridge');
+const { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
 
 if (!process.env.ADMIN_PASSWORD) {
   throw new Error('ADMIN_PASSWORD não configurada -- veja .env.example.');
@@ -377,6 +377,16 @@ app.post('/api/agenda/consultas/:id/remarcar', exigirAutenticacaoApi, async (req
   } catch (erro) {
     console.error('Erro em POST /api/agenda/consultas/:id/remarcar:', erro);
     res.status(502).json({ erro: 'Falha ao remarcar consulta.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/agenda/consultas/:id/rotulo', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const { rotulo, telefone } = req.body || {};
+    res.json(await mudarRotuloConsulta({ idAgendamento: req.params.id, rotulo, telefone }));
+  } catch (erro) {
+    console.error('Erro em POST /api/agenda/consultas/:id/rotulo:', erro);
+    res.status(502).json({ erro: 'Falha ao alterar rótulo da consulta.', detalhe: erro.message });
   }
 });
 

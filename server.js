@@ -776,6 +776,31 @@ async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
   return { opcao, nome };
 }
 
+// Rótulo nativo do Simples Dental (a bolinha colorida com nome tipo
+// "INVISALIGN"/"Primeira Consulta" -- ver coletarCompromissosVariasSemanas)
+// -- mesmo componente de autocomplete usado tanto no diálogo de criar
+// consulta quanto no popover de detalhe de uma consulta existente, por
+// isso um helper só serve os dois lugares (recebe o container certo em
+// cada caso: o diálogo ou o popover). Digita o nome pra filtrar a lista e
+// clica na opção com esse texto exato. As opções renderizam num overlay
+// do Angular Material fora do container do campo (mesmo motivo pelo qual
+// a seleção de Status busca a opção na página inteira, não escopada ao
+// popover) -- por isso a busca da opção usa page.getByRole, não o
+// container recebido.
+async function selecionarRotulo(page, container, rotulo) {
+  const campo = container.locator('input[data-testid="inputRotulo"]');
+  await campo.click();
+  await campo.fill('');
+  await campo.fill(rotulo);
+
+  const opcao = page.getByRole('option', { name: rotulo, exact: true });
+  const apareceu = await aparece(opcao, 5000);
+  if (!apareceu) {
+    throw new Error(`Rótulo "${rotulo}" não encontrado na lista de opções do Simples Dental.`);
+  }
+  await opcao.click();
+}
+
 async function criarAgendamento({
   telefone,
   nomePaciente,
@@ -784,6 +809,7 @@ async function criarAgendamento({
   duracaoMinutos,
   observacao,
   categoria,
+  rotulo,
   dataNascimentoPaciente,
   cpfPaciente,
   email,
@@ -971,6 +997,19 @@ async function criarAgendamento({
     // 7. Observação (opcional)
     if (observacao) {
       await dialogo.locator('textarea[formcontrolname="descricao"]').fill(observacao);
+    }
+
+    // 7.5. Rótulo nativo do Simples Dental (opcional, best-effort -- ao
+    // contrário de "categoria" acima, que só grava em eventos_agenda pra
+    // analytics interno, isto aqui mexe visualmente no próprio Simples
+    // Dental). Se falhar, não derruba a criação da consulta -- ela já
+    // teria data/hora/paciente corretos, só ficaria sem o rótulo visual.
+    if (rotulo) {
+      try {
+        await selecionarRotulo(page, dialogo, rotulo);
+      } catch (erro) {
+        console.error('[criarAgendamento] falha ao setar rótulo (consulta seguiu sem rótulo):', erro.message);
+      }
     }
 
     // 8. Rede de segurança DUPLA contra conflito de horário:
@@ -1389,6 +1428,61 @@ async function mudarStatusAgendamento({ id, status, telefone }) {
   } catch (erro) {
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-status-${Date.now()}.png`) })
+      .catch(() => {});
+    throw erro;
+  } finally {
+    await context.close();
+  }
+}
+
+// Muda o rótulo de uma consulta JÁ EXISTENTE -- mesmo popover de detalhe
+// usado por mudarStatusAgendamento (clica no evento, mesmo popover), mas
+// o campo de rótulo é um autocomplete (selecionarRotulo), não um
+// mat-select como o de Status.
+async function mudarRotuloAgendamento({ id, rotulo, telefone }) {
+  if (!id || !rotulo) {
+    throw new Error('Campos obrigatórios faltando: id e rotulo são necessários.');
+  }
+  if (!/^\d+$/.test(String(id))) {
+    throw new Error(`ID de agendamento inválido: "${id}". Use exatamente o id numérico retornado por Busca Agendamentos do Paciente.`);
+  }
+
+  const { context, page } = await abrirPaginaLogada();
+
+  try {
+    const evento = await localizarEventoPorId(page, id);
+    if (!evento) {
+      throw new Error(`Não foi possível encontrar o compromisso com id ${id} nas próximas semanas.`);
+    }
+
+    await evento.click();
+
+    const popover = page.locator('mat-card.popover-content');
+    const abriu = await aparece(popover, 5000);
+    if (!abriu) {
+      throw new Error('O popover do compromisso não abriu depois do clique.');
+    }
+
+    await selecionarRotulo(page, popover, rotulo);
+    await page.waitForLoadState('networkidle').catch(() => {});
+
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `rotulo-${Date.now()}.png`), fullPage: true })
+      .catch(() => {});
+
+    // Fecha o popover
+    await popover
+      .locator('[data-testid="btnFechar"]')
+      .click({ timeout: 3000 })
+      .catch(() => {});
+
+    await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
+    cacheAgenda.clear();
+
+    return { sucesso: true, id, rotulo };
+  } catch (erro) {
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-rotulo-${Date.now()}.png`) })
       .catch(() => {});
     throw erro;
   } finally {
@@ -1933,6 +2027,11 @@ app.post('/verificar-disponibilidade', async (req, res) => {
 //                "hof" | "clareamento" | "limpeza_prevencao" |
 //                "consulta_estetica" | "dor_urgencia" | "outro"  (opcional,
 //                usado só para registrar o evento em eventos_agenda)
+//   "rotulo": "HOF" | "Clareamento" | "INVISALIGN" | ... (opcional, nome
+//             EXATO de um rótulo já existente no Simples Dental -- é o
+//             rótulo visual nativo de lá, diferente de "categoria" acima.
+//             Se não existir com esse nome, é ignorado silenciosamente
+//             e a consulta é criada sem rótulo mesmo assim)
 //
 //   Campos abaixo só são usados se o paciente for NOVO no Simples Dental
 //   (ignorados se o telefone já corresponder a um paciente existente):
@@ -2050,6 +2149,22 @@ app.post('/alterar-status-agendamento', async (req, res) => {
   } catch (erro) {
     console.error('Erro ao alterar status do agendamento:', erro);
     res.status(500).json({ erro: 'Falha ao alterar status do agendamento', detalhe: erro.message });
+  }
+});
+
+// Usada pela página Agenda do painel administrativo (não é ferramenta da
+// Lumi). Muda o rótulo nativo do Simples Dental (nome EXATO de um rótulo
+// já existente, ex: "HOF", "Clareamento", "INVISALIGN") de uma consulta
+// já existente. Espera receber:
+// { "idAgendamento": "310729432", "rotulo": "HOF", "telefone": "11991234567" }
+app.post('/alterar-rotulo-agendamento', async (req, res) => {
+  try {
+    const { idAgendamento: id, rotulo, telefone } = req.body || {};
+    const resultado = await comFilaSegura(() => mudarRotuloAgendamento({ id, rotulo, telefone }));
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao alterar rótulo do agendamento:', erro);
+    res.status(500).json({ erro: 'Falha ao alterar rótulo do agendamento', detalhe: erro.message });
   }
 });
 

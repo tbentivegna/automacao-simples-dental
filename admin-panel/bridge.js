@@ -40,4 +40,11 @@ async function remarcarConsulta(payload) {
   return chamarBridge('/remarcar-agendamento', { method: 'POST', body: JSON.stringify(payload) });
 }
 
-module.exports = { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta };
+async function mudarRotuloConsulta({ idAgendamento, rotulo, telefone }) {
+  return chamarBridge('/alterar-rotulo-agendamento', {
+    method: 'POST',
+    body: JSON.stringify({ idAgendamento, rotulo, telefone }),
+  });
+}
+
+module.exports = { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };

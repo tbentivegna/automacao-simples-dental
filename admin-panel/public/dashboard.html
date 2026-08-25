@@ -185,12 +185,28 @@
           <select id="novaConsultaCategoria">
             <option value="">Categoria (opcional)</option>
           </select>
+          <input type="text" id="novaConsultaRotulo" list="opcoesRotulo" autocomplete="off" placeholder="Rótulo do Simples Dental (opcional)" />
           <textarea id="novaConsultaObservacao" placeholder="Observação (opcional)" rows="2"></textarea>
           <div class="form-nova-pendencia__acoes">
             <button type="button" class="botao" id="botaoCancelarNovaConsulta">Cancelar</button>
             <button type="submit" class="botao botao-primario">Agendar</button>
           </div>
         </form>
+
+        <!-- Sugestões conhecidas -- não é uma lista fechada, o Simples
+             Dental permite criar rótulo novo lá, então o campo aceita
+             qualquer texto digitado, isto aqui é só atalho. -->
+        <datalist id="opcoesRotulo">
+          <option value="Primeira Consulta"></option>
+          <option value="Clínica Geral"></option>
+          <option value="Ortodontia"></option>
+          <option value="INVISALIGN"></option>
+          <option value="HOF"></option>
+          <option value="Clareamento"></option>
+          <option value="Profilaxia"></option>
+          <option value="Urgência"></option>
+          <option value="Link de Agendamento"></option>
+        </datalist>
 
         <div class="painel">
           <div id="conteudoAgenda"><div class="carregando">Carregando…</div></div>
@@ -293,6 +309,12 @@
           <label for="modalConsultaStatus">Status</label>
           <select id="modalConsultaStatus"></select>
           <button type="button" class="botao botao-primario" id="botaoSalvarStatusConsulta">Salvar status</button>
+        </div>
+
+        <div class="modal-consulta__bloco">
+          <label for="modalConsultaRotulo">Rótulo</label>
+          <input type="text" id="modalConsultaRotulo" list="opcoesRotulo" autocomplete="off" placeholder="Nome exato do rótulo (ex: HOF)" />
+          <button type="button" class="botao botao-primario" id="botaoSalvarRotuloConsulta">Salvar rótulo</button>
         </div>
 
         <div class="modal-consulta__bloco">
