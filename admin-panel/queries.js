@@ -678,8 +678,11 @@ const STOPWORDS_PT = new Set(
   vc vcs qnd pq porque onde aqui ali lá la ok blz obg obrigado obrigada
   agora hoje ontem amanha amanhã aqui dia horas hora minutos min assim sabe
   bom boa gente vou pode poder podem podemos posso quero queria sei vai vão
-  ir precisar precisa precisamos ajudar ajuda coisa coisas tudo nada algo
-  alguma algum tipo dra doutora aline`
+  ir precisar precisa precisamos preciso ajudar ajuda coisa coisas tudo nada
+  algo alguma algum tipo dra doutora aline fica ficar ficou fico ficam duas
+  fazer dar sobre deixar vamos tava achei parece pareceu antes menos cima vez
+  favor certo espero forma ainda desses dessas nesse nessa prazer qualquer
+  disposição verificar chamar gostaria estava estavam`
     .split(/\s+/)
     .filter(Boolean)
 );
@@ -700,8 +703,23 @@ function tokenizarTexto(texto) {
 }
 
 // origem: 'paciente' (mensagens do paciente), 'lumi' (respostas da IA) ou
-// 'ambos'. Últimos 30 dias fixo -- não precisa amarrar ao seletor de
-// granularidade da tendência, mantém a página mais simples de usar.
+// 'ambos'. Últimos 30 dias, mas nunca antes de 16/08/2026 -- tudo anterior a
+// essa data era ambiente de teste, não conversa real de paciente (pedido do
+// Tiago). Esse "piso" fica sem efeito sozinho assim que os últimos 30 dias
+// rolarem pra depois de 16/08 (a partir de meados de setembro/2026) -- não
+// precisa remover isso depois, só faz diferença enquanto a janela de 30 dias
+// ainda inclui o período de teste.
+const NUVEM_PISO_DATA = '2026-08-16 00:00:00';
+
+// Brasil não observa mais horário de verão desde 2019 -- América/São_Paulo é
+// sempre UTC-3, então é seguro fixar o offset aqui em vez de precisar de
+// suporte a timezone no JS puro.
+function calcularDesdeNuvem() {
+  const piso = new Date(`${NUVEM_PISO_DATA.replace(' ', 'T')}-03:00`);
+  const trintaDiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return trintaDiasAtras > piso ? trintaDiasAtras : piso;
+}
+
 async function buscarNuvemPalavras(origem) {
   const tipoSql =
     origem === 'lumi' ? "= 'ai'" : origem === 'ambos' ? "IN ('human', 'ai')" : "= 'human'";
@@ -710,7 +728,10 @@ async function buscarNuvemPalavras(origem) {
     `SELECT message->>'content' AS texto
      FROM public.n8n_chat_histories
      WHERE (message->>'type') ${tipoSql}
-       AND created_at >= now() - interval '30 days'
+       AND created_at >= GREATEST(
+         now() - interval '30 days',
+         ('${NUVEM_PISO_DATA}'::timestamp AT TIME ZONE '${FUSO_CLINICA}')
+       )
        AND message->>'content' IS NOT NULL;`
   );
 
@@ -723,10 +744,16 @@ async function buscarNuvemPalavras(origem) {
 
   const palavras = [...contagem.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 60)
+    .slice(0, 30)
     .map(([palavra, contagem]) => ({ palavra, contagem }));
 
-  return { origem: ['paciente', 'lumi', 'ambos'].includes(origem) ? origem : 'paciente', palavras };
+  const desdeFormatado = calcularDesdeNuvem().toLocaleDateString('pt-BR', { timeZone: FUSO_CLINICA });
+
+  return {
+    origem: ['paciente', 'lumi', 'ambos'].includes(origem) ? origem : 'paciente',
+    desdeFormatado,
+    palavras,
+  };
 }
 
 module.exports = {

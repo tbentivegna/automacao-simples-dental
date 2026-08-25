@@ -950,6 +950,8 @@ async function carregarNuvem() {
   el.innerHTML = '<div class="carregando">Carregando…</div>';
   try {
     const dados = await chamarApi(`/api/analytics/nuvem?origem=${encodeURIComponent(origemNuvemAtual)}`);
+    const legenda = document.getElementById('nuvemLegendaPeriodo');
+    if (legenda && dados.desdeFormatado) legenda.textContent = `Desde ${dados.desdeFormatado}.`;
     renderizarNuvem(dados.palavras);
   } catch (erro) {
     el.innerHTML = elementoErro(erro.message);
