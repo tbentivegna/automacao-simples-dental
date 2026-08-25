@@ -1961,6 +1961,12 @@ async function remarcarAgendamento({
 
     await registrarEventoAgenda({ tipo: 'remarcado', telefone, data, hora });
     await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
+    // Achado 26/08 (via fix em Busca Funil Parado): remarcar tambem
+    // encerra a tentativa em_andamento do funil de resgate -- sem isso,
+    // um paciente que remarca fica com a linha do funil orfa pra sempre
+    // (nunca fecha), arriscando um resgate incorreto oferecendo um
+    // horario que ele ja tem. Mesma chamada que criarAgendamento ja faz.
+    await fecharFunil({ telefone: `55${telefoneLocal(telefone)}@s.whatsapp.net`, status: 'concluido' });
     cacheAgenda.clear();
 
     return {
