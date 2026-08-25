@@ -755,10 +755,7 @@ function renderizarOportunidades() {
         ? `<button class="botao" data-reativar-oportunidade="${o.id}">Reativar</button>`
         : '<span class="texto-fraco">—</span>';
       const verMensagem = o.ultima_mensagem_paciente
-        ? `<details class="popover-mensagem">
-             <summary class="botao-ver">Ver</summary>
-             <div class="balao-mensagem">${escapar(o.ultima_mensagem_paciente)}</div>
-           </details>`
+        ? `<button type="button" class="botao-ver" data-ver-mensagem-oportunidade="${o.id}">Ver</button>`
         : '<span class="texto-fraco">—</span>';
       return `
         <tr data-linha-oportunidade="${o.id}">
@@ -797,6 +794,12 @@ document.getElementById('botaoLimparFiltrosOportunidades')?.addEventListener('cl
 });
 
 document.getElementById('conteudoOportunidades').addEventListener('click', async (evento) => {
+  const botaoVer = evento.target.closest('button[data-ver-mensagem-oportunidade]');
+  if (botaoVer) {
+    const oportunidade = oportunidadesCache.find((o) => String(o.id) === botaoVer.dataset.verMensagemOportunidade);
+    if (oportunidade) abrirModalMensagem(oportunidade);
+    return;
+  }
   const botao = evento.target.closest('button[data-reativar-oportunidade]');
   if (!botao) return;
   const id = botao.dataset.reativarOportunidade;
@@ -810,6 +813,28 @@ document.getElementById('conteudoOportunidades').addEventListener('click', async
     botao.textContent = 'Reativar';
     alert(erro.message);
   }
+});
+
+// Modal "Ver mensagem" -- ocupa o centro da tela em vez de um balão
+// espremido dentro da célula estreita da tabela.
+function abrirModalMensagem(oportunidade) {
+  document.getElementById('modalMensagemTitulo').textContent = `Mensagem de ${oportunidade.nome || 'paciente'}`;
+  document.getElementById('modalMensagemCorpo').textContent = oportunidade.ultima_mensagem_paciente || '';
+  document.getElementById('modalMensagem').hidden = false;
+}
+
+function fecharModalMensagem() {
+  document.getElementById('modalMensagem').hidden = true;
+}
+
+document.getElementById('botaoFecharModalMensagem')?.addEventListener('click', fecharModalMensagem);
+
+document.getElementById('modalMensagem')?.addEventListener('click', (evento) => {
+  if (evento.target.id === 'modalMensagem') fecharModalMensagem();
+});
+
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape' && !document.getElementById('modalMensagem').hidden) fecharModalMensagem();
 });
 
 // ============================================================
