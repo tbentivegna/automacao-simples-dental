@@ -34,6 +34,8 @@ const {
   retomarPaciente,
   pausarPaciente,
   definirConsentimentoPaciente,
+  buscarAnalyticsTendencia,
+  buscarNuvemPalavras,
 } = require('./queries');
 
 if (!process.env.ADMIN_PASSWORD) {
@@ -312,6 +314,27 @@ app.post('/api/pacientes/:id/consentimento', exigirAutenticacaoApi, async (req, 
   } catch (erro) {
     console.error('Erro em POST /api/pacientes/:id/consentimento:', erro);
     res.status(500).json({ erro: 'Falha ao atualizar consentimento do paciente.', detalhe: erro.message });
+  }
+});
+
+// ============================================================
+// Analytics (tendência histórica + nuvem de palavras)
+// ============================================================
+app.get('/api/analytics/tendencia', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarAnalyticsTendencia(req.query.granularidade));
+  } catch (erro) {
+    console.error('Erro em /api/analytics/tendencia:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar tendência.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/analytics/nuvem', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarNuvemPalavras(req.query.origem));
+  } catch (erro) {
+    console.error('Erro em /api/analytics/nuvem:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar nuvem de palavras.', detalhe: erro.message });
   }
 });
 

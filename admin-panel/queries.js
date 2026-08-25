@@ -15,6 +15,43 @@ const TIPOS_AGENDAMENTO_VALIDOS = ['criado', 'confirmado', 'cancelado', 'remarca
 // fuso da clínica, senão a comparação/formatação erra em 3h (ver db.js).
 const FUSO_CLINICA = 'America/Sao_Paulo';
 
+// Analytics: cada granularidade já embute uma janela padrão sensata (em vez
+// de expor um seletor de data solto) -- dia mostra o último mês, semana o
+// último trimestre, etc. `unit`/`step`/`lookback` só vêm daqui (nunca de
+// input do usuário), por isso é seguro interpolar direto no SQL.
+const GRANULARIDADES = {
+  dia: { unit: 'day', step: '1 day', lookback: '29 days' },
+  semana: { unit: 'week', step: '1 week', lookback: '11 weeks' },
+  mes: { unit: 'month', step: '1 month', lookback: '11 months' },
+  trimestre: { unit: 'quarter', step: '3 months', lookback: '21 months' },
+  ano: { unit: 'year', step: '1 year', lookback: '4 years' },
+};
+
+const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+// periodoIso vem como "YYYY-MM-DDTHH:MM:SS" (sem fuso, já em hora local --
+// ver to_char no SELECT final de buscarAnalyticsTendencia). Extrai ano/mês/
+// dia direto da string em vez de deixar o Date reinterpretar como UTC, pelo
+// mesmo motivo do comentário sobre AT TIME ZONE lá em cima.
+function formatarRotuloPeriodo(periodoIso, granularidade) {
+  const [dataParte] = periodoIso.split('T');
+  const [ano, mes, dia] = dataParte.split('-').map(Number);
+  const anoCurto = String(ano).slice(2);
+  switch (granularidade) {
+    case 'dia':
+    case 'semana':
+      return `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+    case 'mes':
+      return `${MESES_ABREV[mes - 1]}/${anoCurto}`;
+    case 'trimestre':
+      return `T${Math.floor((mes - 1) / 3) + 1}/${anoCurto}`;
+    case 'ano':
+      return String(ano);
+    default:
+      return dataParte;
+  }
+}
+
 // Mesmo CASE usado em buscarAnalytics, só que como função pra reaproveitar
 // nas queries de detalhe (drill-down dos cards da Visão Geral) sem duplicar
 // o texto em cada uma. `parametro` é o placeholder posicional ($1, $2...).
@@ -507,6 +544,191 @@ async function definirConsentimentoPaciente(id, consentimento) {
   return rows.length > 0;
 }
 
+// Página Analytics -- série histórica dos mesmos indicadores da Visão Geral
+// mais o funil de resgate, agrupados numa granularidade só (dia/semana/mês/
+// trimestre/ano), cada uma com sua janela padrão (ver GRANULARIDADES). Uma
+// query só traz tudo de uma vez (várias métricas) pra trocar de métrica no
+// gráfico ser client-side, sem bater na API de novo a cada clique.
+async function buscarAnalyticsTendencia(granularidade) {
+  const g = GRANULARIDADES[granularidade] ? granularidade : 'mes';
+  const { unit, step, lookback } = GRANULARIDADES[g];
+
+  const { rows } = await pool.query(
+    `WITH parametros AS (
+      SELECT
+        date_trunc('${unit}', now() AT TIME ZONE '${FUSO_CLINICA}') - interval '${lookback}' AS inicio_local,
+        date_trunc('${unit}', now() AT TIME ZONE '${FUSO_CLINICA}') AS fim_local
+    ),
+    serie AS (
+      SELECT generate_series(inicio_local, fim_local, interval '${step}') AS periodo
+      FROM parametros
+    ),
+    agendamentos AS (
+      SELECT date_trunc('${unit}', ea.criado_em AT TIME ZONE '${FUSO_CLINICA}') AS periodo,
+        count(*) FILTER (WHERE ea.tipo = 'criado') AS consultas_criadas,
+        count(*) FILTER (WHERE ea.tipo = 'confirmado') AS confirmados,
+        count(*) FILTER (WHERE ea.tipo = 'cancelado') AS cancelados,
+        count(*) FILTER (WHERE ea.tipo = 'remarcado') AS remarcados,
+        count(*) FILTER (WHERE ea.tipo = 'lembrete_enviado') AS lembretes_enviados
+      FROM public.eventos_agenda ea, parametros
+      WHERE (ea.criado_em AT TIME ZONE '${FUSO_CLINICA}') >= parametros.inicio_local
+      GROUP BY 1
+    ),
+    pacientes AS (
+      SELECT date_trunc('${unit}', (c.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}') AS periodo,
+        count(*) AS novos_pacientes
+      FROM public.cliente c, parametros
+      WHERE ((c.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}') >= parametros.inicio_local
+      GROUP BY 1
+    ),
+    mensagens AS (
+      SELECT date_trunc('${unit}', h.created_at AT TIME ZONE '${FUSO_CLINICA}') AS periodo,
+        count(*) AS mensagens_trocadas
+      FROM public.n8n_chat_histories h, parametros
+      WHERE (h.created_at AT TIME ZONE '${FUSO_CLINICA}') >= parametros.inicio_local
+      GROUP BY 1
+    ),
+    pendencias AS (
+      SELECT date_trunc('${unit}', (aa.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}') AS periodo,
+        count(*) AS pendencias_abertas,
+        count(*) FILTER (WHERE aa.detail LIKE 'URGÊNCIA%') AS urgencias_abertas
+      FROM public.agent_actions aa, parametros
+      WHERE ((aa.created_at AT TIME ZONE 'UTC') AT TIME ZONE '${FUSO_CLINICA}') >= parametros.inicio_local
+      GROUP BY 1
+    ),
+    resgates AS (
+      SELECT date_trunc('${unit}', f.resgate_enviado_em AT TIME ZONE '${FUSO_CLINICA}') AS periodo,
+        count(*) AS tentativas_resgate
+      FROM public.funil_agendamento f, parametros
+      WHERE f.resgate_enviado_em IS NOT NULL
+        AND (f.resgate_enviado_em AT TIME ZONE '${FUSO_CLINICA}') >= parametros.inicio_local
+      GROUP BY 1
+    ),
+    recuperados AS (
+      SELECT date_trunc('${unit}', f.concluido_em AT TIME ZONE '${FUSO_CLINICA}') AS periodo,
+        count(*) AS recuperados
+      FROM public.funil_agendamento f, parametros
+      WHERE f.status = 'concluido' AND f.resgate_enviado_em IS NOT NULL AND f.concluido_em IS NOT NULL
+        AND (f.concluido_em AT TIME ZONE '${FUSO_CLINICA}') >= parametros.inicio_local
+      GROUP BY 1
+    )
+    SELECT
+      to_char(s.periodo, 'YYYY-MM-DD"T"HH24:MI:SS') AS periodo,
+      coalesce(ag.consultas_criadas, 0)::int AS consultas_criadas,
+      coalesce(ag.confirmados, 0)::int AS confirmados,
+      coalesce(ag.cancelados, 0)::int AS cancelados,
+      coalesce(ag.remarcados, 0)::int AS remarcados,
+      coalesce(ag.lembretes_enviados, 0)::int AS lembretes_enviados,
+      coalesce(pc.novos_pacientes, 0)::int AS novos_pacientes,
+      coalesce(m.mensagens_trocadas, 0)::int AS mensagens_trocadas,
+      coalesce(pd.pendencias_abertas, 0)::int AS pendencias_abertas,
+      coalesce(pd.urgencias_abertas, 0)::int AS urgencias_abertas,
+      coalesce(rg.tentativas_resgate, 0)::int AS tentativas_resgate,
+      coalesce(rc.recuperados, 0)::int AS recuperados
+    FROM serie s
+    LEFT JOIN agendamentos ag ON ag.periodo = s.periodo
+    LEFT JOIN pacientes pc ON pc.periodo = s.periodo
+    LEFT JOIN mensagens m ON m.periodo = s.periodo
+    LEFT JOIN pendencias pd ON pd.periodo = s.periodo
+    LEFT JOIN resgates rg ON rg.periodo = s.periodo
+    LEFT JOIN recuperados rc ON rc.periodo = s.periodo
+    ORDER BY s.periodo;`
+  );
+
+  const buckets = rows.map((r) => ({ ...r, rotulo: formatarRotuloPeriodo(r.periodo, g) }));
+
+  // Cards de resumo do funil de resgate -- tentativas/recuperados usam a
+  // mesma janela da granularidade escolhida; em_andamento/expirados são
+  // estado atual (não faz sentido "somar" isso ao longo do tempo).
+  const { rows: resumoRows } = await pool.query(
+    `SELECT
+      count(*) FILTER (WHERE resgate_enviado_em IS NOT NULL AND resgate_enviado_em >= now() - interval '${lookback}')::int AS tentativas_resgate,
+      count(*) FILTER (WHERE status = 'concluido' AND resgate_enviado_em IS NOT NULL AND concluido_em >= now() - interval '${lookback}')::int AS recuperados,
+      count(*) FILTER (WHERE status = 'em_andamento')::int AS em_andamento_agora,
+      count(*) FILTER (WHERE status = 'expirado')::int AS expirados_agora
+    FROM public.funil_agendamento;`
+  );
+  const resumo = resumoRows[0];
+  const taxaRecuperacao = resumo.tentativas_resgate > 0 ? resumo.recuperados / resumo.tentativas_resgate : null;
+
+  return { granularidade: g, buckets, resumoOportunidades: { ...resumo, taxa_recuperacao: taxaRecuperacao } };
+}
+
+// Stopwords em PT-BR pra nuvem de palavras -- sem isso, as palavras mais
+// "faladas" seriam sempre "que", "para", "com"... e a nuvem não diz nada.
+const STOPWORDS_PT = new Set(
+  `a ao aos aquela aquelas aquele aqueles aquilo as até com como da das de dela
+  delas dele deles depois do dos e ela elas ele eles em entre era eram essa
+  essas esse esses esta estamos estas este esteja estejam estejamos estes
+  esteve estive estivemos estiver estivera estiveram estiverem estivermos
+  estivesse estivessem estivéramos estivéssemos estou está estávamos estão eu
+  foi fomos for fora foram forem formos fosse fossem fui fôramos fôssemos
+  haja hajam hajamos havemos havia hei houve houvemos houver houvera houveram
+  houverei houverem houveremos houveria houveriam houvermos houverá houverão
+  houveríamos houvesse houvessem houvéramos houvéssemos há hão isso isto já
+  lhe lhes mais mas me mesmo meu meus minha minhas muito na nas nem no nos
+  nossa nossas nosso nossos num numa não nós o os ou para pela pelas pelo
+  pelos por qual quando que quem se seja sejam sejamos sem ser será serão
+  serei seremos seria seriam seríamos seu seus somos sou sua suas são só
+  também te tem temos tenha tenham tenhamos tenho ter terei teremos teria
+  teriam teríamos teu teus teve tinha tinham tive tivemos tiver tivera
+  tiveram tiverem tivermos tivesse tivessem tivéramos tivéssemos tu tua tuas
+  tém tínhamos um uma você vocês vos à às éramos é foi so sim não oi olá
+  ola tudo bem tá ta pra pro tô to né mesma mesmos mesmas ai aí então tbm
+  vc vcs qnd pq porque onde aqui ali lá la ok blz obg obrigado obrigada
+  agora hoje ontem amanha amanhã aqui dia horas hora minutos min assim sabe
+  bom boa gente vou pode poder podem podemos posso quero queria sei vai vão
+  ir precisar precisa precisamos ajudar ajuda coisa coisas tudo nada algo
+  alguma algum tipo dra doutora aline`
+    .split(/\s+/)
+    .filter(Boolean)
+);
+
+// Remove URL, prefixos tipo "[Lumi]:"/"[Equipe da clínica]" e blocos JSON
+// crus (agent_action que às vezes vaza no texto salvo), aí tokeniza mantendo
+// só letras (\p{L} pega acento também, então "não" continua "não" e não vira
+// "no").
+function tokenizarTexto(texto) {
+  return (texto || '')
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/\[.*?\]/g, ' ')
+    .replace(/\{[\s\S]*?\}/g, ' ')
+    .replace(/[^\p{L}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter((palavra) => palavra.length >= 3 && !STOPWORDS_PT.has(palavra));
+}
+
+// origem: 'paciente' (mensagens do paciente), 'lumi' (respostas da IA) ou
+// 'ambos'. Últimos 30 dias fixo -- não precisa amarrar ao seletor de
+// granularidade da tendência, mantém a página mais simples de usar.
+async function buscarNuvemPalavras(origem) {
+  const tipoSql =
+    origem === 'lumi' ? "= 'ai'" : origem === 'ambos' ? "IN ('human', 'ai')" : "= 'human'";
+
+  const { rows } = await pool.query(
+    `SELECT message->>'content' AS texto
+     FROM public.n8n_chat_histories
+     WHERE (message->>'type') ${tipoSql}
+       AND created_at >= now() - interval '30 days'
+       AND message->>'content' IS NOT NULL;`
+  );
+
+  const contagem = new Map();
+  for (const { texto } of rows) {
+    for (const palavra of tokenizarTexto(texto)) {
+      contagem.set(palavra, (contagem.get(palavra) || 0) + 1);
+    }
+  }
+
+  const palavras = [...contagem.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 60)
+    .map(([palavra, contagem]) => ({ palavra, contagem }));
+
+  return { origem: ['paciente', 'lumi', 'ambos'].includes(origem) ? origem : 'paciente', palavras };
+}
+
 module.exports = {
   buscarAnalytics,
   buscarDetalheAgendamentos,
@@ -527,4 +749,6 @@ module.exports = {
   retomarPaciente,
   pausarPaciente,
   definirConsentimentoPaciente,
+  buscarAnalyticsTendencia,
+  buscarNuvemPalavras,
 };

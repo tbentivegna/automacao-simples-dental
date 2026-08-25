@@ -34,6 +34,7 @@
         </button>
         <button class="nav__item" data-secao="oportunidades">🎯 Oportunidades</button>
         <button class="nav__item" data-secao="pacientes">👥 Pacientes</button>
+        <button class="nav__item" data-secao="analytics">📈 Analytics</button>
       </nav>
 
       <div class="status-bot" id="statusBot">
@@ -153,6 +154,74 @@
           <div id="conteudoPacientes"><div class="carregando">Carregando…</div></div>
         </div>
       </section>
+
+      <!-- ============ ANALYTICS ============ -->
+      <section class="secao" id="secao-analytics">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Analytics</h2>
+            <p>Como os indicadores variam ao longo do tempo.</p>
+          </div>
+          <div class="seletor-janela" id="seletorGranularidade">
+            <button data-granularidade="dia">Dia</button>
+            <button data-granularidade="semana">Semana</button>
+            <button data-granularidade="mes" class="ativo">Mês</button>
+            <button data-granularidade="trimestre">Trimestre</button>
+            <button data-granularidade="ano">Ano</button>
+          </div>
+        </div>
+
+        <div class="painel painel--grafico">
+          <div class="painel__cabecalho painel__cabecalho--flex">
+            <span>Tendência</span>
+            <select id="seletorMetrica">
+              <option value="consultas_criadas">Consultas criadas</option>
+              <option value="confirmados">Confirmadas</option>
+              <option value="cancelados">Canceladas</option>
+              <option value="remarcados">Remarcadas</option>
+              <option value="lembretes_enviados">Lembretes enviados</option>
+              <option value="novos_pacientes">Novos pacientes</option>
+              <option value="mensagens_trocadas">Mensagens trocadas</option>
+              <option value="pendencias_abertas">Pendências abertas</option>
+              <option value="urgencias_abertas">Urgências abertas</option>
+              <option value="tentativas_resgate">Tentativas de resgate</option>
+              <option value="recuperados">Recuperados</option>
+            </select>
+          </div>
+          <div class="grafico-container">
+            <canvas id="graficoTendencia"></canvas>
+          </div>
+        </div>
+
+        <div class="bloco-analytics">
+          <div class="bloco-analytics__cabecalho">
+            <div>
+              <h3>Funil de resgate</h3>
+              <p>Oportunidades recuperadas e tentativas, no mesmo período acima.</p>
+            </div>
+          </div>
+          <div class="grade-cartoes" id="cartoesOportunidadesAnalytics">
+            <div class="carregando">Carregando…</div>
+          </div>
+        </div>
+
+        <div class="bloco-analytics">
+          <div class="bloco-analytics__cabecalho">
+            <div>
+              <h3>Nuvem de palavras</h3>
+              <p>Últimos 30 dias.</p>
+            </div>
+            <div class="seletor-janela" id="seletorOrigemNuvem">
+              <button data-origem="paciente" class="ativo">Paciente</button>
+              <button data-origem="lumi">Lumi</button>
+              <button data-origem="ambos">Ambos</button>
+            </div>
+          </div>
+          <div class="painel">
+            <div id="conteudoNuvem"><div class="carregando">Carregando…</div></div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -166,6 +235,7 @@
     </div>
   </div>
 
+  <script src="/assets/vendor/chart.umd.min.js"></script>
   <script src="/assets/app.js"></script>
 </body>
 </html>

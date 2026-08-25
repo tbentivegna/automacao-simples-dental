@@ -1007,6 +1007,96 @@ html, body {
   border-color: var(--cor-marca);
 }
 
+/* ============================================================
+   Analytics
+   ============================================================ */
+
+.bloco-analytics {
+  margin-top: 28px;
+}
+
+.bloco-analytics__cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.bloco-analytics__cabecalho h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--cor-secundaria);
+}
+
+.bloco-analytics__cabecalho p {
+  margin: 2px 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 13.5px;
+}
+
+.painel__cabecalho--flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.painel__cabecalho--flex select {
+  padding: 8px 12px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  font-size: 14px;
+  font-weight: 400;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.painel__cabecalho--flex select:focus {
+  outline: none;
+  border-color: var(--cor-marca);
+}
+
+.grafico-container {
+  padding: 20px;
+  height: 320px;
+  position: relative;
+}
+
+/* Nuvem "caseira" em CSS -- tamanho da palavra proporcional à frequência
+   (calculado no JS, aplicado via style inline por palavra), sem precisar de
+   lib de layout de word cloud (a maioria empacota palavras de um jeito
+   difícil de portar sem canvas próprio). Ordem embaralhada no JS pra não
+   parecer uma lista ranqueada. */
+.nuvem-palavras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px 18px;
+  padding: 28px 24px;
+  line-height: 1.15;
+}
+
+.nuvem-palavras__item {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nuvem-palavras__item:nth-child(3n) {
+  color: var(--cor-marca-escura);
+}
+
+.nuvem-palavras__item:nth-child(3n + 1) {
+  color: var(--cor-secundaria);
+}
+
+.nuvem-palavras__item:nth-child(3n + 2) {
+  color: var(--cor-marca);
+}
+
 .paginacao {
   display: flex;
   align-items: center;
@@ -1176,5 +1266,18 @@ html, body {
 
   .cartao-stat__valor {
     font-size: 23px;
+  }
+
+  .grafico-container {
+    height: 240px;
+    padding: 14px;
+  }
+
+  .bloco-analytics__cabecalho h3 {
+    font-size: 1.05rem;
+  }
+
+  .nuvem-palavras {
+    padding: 18px 16px;
   }
 }

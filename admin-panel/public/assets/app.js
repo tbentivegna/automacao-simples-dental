@@ -93,6 +93,7 @@ const secoes = {
   pendencias: carregarPendencias,
   oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
+  analytics: carregarPaginaAnalytics,
 };
 
 document.querySelectorAll('.nav__item[data-secao]').forEach((botao) => {
@@ -840,6 +841,151 @@ document.getElementById('modalMensagem')?.addEventListener('click', (evento) => 
 document.addEventListener('keydown', (evento) => {
   if (evento.key === 'Escape' && !document.getElementById('modalMensagem').hidden) fecharModalMensagem();
 });
+
+// ============================================================
+// Analytics (tendência + funil de resgate + nuvem de palavras)
+// ============================================================
+
+const METRICAS_TENDENCIA = {
+  consultas_criadas: 'Consultas criadas',
+  confirmados: 'Confirmadas',
+  cancelados: 'Canceladas',
+  remarcados: 'Remarcadas',
+  lembretes_enviados: 'Lembretes enviados',
+  novos_pacientes: 'Novos pacientes',
+  mensagens_trocadas: 'Mensagens trocadas',
+  pendencias_abertas: 'Pendências abertas',
+  urgencias_abertas: 'Urgências abertas',
+  tentativas_resgate: 'Tentativas de resgate',
+  recuperados: 'Recuperados',
+};
+
+let granularidadeAtual = 'mes';
+let origemNuvemAtual = 'paciente';
+let tendenciaCache = null;
+let chartTendencia = null;
+
+async function carregarPaginaAnalytics() {
+  await carregarTendencia();
+  carregarNuvem();
+}
+
+document.getElementById('seletorGranularidade')?.addEventListener('click', (evento) => {
+  const botao = evento.target.closest('button[data-granularidade]');
+  if (!botao) return;
+  granularidadeAtual = botao.dataset.granularidade;
+  document.querySelectorAll('#seletorGranularidade button').forEach((b) => b.classList.toggle('ativo', b === botao));
+  carregarTendencia();
+});
+
+document.getElementById('seletorMetrica')?.addEventListener('change', renderizarGraficoTendencia);
+
+async function carregarTendencia() {
+  const cartoesEl = document.getElementById('cartoesOportunidadesAnalytics');
+  try {
+    tendenciaCache = await chamarApi(`/api/analytics/tendencia?granularidade=${encodeURIComponent(granularidadeAtual)}`);
+    renderizarGraficoTendencia();
+    renderizarCartoesOportunidades(tendenciaCache.resumoOportunidades);
+  } catch (erro) {
+    cartoesEl.innerHTML = elementoErro(erro.message);
+  }
+}
+
+function renderizarGraficoTendencia() {
+  if (!tendenciaCache) return;
+  const metrica = document.getElementById('seletorMetrica').value;
+  const labels = tendenciaCache.buckets.map((b) => b.rotulo);
+  const dados = tendenciaCache.buckets.map((b) => b[metrica]);
+
+  if (chartTendencia) chartTendencia.destroy();
+  const ctx = document.getElementById('graficoTendencia').getContext('2d');
+  chartTendencia = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: METRICAS_TENDENCIA[metrica] || metrica,
+          data: dados,
+          borderColor: '#96794f',
+          backgroundColor: 'rgba(184, 154, 104, 0.15)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 3,
+          pointBackgroundColor: '#96794f',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+    },
+  });
+}
+
+function renderizarCartoesOportunidades(resumo) {
+  const el = document.getElementById('cartoesOportunidadesAnalytics');
+  const taxaTexto = resumo.taxa_recuperacao === null ? '—' : `${Math.round(resumo.taxa_recuperacao * 100)}%`;
+  el.innerHTML = `
+    <div class="cartao-stat"><div class="cartao-stat__rotulo">Recuperados</div><div class="cartao-stat__valor">${formatarNumero(resumo.recuperados)}</div></div>
+    <div class="cartao-stat"><div class="cartao-stat__rotulo">Tentativas de resgate</div><div class="cartao-stat__valor">${formatarNumero(resumo.tentativas_resgate)}</div></div>
+    <div class="cartao-stat"><div class="cartao-stat__rotulo">Taxa de recuperação</div><div class="cartao-stat__valor">${taxaTexto}</div></div>
+    <div class="cartao-stat"><div class="cartao-stat__rotulo">Em andamento agora</div><div class="cartao-stat__valor">${formatarNumero(resumo.em_andamento_agora)}</div></div>
+    <div class="cartao-stat"><div class="cartao-stat__rotulo">Expirados agora</div><div class="cartao-stat__valor">${formatarNumero(resumo.expirados_agora)}</div></div>
+  `;
+}
+
+document.getElementById('seletorOrigemNuvem')?.addEventListener('click', (evento) => {
+  const botao = evento.target.closest('button[data-origem]');
+  if (!botao) return;
+  origemNuvemAtual = botao.dataset.origem;
+  document.querySelectorAll('#seletorOrigemNuvem button').forEach((b) => b.classList.toggle('ativo', b === botao));
+  carregarNuvem();
+});
+
+async function carregarNuvem() {
+  const el = document.getElementById('conteudoNuvem');
+  el.innerHTML = '<div class="carregando">Carregando…</div>';
+  try {
+    const dados = await chamarApi(`/api/analytics/nuvem?origem=${encodeURIComponent(origemNuvemAtual)}`);
+    renderizarNuvem(dados.palavras);
+  } catch (erro) {
+    el.innerHTML = elementoErro(erro.message);
+  }
+}
+
+function embaralhar(lista) {
+  const copia = [...lista];
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
+// Tamanho da fonte proporcional à frequência (14px a 44px) -- palavra mais
+// citada fica bem maior que a menos citada, ordem embaralhada pra parecer
+// nuvem de verdade em vez de ranking.
+function renderizarNuvem(palavras) {
+  const el = document.getElementById('conteudoNuvem');
+  if (!palavras || palavras.length === 0) {
+    el.innerHTML = '<div class="estado-vazio"><span class="estado-vazio__emoji">💬</span>Sem mensagens suficientes nesse período.</div>';
+    return;
+  }
+  const contagens = palavras.map((p) => p.contagem);
+  const max = Math.max(...contagens);
+  const min = Math.min(...contagens);
+  const itens = embaralhar(palavras)
+    .map((p) => {
+      const proporcao = max === min ? 1 : (p.contagem - min) / (max - min);
+      const tamanho = (14 + proporcao * 30).toFixed(1);
+      return `<span class="nuvem-palavras__item" style="font-size:${tamanho}px" title="${p.contagem}x">${escapar(p.palavra)}</span>`;
+    })
+    .join('');
+  el.innerHTML = `<div class="nuvem-palavras">${itens}</div>`;
+}
 
 // ============================================================
 // Pacientes
