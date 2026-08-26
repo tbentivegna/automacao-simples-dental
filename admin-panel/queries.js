@@ -408,14 +408,18 @@ async function buscarOportunidades() {
       -- Parado" usa pra excluir do envio.
       coalesce(c.bot_disabled, false) AS atendimento_humano_ativo,
       -- mesma checagem que "Busca Funil Parado" usa pra excluir do envio --
-      -- se o paciente já respondeu depois da última marcação, o resgate
-      -- automático não vai disparar, mesmo com status ainda em_andamento.
-      EXISTS (
+      -- silêncio de verdade nas últimas 4h, não só "sem mensagem desde a
+      -- última marcação" (esse segundo critério travava pra sempre depois
+      -- de qualquer resposta de follow-up -- bug real corrigido 25/08/2026,
+      -- ver fix-resgate-checagem-silencio-real.js; esta cópia no painel
+      -- ficou desatualizada até agora, mostrando "já respondeu" mesmo
+      -- horas depois de o paciente realmente ter ficado em silêncio).
+      NOT EXISTS (
         SELECT 1 FROM public.n8n_chat_histories h
         WHERE h.session_id = f.telefone
           AND h.message->>'type' = 'human'
-          AND h.created_at > f.ultima_interacao_em
-      ) AS paciente_ja_respondeu_depois,
+          AND h.created_at > now() - interval '4 hours'
+      ) AS silencio_real_4h,
       -- mesmo filtro de "mensagem com conteúdo de verdade" (>15 chars) que
       -- o workflow de resgate usa pra montar a mensagem -- assim o painel
       -- mostra a mesma coisa que vai ser citada pro paciente, e não uma
