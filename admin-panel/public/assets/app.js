@@ -710,7 +710,7 @@ function proximoPassoOportunidade(o) {
   // última mensagem do paciente, não desde a última marcação) -- ver fix
   // 25/08/2026 (fix-resgate-checagem-silencio-real.js) e o comentário na
   // query em queries.js.
-  if (!o.silencio_real_4h) return 'Paciente respondeu recentemente — resgate automático não será enviado ainda';
+  if (!o.silencio_real_4h) return 'Paciente respondeu recentemente — resgate entra em 4h de silêncio sem nova resposta';
   return 'Resgate será enviado no próximo horário comercial';
 }
 
