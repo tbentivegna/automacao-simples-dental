@@ -1267,21 +1267,61 @@ async function abrirConversa(telefone, nome) {
 
 function renderizarThread(nome, mensagensCronologicas) {
   const alvo = document.getElementById('threadMensagens');
-  const bolhas = mensagensCronologicas.map(bolhaMensagem).join('');
   alvo.innerHTML = `
     <div class="thread-mensagens__cabecalho">${escapar(nome || 'Conversa')}</div>
-    <div class="thread-mensagens__corpo" id="threadMensagensCorpo">
-      ${bolhas || vazioDetalhe('Sem mensagens registradas pra esse paciente.')}
-    </div>
+    <div class="thread-mensagens__corpo" id="threadMensagensCorpo"></div>
     <form class="composer-mensagem" id="composerMensagem">
       <textarea id="composerMensagemTexto" placeholder="Escreva uma mensagem…" rows="2" required></textarea>
       <button type="submit" class="botao botao-primario">Enviar</button>
     </form>
   `;
-  const corpo = document.getElementById('threadMensagensCorpo');
-  corpo.scrollTop = corpo.scrollHeight;
+  preencherCorpoThread(mensagensCronologicas, true);
   document.getElementById('composerMensagem').addEventListener('submit', enviarMensagemPainel);
 }
+
+// Troca só as bolhas de mensagem, sem mexer no composer -- usado tanto no
+// primeiro carregamento (forcarScroll=true) quanto no poll em segundo plano
+// (forcarScroll=false, só desce o scroll se já estava perto do fim, pra não
+// puxar a tela embaixo de quem está lendo mensagens antigas).
+function preencherCorpoThread(mensagensCronologicas, forcarScroll) {
+  const corpo = document.getElementById('threadMensagensCorpo');
+  if (!corpo) return;
+  const pertoDoFim = corpo.scrollHeight - corpo.scrollTop - corpo.clientHeight < 80;
+  corpo.innerHTML = mensagensCronologicas.map(bolhaMensagem).join('') || vazioDetalhe('Sem mensagens registradas pra esse paciente.');
+  if (forcarScroll || pertoDoFim) corpo.scrollTop = corpo.scrollHeight;
+}
+
+// true enquanto um envio está em andamento (da chamada à Evolution API até a
+// reconciliação da bolha otimista, ~2.5s depois) -- o poll em segundo plano
+// pula esse intervalo pra não apagar a bolha "enviando…" por baixo do envio.
+let enviandoMensagemAgora = false;
+
+// Atualiza a conversa aberta em segundo plano (poll periódico), sem apagar
+// o que a secretária estiver digitando nem mostrar "Carregando…" por cima.
+async function atualizarConversaAtivaSilenciosamente() {
+  const telefone = conversaAtivaTelefone;
+  if (!telefone || enviandoMensagemAgora) return;
+  try {
+    const mensagens = await chamarApi(`/api/mensagens?telefone=${encodeURIComponent(telefone)}&limite=50`);
+    if (conversaAtivaTelefone !== telefone) return; // trocou de conversa enquanto buscava
+    preencherCorpoThread([...mensagens].reverse(), false);
+  } catch (erro) {
+    // silencioso -- o próximo poll tenta de novo, uma falha passageira aqui
+    // não deve interromper o que a secretária estiver fazendo
+  }
+}
+
+// Enquanto a seção Mensagens estiver aberta, atualiza a lista de conversas
+// e a conversa ativa a cada poucos segundos -- resposta de paciente aparece
+// sozinha, sem precisar trocar de aba/dar F5 (bem mais rápido que os 45s do
+// refresh automático geral, que nem cobre esta seção).
+const INTERVALO_ATUALIZACAO_MENSAGENS_MS = 6000;
+setInterval(() => {
+  if (document.hidden) return;
+  if (!document.getElementById('secao-mensagens').classList.contains('ativa')) return;
+  carregarConversas(document.getElementById('buscaConversas').value);
+  atualizarConversaAtivaSilenciosamente();
+}, INTERVALO_ATUALIZACAO_MENSAGENS_MS);
 
 async function enviarMensagemPainel(evento) {
   evento.preventDefault();
@@ -1291,6 +1331,7 @@ async function enviarMensagemPainel(evento) {
   if (!texto || !conversaAtivaTelefone) return;
 
   const telefone = conversaAtivaTelefone;
+  enviandoMensagemAgora = true;
   botao.disabled = true;
   botao.textContent = 'Enviando…';
 
@@ -1310,14 +1351,17 @@ async function enviarMensagemPainel(evento) {
     textarea.value = '';
     botao.disabled = false;
     botao.textContent = 'Enviar';
-    // O n8n grava a mensagem de verdade (com o prefixo "[Equipe da clínica]:")
-    // alguns segundos depois de a Evolution API confirmar o envio -- espera
-    // um pouco e busca de novo pra reconciliar a bolha otimista com a real.
-    setTimeout(() => {
-      if (conversaAtivaTelefone === telefone) abrirConversa(telefone, conversaAtivaNome);
-      carregarConversas(document.getElementById('buscaConversas').value);
-    }, 2500);
+    // /api/mensagens/enviar já espera o registro no banco terminar antes de
+    // responder (registrarMensagemEquipe), então a linha real já existe --
+    // busca de novo na hora pra trocar a bolha otimista pela real (com hora
+    // e prefixo certos). Sem passar por abrirConversa: isso reconstruiria o
+    // composer inteiro à toa (e mostraria "Carregando…" por cima) -- aqui só
+    // as bolhas precisam trocar.
+    enviandoMensagemAgora = false;
+    if (conversaAtivaTelefone === telefone) await atualizarConversaAtivaSilenciosamente();
+    carregarConversas(document.getElementById('buscaConversas').value);
   } catch (erro) {
+    enviandoMensagemAgora = false;
     bolhaOtimista.classList.add('bolha-mensagem--erro');
     bolhaOtimista.querySelector('.bolha-mensagem__hora').textContent = `falhou: ${erro.message}`;
     botao.disabled = false;
