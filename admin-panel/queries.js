@@ -875,6 +875,40 @@ async function buscarNuvemPalavras(origem) {
   };
 }
 
+// Expediente da clínica (dias/horários, duração da consulta, referência do
+// sábado quinzenal) -- linha única em public.configuracao_horarios, lida
+// também pelo server.js da ponte de automação (com cache de 60s lá). Sem
+// linha ainda (banco não migrado) retorna null -- o front trata isso como
+// "config ainda não inicializada".
+async function buscarConfiguracaoHorarios() {
+  // sabado_data_referencia::text evita que o driver `pg` converta a coluna
+  // `date` num objeto Date ancorado no fuso do processo Node (ver mesmo
+  // comentário em server.js/buscarConfiguracaoHorarios) -- como texto, o
+  // valor "AAAA-MM-DD" chega intacto pro <input type="date"> do front.
+  const { rows } = await pool.query(
+    `SELECT horarios, duracao_consulta_minutos, sabado_data_referencia::text
+     FROM public.configuracao_horarios
+     WHERE id = 1;`
+  );
+  if (rows.length === 0) return null;
+  return {
+    horarios: rows[0].horarios,
+    duracaoConsultaMinutos: rows[0].duracao_consulta_minutos,
+    sabadoDataReferencia: rows[0].sabado_data_referencia,
+  };
+}
+
+// Validação (formato HH:MM, duração, data) já foi feita na rota antes de
+// chegar aqui -- esta função só grava.
+async function salvarConfiguracaoHorarios({ horarios, duracaoConsultaMinutos, sabadoDataReferencia }) {
+  await pool.query(
+    `UPDATE public.configuracao_horarios
+     SET horarios = $1, duracao_consulta_minutos = $2, sabado_data_referencia = $3, atualizado_em = now()
+     WHERE id = 1;`,
+    [JSON.stringify(horarios), duracaoConsultaMinutos, sabadoDataReferencia]
+  );
+}
+
 module.exports = {
   buscarAnalytics,
   buscarDetalheAgendamentos,
@@ -899,4 +933,6 @@ module.exports = {
   definirConsentimentoPaciente,
   buscarAnalyticsTendencia,
   buscarNuvemPalavras,
+  buscarConfiguracaoHorarios,
+  salvarConfiguracaoHorarios,
 };

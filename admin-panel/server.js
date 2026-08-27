@@ -38,6 +38,8 @@ const {
   definirConsentimentoPaciente,
   buscarAnalyticsTendencia,
   buscarNuvemPalavras,
+  buscarConfiguracaoHorarios,
+  salvarConfiguracaoHorarios,
 } = require('./queries');
 const { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
 const { enviarMensagem } = require('./evolution');
@@ -289,6 +291,74 @@ app.post('/api/pendencias/:id/resolver', exigirAutenticacaoApi, async (req, res)
   } catch (erro) {
     console.error('Erro em POST /api/pendencias/:id/resolver:', erro);
     res.status(500).json({ erro: 'Falha ao marcar pendência como resolvida.', detalhe: erro.message });
+  }
+});
+
+const DIAS_SEMANA_CONFIGURACAO = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+const REGEX_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Valida e normaliza o payload de configuração de horários antes de gravar
+// -- essa config alimenta direto a ponte de automação (server.js na raiz),
+// então um valor malformado aqui poderia quebrar a consulta de
+// disponibilidade em produção. Retorna { erro } se algo não bater, ou
+// { horarios, duracaoConsultaMinutos, sabadoDataReferencia } normalizado.
+function validarConfiguracaoHorarios(body) {
+  const horariosEntrada = body?.horarios;
+  if (!horariosEntrada || typeof horariosEntrada !== 'object') {
+    return { erro: 'horarios é obrigatório e deve ter uma lista por dia da semana.' };
+  }
+
+  const horarios = {};
+  for (const dia of DIAS_SEMANA_CONFIGURACAO) {
+    const lista = horariosEntrada[dia];
+    if (!Array.isArray(lista)) {
+      return { erro: `horarios.${dia} deve ser uma lista (pode ser vazia).` };
+    }
+    for (const hora of lista) {
+      if (typeof hora !== 'string' || !REGEX_HORA.test(hora)) {
+        return { erro: `Horário inválido em "${dia}": "${hora}". Use o formato HH:MM (24h).` };
+      }
+    }
+    horarios[dia] = [...new Set(lista)].sort();
+  }
+
+  const duracaoConsultaMinutos = Number(body?.duracaoConsultaMinutos);
+  if (!Number.isInteger(duracaoConsultaMinutos) || duracaoConsultaMinutos < 15 || duracaoConsultaMinutos > 240) {
+    return { erro: 'duracaoConsultaMinutos deve ser um número inteiro entre 15 e 240.' };
+  }
+
+  const sabadoDataReferencia = (body?.sabadoDataReferencia || '').trim() || null;
+  if (sabadoDataReferencia && !/^\d{4}-\d{2}-\d{2}$/.test(sabadoDataReferencia)) {
+    return { erro: 'sabadoDataReferencia deve ser uma data no formato AAAA-MM-DD, ou vazia.' };
+  }
+
+  return { horarios, duracaoConsultaMinutos, sabadoDataReferencia };
+}
+
+app.get('/api/configuracoes/horarios', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const configuracao = await buscarConfiguracaoHorarios();
+    if (!configuracao) {
+      return res.status(404).json({ erro: 'Configuração de horários ainda não existe no banco (falta rodar a migration 009).' });
+    }
+    res.json(configuracao);
+  } catch (erro) {
+    console.error('Erro em GET /api/configuracoes/horarios:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar configuração de horários.', detalhe: erro.message });
+  }
+});
+
+app.put('/api/configuracoes/horarios', exigirAutenticacaoApi, async (req, res) => {
+  const validado = validarConfiguracaoHorarios(req.body);
+  if (validado.erro) {
+    return res.status(400).json({ erro: validado.erro });
+  }
+  try {
+    await salvarConfiguracaoHorarios(validado);
+    res.json({ sucesso: true });
+  } catch (erro) {
+    console.error('Erro em PUT /api/configuracoes/horarios:', erro);
+    res.status(500).json({ erro: 'Falha ao salvar configuração de horários.', detalhe: erro.message });
   }
 });
 

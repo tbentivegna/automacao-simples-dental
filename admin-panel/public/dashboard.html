@@ -37,6 +37,7 @@
         <button class="nav__item" data-secao="mensagens">💬 Mensagens</button>
         <button class="nav__item" data-secao="oportunidades">🎯 Oportunidades</button>
         <button class="nav__item" data-secao="analytics">📈 Analytics</button>
+        <button class="nav__item" data-secao="configuracoes">⚙️ Configurações</button>
       </nav>
 
       <div class="status-bot" id="statusBot">
@@ -302,6 +303,67 @@
           <div class="painel">
             <div id="conteudoNuvem"><div class="carregando">Carregando…</div></div>
           </div>
+        </div>
+      </section>
+
+      <!-- ============ CONFIGURAÇÕES ============ -->
+      <section class="secao" id="secao-configuracoes">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Configurações</h2>
+            <p>Horários de atendimento, duração da consulta e regra do sábado quinzenal — vale para a Lumi e para o painel.</p>
+          </div>
+        </div>
+        <div class="painel">
+          <form class="form-configuracao-horarios" id="formConfiguracaoHorarios">
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioSegunda">Segunda-feira</label>
+              <input type="text" id="horarioSegunda" data-dia="segunda" placeholder="ex: 08:30, 09:30, 10:30 — deixe em branco se não houver expediente" />
+            </div>
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioTerca">Terça-feira</label>
+              <input type="text" id="horarioTerca" data-dia="terca" placeholder="ex: 08:30, 09:30, 10:30 — deixe em branco se não houver expediente" />
+            </div>
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioQuarta">Quarta-feira</label>
+              <input type="text" id="horarioQuarta" data-dia="quarta" placeholder="ex: 08:30, 09:30, 10:30 — deixe em branco se não houver expediente" />
+            </div>
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioQuinta">Quinta-feira</label>
+              <input type="text" id="horarioQuinta" data-dia="quinta" placeholder="ex: 08:30, 09:30, 10:30 — deixe em branco se não houver expediente" />
+            </div>
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioSexta">Sexta-feira</label>
+              <input type="text" id="horarioSexta" data-dia="sexta" placeholder="ex: 08:30, 09:30, 10:30 — deixe em branco se não houver expediente" />
+            </div>
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioSabado">Sábado <span class="form-configuracao-horarios__nota-dia">(quinzenal — ver referência abaixo)</span></label>
+              <input type="text" id="horarioSabado" data-dia="sabado" placeholder="ex: 08:00, 09:00, 10:00 — deixe em branco se não houver expediente" />
+            </div>
+            <div class="form-configuracao-horarios__dia">
+              <label for="horarioDomingo">Domingo</label>
+              <input type="text" id="horarioDomingo" data-dia="domingo" placeholder="ex: 08:30, 09:30, 10:30 — deixe em branco se não houver expediente" />
+            </div>
+
+            <div class="form-configuracao-horarios__campo">
+              <label for="configuracaoDuracaoConsulta">Duração da consulta (minutos)</label>
+              <input type="number" id="configuracaoDuracaoConsulta" min="15" max="240" step="5" required />
+            </div>
+
+            <div class="form-configuracao-horarios__campo">
+              <label for="configuracaoSabadoReferencia">Sábado de referência (regra quinzenal)</label>
+              <input type="date" id="configuracaoSabadoReferencia" />
+              <p class="form-configuracao-horarios__ajuda">O sábado acima só abre a cada 14 dias, contando a partir desta data (essa data precisa ser um sábado de atendimento conhecido). Deixe em branco para nunca abrir aos sábados.</p>
+            </div>
+
+            <p class="form-configuracao-horarios__aviso">⚠️ Mudanças aqui valem em até 1 minuto. Se você adicionar ou remover um <strong>dia inteiro</strong> de expediente (não só horários dentro de um dia já aberto), é preciso atualizar também o prompt da Lumi no n8n — isso continua manual.</p>
+
+            <div id="configuracaoHorariosFeedback" class="form-configuracao-horarios__feedback" role="status"></div>
+
+            <div class="form-configuracao-horarios__acoes">
+              <button type="submit" class="botao botao-primario">Salvar</button>
+            </div>
+          </form>
         </div>
       </section>
     </main>

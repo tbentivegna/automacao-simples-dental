@@ -1177,6 +1177,83 @@ html, body {
   box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
 }
 
+/* Tela de Configurações (horários de atendimento) -- mesmo visual de campo
+   do form-nova-pendencia, mas com <label> por linha (7 dias da semana, sem
+   contexto suficiente num placeholder sozinho pra saber qual dia é qual). */
+.form-configuracao-horarios {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+}
+
+.form-configuracao-horarios__dia,
+.form-configuracao-horarios__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-configuracao-horarios label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.form-configuracao-horarios__nota-dia {
+  font-weight: 400;
+  color: var(--cor-texto-suave);
+}
+
+.form-configuracao-horarios input {
+  padding: 10px 14px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.form-configuracao-horarios input:focus {
+  outline: none;
+  border-color: var(--cor-marca);
+  box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
+}
+
+.form-configuracao-horarios__ajuda {
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+  margin: 0;
+}
+
+.form-configuracao-horarios__aviso {
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+  background: var(--cor-fundo-suave, rgba(184, 154, 104, 0.12));
+  border-radius: var(--raio-pequeno);
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.form-configuracao-horarios__feedback {
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.form-configuracao-horarios__feedback--sucesso {
+  color: var(--cor-sucesso);
+}
+
+.form-configuracao-horarios__feedback--erro {
+  color: #e5867a;
+}
+
+.form-configuracao-horarios__acoes {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Linha cancelada na Agenda -- continua visível (a visão precisa mostrar
    tudo), só marcada visualmente pra não confundir com uma consulta ativa. */
 .linha-cancelada td {

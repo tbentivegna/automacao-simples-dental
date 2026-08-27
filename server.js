@@ -233,9 +233,13 @@ const USER_AGENT =
 const FUSO = 'America/Sao_Paulo';
 const OFFSET_BRASILIA = '-03:00'; // Brasília não tem mais horário de verão
 
-// Horários fixos que a Dra. Aline costuma usar em cada dia da semana.
-// Para mudar o expediente no futuro, é só editar esta lista.
-const MODELO_HORARIOS = {
+// Fallback de última instância: só entra em jogo se o banco estiver
+// inacessível ou sem a linha de configuração (ver buscarConfiguracaoHorarios
+// abaixo). O expediente de verdade mora em public.configuracao_horarios,
+// editável pelo painel admin -- estes valores aqui existem só pra nunca
+// deixar a Lumi sem conseguir consultar disponibilidade por causa de um
+// problema no Postgres.
+const MODELO_HORARIOS_PADRAO = {
   segunda: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
   terca: [],
   quarta: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
@@ -245,7 +249,8 @@ const MODELO_HORARIOS = {
   domingo: [],
 };
 
-const DURACAO_CONSULTA_MINUTOS = Number(process.env.DURACAO_CONSULTA_MINUTOS || 60);
+const DURACAO_CONSULTA_MINUTOS_PADRAO = Number(process.env.DURACAO_CONSULTA_MINUTOS || 60);
+const SABADO_DATA_REFERENCIA_PADRAO = process.env.SABADO_DATA_REFERENCIA || null;
 
 const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO });
 const NOMES_DIA_SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
@@ -276,24 +281,76 @@ function semanasEntre(diaISOAlvo, diaISOBase) {
 
 // Verifica se um determinado sábado está "aberto", com base numa data de
 // referência conhecida (um sábado que sabemos que é de atendimento) e no
-// padrão quinzenal (a cada 14 dias). Se a variável não estiver configurada,
-// os sábados ficam fechados por padrão -- mais seguro do que assumir aberto.
-function ehSabadoAberto(diaISO) {
-  const referencia = process.env.SABADO_DATA_REFERENCIA;
-  if (!referencia) return false;
+// padrão quinzenal (a cada 14 dias). Sem referência, os sábados ficam
+// fechados por padrão -- mais seguro do que assumir aberto.
+function ehSabadoAberto(diaISO, sabadoDataReferencia) {
+  if (!sabadoDataReferencia) return false;
 
   const msPorDia = 24 * 60 * 60 * 1000;
-  const dataRef = new Date(`${referencia}T00:00:00${OFFSET_BRASILIA}`).getTime();
+  const dataRef = new Date(`${sabadoDataReferencia}T00:00:00${OFFSET_BRASILIA}`).getTime();
   const dataAtual = new Date(`${diaISO}T00:00:00${OFFSET_BRASILIA}`).getTime();
   const diffDias = Math.round((dataAtual - dataRef) / msPorDia);
 
   return diffDias % 14 === 0;
 }
 
+// Cache de 60s (mesmo padrão de cacheAgenda/listarAgendaSemana) -- evita
+// bater no Postgres em toda chamada de disponibilidade/agendamento, e
+// segura o efeito de uma instabilidade curta do banco.
+let cacheConfiguracaoHorarios = { expiraEm: 0, dados: null };
+
+// Config real do expediente mora em public.configuracao_horarios (editável
+// no painel admin). Qualquer falha aqui (sem pool, erro de query, linha
+// ausente) cai pros valores _PADRAO acima -- nunca deve impedir a Lumi de
+// consultar disponibilidade ou o painel de criar/remarcar um agendamento.
+async function buscarConfiguracaoHorarios() {
+  if (cacheConfiguracaoHorarios.dados && cacheConfiguracaoHorarios.expiraEm > Date.now()) {
+    return cacheConfiguracaoHorarios.dados;
+  }
+
+  const padrao = {
+    modeloHorarios: MODELO_HORARIOS_PADRAO,
+    duracaoConsultaMinutos: DURACAO_CONSULTA_MINUTOS_PADRAO,
+    sabadoDataReferencia: SABADO_DATA_REFERENCIA_PADRAO,
+  };
+
+  if (!pool) return padrao;
+
+  try {
+    // sabado_data_referencia::text evita que o driver `pg` converta a coluna
+    // `date` num objeto Date (o parser dele ancora no fuso do PROCESSO node,
+    // não no do banco -- num container em UTC isso reformataria a data
+    // errado quando reconvertida pra America/Sao_Paulo). Como texto, o valor
+    // "AAAA-MM-DD" chega intacto, sem nenhuma reinterpretação de fuso.
+    const { rows } = await pool.query(
+      "SELECT horarios, duracao_consulta_minutos, sabado_data_referencia::text FROM public.configuracao_horarios WHERE id = 1"
+    );
+    if (rows.length === 0) return padrao;
+
+    const dados = {
+      modeloHorarios: rows[0].horarios,
+      duracaoConsultaMinutos: rows[0].duracao_consulta_minutos,
+      sabadoDataReferencia: rows[0].sabado_data_referencia || null,
+    };
+    cacheConfiguracaoHorarios = { expiraEm: Date.now() + 60_000, dados };
+    return dados;
+  } catch (erro) {
+    console.error('[configuracaoHorarios] falha ao ler configuração do banco, usando valores padrão:', erro.message);
+    return padrao;
+  }
+}
+
 // Para cada dia dentro do período (a partir de hoje, cobrindo N semanas),
 // pega os horários fixos do modelo e verifica, contra os compromissos
 // reais, quais estão livres.
-function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set(), diaSemanaFiltro = null, periodoFiltro = null) {
+function calcularSlotsSemana(
+  compromissos,
+  semanas,
+  diasBloqueados = new Set(),
+  diaSemanaFiltro = null,
+  periodoFiltro = null,
+  { modeloHorarios, duracaoConsultaMinutos, sabadoDataReferencia }
+) {
   const hojeISO = formatadorDiaISO.format(new Date());
   const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
   const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
@@ -323,9 +380,9 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set(), 
     // que não é esse dia, então não sobra nada pra "escanear" depois.
     if (diaSemanaFiltro && nomeDia !== diaSemanaFiltro) continue;
 
-    let horariosDoDia = MODELO_HORARIOS[nomeDia] || [];
+    let horariosDoDia = modeloHorarios[nomeDia] || [];
 
-    if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO)) {
+    if (nomeDia === 'sabado' && !ehSabadoAberto(diaISO, sabadoDataReferencia)) {
       horariosDoDia = [];
     }
 
@@ -351,7 +408,7 @@ function calcularSlotsSemana(compromissos, semanas, diasBloqueados = new Set(), 
         `${diaISO}T${horario}:00${OFFSET_BRASILIA}`
       ).getTime();
 
-      const fim = inicio + DURACAO_CONSULTA_MINUTOS * 60 * 1000;
+      const fim = inicio + duracaoConsultaMinutos * 60 * 1000;
 
       const conflito = compromissos.find(
         (c) => c.inicio < fim && c.fim > inicio
@@ -586,11 +643,19 @@ async function listarAgendaSemana({ semanas } = {}) {
 async function verificarDisponibilidade({ diaSemana, periodo } = {}) {
   const { context, page } = await abrirPaginaLogada();
   const semanas = Number(process.env.SEMANAS_A_VERIFICAR || 4);
+  const configuracaoHorarios = await buscarConfiguracaoHorarios();
 
   try {
     const compromissos = await coletarCompromissosVariasSemanas(page, semanas);
     const diasBloqueados = obterDiasBloqueados(compromissos);
-    const horarios = calcularSlotsSemana(compromissos, semanas, diasBloqueados, diaSemana || null, periodo || null);
+    const horarios = calcularSlotsSemana(
+      compromissos,
+      semanas,
+      diasBloqueados,
+      diaSemana || null,
+      periodo || null,
+      configuracaoHorarios
+    );
 
     // O print continua sendo salvo em disco (útil para depuração local),
     // mas não é mais devolvido na resposta da API -- a rota /screenshots
@@ -826,7 +891,7 @@ async function criarAgendamento({
   }
 
   const { context, page } = await abrirPaginaLogada();
-  const duracao = Number(duracaoMinutos || DURACAO_CONSULTA_MINUTOS);
+  const duracao = Number(duracaoMinutos || (await buscarConfiguracaoHorarios()).duracaoConsultaMinutos);
   const nomeProfissional = process.env.SIMPLES_DENTAL_PROFISSIONAL || 'Aline Ramos Bentivegna';
   const hojeISO = formatadorDiaISO.format(new Date());
   const semanasAteData = Math.max(0, semanasEntre(paraDataISO(data), hojeISO));
@@ -1511,7 +1576,7 @@ async function remarcarAgendamento({
   const { context, page } = await abrirPaginaLogada();
 
   const duracao = Number(
-    duracaoMinutos || DURACAO_CONSULTA_MINUTOS
+    duracaoMinutos || (await buscarConfiguracaoHorarios()).duracaoConsultaMinutos
   );
 
   const hojeISO = formatadorDiaISO.format(new Date());

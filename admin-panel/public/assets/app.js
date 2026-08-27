@@ -96,6 +96,7 @@ const secoes = {
   agenda: () => mostrarAgenda(semanaAtualAgenda),
   mensagens: () => carregarConversas(document.getElementById('buscaConversas').value),
   analytics: carregarPaginaAnalytics,
+  configuracoes: carregarConfiguracaoHorarios,
 };
 
 document.querySelectorAll('.nav__item[data-secao]').forEach((botao) => {
@@ -1739,6 +1740,77 @@ document.getElementById('botaoStatusBot').addEventListener('click', (evento) => 
   alterarStatusGlobal(evento.target.dataset.acao);
 });
 document.getElementById('botaoRetomarBanner').addEventListener('click', () => alterarStatusGlobal('retomar'));
+
+// ============================================================
+// Configurações (horários de atendimento)
+// ============================================================
+
+const DIAS_CONFIGURACAO_HORARIOS = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+
+// "08:30, 09:30, 10:30" -> ["08:30", "09:30", "10:30"] -- aceita espaços
+// variados e ignora entradas vazias (campo em branco = dia sem expediente).
+function parseListaHorarios(texto) {
+  return (texto || '')
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+}
+
+async function carregarConfiguracaoHorarios() {
+  const feedback = document.getElementById('configuracaoHorariosFeedback');
+  feedback.textContent = '';
+  feedback.className = 'form-configuracao-horarios__feedback';
+  try {
+    const config = await chamarApi('/api/configuracoes/horarios');
+    for (const dia of DIAS_CONFIGURACAO_HORARIOS) {
+      const campo = document.querySelector(`[data-dia="${dia}"]`);
+      if (campo) campo.value = (config.horarios[dia] || []).join(', ');
+    }
+    document.getElementById('configuracaoDuracaoConsulta').value = config.duracaoConsultaMinutos;
+    document.getElementById('configuracaoSabadoReferencia').value = config.sabadoDataReferencia || '';
+  } catch (erro) {
+    feedback.textContent = erro.message;
+    feedback.className = 'form-configuracao-horarios__feedback form-configuracao-horarios__feedback--erro';
+  }
+}
+
+document.getElementById('formConfiguracaoHorarios').addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const feedback = document.getElementById('configuracaoHorariosFeedback');
+  const botao = evento.target.querySelector('button[type="submit"]');
+
+  const horarios = {};
+  for (const dia of DIAS_CONFIGURACAO_HORARIOS) {
+    horarios[dia] = parseListaHorarios(document.querySelector(`[data-dia="${dia}"]`).value);
+  }
+  const duracaoConsultaMinutos = Number(document.getElementById('configuracaoDuracaoConsulta').value);
+  const sabadoDataReferencia = document.getElementById('configuracaoSabadoReferencia').value || null;
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+  feedback.textContent = '';
+  feedback.className = 'form-configuracao-horarios__feedback';
+  try {
+    await chamarApi('/api/configuracoes/horarios', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ horarios, duracaoConsultaMinutos, sabadoDataReferencia }),
+    });
+    // carregarConfiguracaoHorarios() reseta o feedback no início (pra
+    // limpar erro de uma tentativa anterior) -- por isso a mensagem de
+    // sucesso só é escrita DEPOIS do reload, senão ele mesmo apaga a
+    // mensagem que acabou de mostrar.
+    await carregarConfiguracaoHorarios();
+    feedback.textContent = 'Salvo! Pode levar até 1 minuto pra valer na Lumi.';
+    feedback.className = 'form-configuracao-horarios__feedback form-configuracao-horarios__feedback--sucesso';
+  } catch (erro) {
+    feedback.textContent = erro.message;
+    feedback.className = 'form-configuracao-horarios__feedback form-configuracao-horarios__feedback--erro';
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar';
+  }
+});
 
 // Badges e status carregam de leve assim que a página abre, mesmo antes de
 // o usuário clicar na seção -- pra secretária ver de cara se tem algo
