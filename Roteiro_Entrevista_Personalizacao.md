@@ -80,9 +80,17 @@ Avisar o formato: vai ser uma conversa, não um formulário — ele fala livre, 
 
 ## Fechamento da call (5 min)
 
-- Alinhar prazo: quando ele recebe o primeiro rascunho do prompt pra revisar (**"aprovação da voz"**, ver Checklist seção 3-4 — ele aprova antes de qualquer paciente real ver).
+- Alinhar prazo: quando ele vai poder testar/ouvir a assistente respondendo de verdade, pra dar a **"aprovação da voz"** (ver Checklist seção 3-4 — ele aprova antes de qualquer paciente real ver).
 - Deixar claro que ajustes de tom depois do lançamento são normais e esperados, não sinal de que algo deu errado.
 - Combinar o canal seguro pra troca de credenciais do Simples Dental (fora desta call).
+
+## ⚠️ Proteção de propriedade intelectual — o que NUNCA entregar
+
+O prompt (`Template_Prompt_Assistente_IA.md` preenchido) é o ativo mais trabalhoso que existe hoje — cada regra nasceu de um bug real corrigido. **Nunca mandar o arquivo do prompt pro cliente**, nem em PDF, nem colado no WhatsApp, nem em anexo de e-mail. O que ele precisa e tem direito de validar é o **comportamento**, não o **texto**:
+
+- **Aprovação por demonstração**: rodar o harness (ou um número de WhatsApp de teste) com uma bateria de mensagens cobrindo os fatos da clínica dele (especialidades, preço, horário, o que a assistente recusa) e mostrar a conversa real. Ele valida "isso soa como eu" sem ver uma linha de prompt engineering — e é mais persuasivo assim, ninguém avalia tom lendo 400+ linhas de regra.
+- Se ele pedir a "frase exata" de algo pontual (ex: como ela explica o preço), manda só aquele trecho isolado — nunca o arquivo inteiro.
+- **Contrato**: incluir cláusula de confidencialidade/propriedade intelectual cobrindo prompt + configuração + scripts como propriedade da Lumi, licenciados pro uso do cliente só através do serviço contratado — não pra copiar ou reaproveitar fora dele. Isso não substitui revisão de um advogado no contrato, mas é prática padrão de SaaS.
 
 ---
 
