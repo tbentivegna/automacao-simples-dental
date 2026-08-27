@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["admin-panel/server.js"],
       "port": 3100
+    },
+    {
+      "name": "lumi-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["lumi-harness/demo-server.js"],
+      "port": 3200
     }
   ]
 }

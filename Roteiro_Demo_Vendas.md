@@ -2,7 +2,9 @@
 
 Objetivo: o dentista-lead ver a Lumi respondendo de verdade (não slide, não mockup) e sair convencido de 3 coisas — ela é confiável (nunca inventa, nunca promete o que não confirmou), ela soa humana (não parece bot genérico), e ela recupera paciente que outros sistemas perdem (funil de resgate). Duração: 15-20 min de demo + conversa.
 
-**Como rodar**: `node lumi-harness/run.js` em modo interativo (sem argumento) — você digita como se fosse paciente, tela compartilhada, o lead lê a resposta aparecendo em tempo real. Usa o prompt real da Dra. Aline (é o único caso afinado hoje — e serve como prova social: "isso está em produção agora, não é protótipo"). Nunca mostrar o arquivo do prompt em si nem o código — só a conversa acontecendo (ver `Roteiro_Entrevista_Personalizacao.md`, proteção de IP).
+**Como rodar**: `node lumi-harness/demo-server.js` e abrir `http://localhost:3200` — interface com visual de WhatsApp (bolhas, "digitando…", check azul), bem mais apresentável que terminal pra tela compartilhada. Por trás, é a mesma lógica do harness com o prompt real da Dra. Aline (é o único caso afinado hoje — e serve como prova social: "isso está em produção agora, não é protótipo"). Botão "↻ Reiniciar" no cabeçalho limpa a conversa entre uma demo e outra. Nenhuma ação real é executada (tools mockadas, mesmas do harness). Nunca mostrar o arquivo do prompt em si nem o código — só a conversa acontecendo (ver `Roteiro_Entrevista_Personalizacao.md`, proteção de IP).
+
+*(Alternativa mais crua, sem interface: `node lumi-harness/run.js` em modo interativo no terminal — serve se estiver sem tempo de configurar a tela antes de uma call.)*
 
 ⚠️ Nunca usar conversas reais de pacientes da Dra. Aline como print/exemplo nesta etapa (LGPD) — só a demo ao vivo com mensagens novas, escritas na hora.
 

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Demo — Lumi</title>
+<style>
+  :root {
+    --verde-header: #075E54;
+    --verde-claro: #128C7E;
+    --fundo-chat: #e5ddd5;
+    --bolha-saida: #d9fdd3;
+    --bolha-entrada: #ffffff;
+    --texto: #111b21;
+    --texto-suave: #667781;
+    --azul-check: #53bdeb;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0b141a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  .telefone {
+    width: 420px;
+    height: 90vh;
+    max-height: 860px;
+    background: var(--fundo-chat);
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .cabecalho {
+    background: var(--verde-header);
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ffffff33;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .cabecalho__info { flex: 1; min-width: 0; }
+  .cabecalho__nome { font-weight: 600; font-size: 16px; }
+  .cabecalho__status { font-size: 12.5px; opacity: 0.85; }
+
+  .cabecalho__acoes button {
+    background: transparent;
+    border: none;
+    color: #fff;
+    opacity: 0.85;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .cabecalho__acoes button:hover { background: #ffffff22; }
+
+  .selo-demo {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #7a8a8f;
+    background: #f0f2f5;
+    padding: 4px 0;
+    flex-shrink: 0;
+  }
+
+  .corpo-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bolha {
+    max-width: 78%;
+    padding: 7px 9px 6px 9px;
+    border-radius: 8px;
+    font-size: 14.5px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+    animation: aparecer 0.15s ease-out;
+  }
+
+  @keyframes aparecer {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .bolha--saida {
+    align-self: flex-end;
+    background: var(--bolha-saida);
+    border-top-right-radius: 2px;
+  }
+
+  .bolha--entrada {
+    align-self: flex-start;
+    background: var(--bolha-entrada);
+    border-top-left-radius: 2px;
+  }
+
+  .bolha__texto { color: var(--texto); }
+
+  .bolha__meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 3px;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--texto-suave);
+  }
+
+  .check { color: var(--azul-check); }
+
+  .digitando {
+    align-self: flex-start;
+    background: var(--bolha-entrada);
+    border-radius: 8px;
+    border-top-left-radius: 2px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+  }
+  .digitando span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #9aa5aa;
+    animation: pulsar 1.2s infinite ease-in-out;
+  }
+  .digitando span:nth-child(2) { animation-delay: 0.2s; }
+  .digitando span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulsar {
+    0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3px); }
+  }
+
+  .rodape {
+    flex-shrink: 0;
+    padding: 10px 12px;
+    background: #f0f2f5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rodape input {
+    flex: 1;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 14.5px;
+    outline: none;
+    background: #fff;
+  }
+
+  .botao-enviar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--verde-claro);
+    color: #fff;
+    font-size: 17px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .botao-enviar:hover { filter: brightness(1.08); }
+  .botao-enviar:disabled { opacity: 0.5; cursor: default; }
+
+  .estado-vazio {
+    margin: auto;
+    text-align: center;
+    color: var(--texto-suave);
+    font-size: 13px;
+    padding: 24px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="telefone">
+    <div class="cabecalho">
+      <div class="avatar">🤎</div>
+      <div class="cabecalho__info">
+        <div class="cabecalho__nome">Lumi</div>
+        <div class="cabecalho__status" id="statusHeader">online</div>
+      </div>
+      <div class="cabecalho__acoes">
+        <button id="botaoReiniciar" title="Reiniciar conversa">↻ Reiniciar</button>
+      </div>
+    </div>
+    <div class="selo-demo">AMBIENTE DE DEMONSTRAÇÃO — nenhuma ação real é executada</div>
+    <div class="corpo-chat" id="corpoChat">
+      <div class="estado-vazio" id="estadoVazio">Digite abaixo como se fosse um paciente mandando a primeira mensagem no WhatsApp.</div>
+    </div>
+    <form class="rodape" id="formEnviar">
+      <input type="text" id="campoMensagem" placeholder="Digite uma mensagem" autocomplete="off" autofocus />
+      <button type="submit" class="botao-enviar" id="botaoEnviar">➤</button>
+    </form>
+  </div>
+
+<script>
+const corpoChat = document.getElementById('corpoChat');
+const estadoVazio = document.getElementById('estadoVazio');
+const formEnviar = document.getElementById('formEnviar');
+const campoMensagem = document.getElementById('campoMensagem');
+const botaoEnviar = document.getElementById('botaoEnviar');
+const botaoReiniciar = document.getElementById('botaoReiniciar');
+const statusHeader = document.getElementById('statusHeader');
+
+function horaAgora() {
+  return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function escapar(texto) {
+  const div = document.createElement('div');
+  div.textContent = texto;
+  return div.innerHTML;
+}
+
+function adicionarBolha(texto, tipo) {
+  estadoVazio.remove();
+  const bolha = document.createElement('div');
+  bolha.className = 'bolha bolha--' + tipo;
+  const check = tipo === 'saida' ? '<span class="check">✓✓</span>' : '';
+  bolha.innerHTML =
+    '<div class="bolha__texto">' + escapar(texto) + '</div>' +
+    '<div class="bolha__meta">' + horaAgora() + ' ' + check + '</div>';
+  corpoChat.appendChild(bolha);
+  corpoChat.scrollTop = corpoChat.scrollHeight;
+}
+
+function mostrarDigitando() {
+  const div = document.createElement('div');
+  div.className = 'digitando';
+  div.id = 'indicadorDigitando';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  corpoChat.appendChild(div);
+  corpoChat.scrollTop = corpoChat.scrollHeight;
+}
+
+function esconderDigitando() {
+  document.getElementById('indicadorDigitando')?.remove();
+}
+
+async function enviar(evento) {
+  evento.preventDefault();
+  const texto = campoMensagem.value.trim();
+  if (!texto) return;
+
+  adicionarBolha(texto, 'saida');
+  campoMensagem.value = '';
+  campoMensagem.disabled = true;
+  botaoEnviar.disabled = true;
+  statusHeader.textContent = 'digitando…';
+  mostrarDigitando();
+
+  try {
+    const resposta = await fetch('/api/mensagem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto }),
+    });
+    const dados = await resposta.json();
+    esconderDigitando();
+    if (!resposta.ok) throw new Error(dados.erro || 'Falha ao obter resposta.');
+    if (dados.mensagem) adicionarBolha(dados.mensagem, 'entrada');
+  } catch (erro) {
+    esconderDigitando();
+    adicionarBolha('[erro na demo: ' + erro.message + ']', 'entrada');
+  } finally {
+    statusHeader.textContent = 'online';
+    campoMensagem.disabled = false;
+    botaoEnviar.disabled = false;
+    campoMensagem.focus();
+  }
+}
+
+formEnviar.addEventListener('submit', enviar);
+
+botaoReiniciar.addEventListener('click', async () => {
+  if (!confirm('Reiniciar a conversa? Isso apaga o histórico desta demo.')) return;
+  await fetch('/api/reiniciar', { method: 'POST' });
+  corpoChat.innerHTML = '';
+  const vazio = document.createElement('div');
+  vazio.className = 'estado-vazio';
+  vazio.textContent = 'Digite abaixo como se fosse um paciente mandando a primeira mensagem no WhatsApp.';
+  corpoChat.appendChild(vazio);
+  campoMensagem.focus();
+});
+</script>
+</body>
+</html>
