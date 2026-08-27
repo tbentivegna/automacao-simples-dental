@@ -4,8 +4,11 @@ Use este checklist toda vez que uma clínica nova contratar. Ele assume que a ar
 
 ## 0. Qualificação (antes de vender / antes de aceitar o setup)
 
-- [ ] A clínica usa **Simples Dental**? Isso é bloqueante — o robô de automação (`automacao-simples-dental`) foi feito para os seletores de tela do Simples Dental especificamente. Se a clínica usa outro sistema (Clinicorp, iClinic, Sasu etc.), isto NÃO é um setup padrão — é um projeto de integração novo, deve ser orçado e prazo comunicado à parte.
-- [ ] O dono/responsável tem acesso admin ao login do Simples Dental (usuário e senha que o robô vai usar)?
+- [ ] A clínica usa **Simples Dental** ou **Clinicorp**? Os dois têm caminho definido hoje:
+  - **Simples Dental** → robô de automação padrão (`server.js` da raiz, Playwright).
+  - **Clinicorp** → integração nova via API REST (`clinicorp-bridge/`, em construção desde 2026-08-27) — sem robô de navegador, mas **ainda não testada contra uma conta real** (ver `clinicorp-bridge/README.md` pra lista exata do que falta verificar). Precisa de uma clínica-piloto ou conta de teste Clinicorp antes de vender isso como pronto pra produção.
+  - Qualquer outro sistema (iClinic, Sasu etc.) continua sendo projeto de integração do zero, orçado e com prazo à parte.
+- [ ] O dono/responsável tem acesso admin ao login do sistema de gestão (usuário/senha do Simples Dental, ou "ID de acesso" + "Token API" do Clinicorp — em Gerenciar Assinatura → Acesso Externo e Integrações)?
 - [ ] A clínica tem (ou vai criar) um número de WhatsApp Business dedicado para a assistente? Idealmente não é o número pessoal do dono — reduz risco de a IA responder conversas pessoais por engano.
 
 ## 1. Entrevista Estratégica e de Essência (manual, com o dono — não pule, é o coração do "IN dirige")
