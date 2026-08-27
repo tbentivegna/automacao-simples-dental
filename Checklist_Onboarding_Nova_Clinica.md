@@ -42,8 +42,16 @@ Preencher o `Template_Prompt_Assistente_IA.md` com essas respostas antes de segu
 - [ ] Rodar um teste real de verificação de disponibilidade e conferir se os horários batem com a agenda real da clínica
 
 **Banco de dados**
-- [ ] Criar schema/tabelas Postgres para esta clínica (rodar TODAS as migrations de `db/migrations/`, na ordem, num banco novo e isolado) — hoje o modelo é single-tenant, então use um banco separado por clínica até existir uma coluna `clinica_id` de verdade
-- [ ] Criar a credencial Postgres correspondente no n8n
+
+Isolamento é por **banco (database) separado, não schema separado**, dentro do **mesmo serviço Postgres do Easypanel que já existe** — não precisa (e não deve) subir um novo serviço/container de Postgres por clínica. Um único servidor Postgres hospeda quantos `CREATE DATABASE` forem necessários; "banco" e "instância" são coisas diferentes. Banco separado dá isolamento de verdade (uma query com bug numa clínica não tem nem como enxergar o banco de outra); schema separado dependeria de todo query estar sempre ciente do schema certo, um risco a mais que não vale a pena.
+
+⚠️ **Nunca clonar o banco de produção da Dra. Aline como "template"** (nem com `CREATE DATABASE ... TEMPLATE`) — isso copiaria dados reais de pacientes dela pro banco da clínica nova, problema sério de LGPD. O jeito certo é sempre partir de um banco vazio.
+
+- [ ] `CREATE DATABASE <clinica_x>` no Postgres existente do Easypanel (banco novo, vazio)
+- [ ] Rodar TODAS as migrations de `db/migrations/`, em ordem, contra esse banco novo (schema fica idêntico ao de produção, sem nenhuma linha de paciente)
+- [ ] Criar um `ROLE` Postgres próprio desta clínica (usuário + senha dedicados), com permissão só nesse banco — nunca reaproveitar o superuser nem a credencial de outra clínica
+- [ ] Montar a `DATABASE_URL` desta clínica com esse role/banco novos — é o valor usado no robô, no painel admin, e na credencial Postgres do n8n (ver seções abaixo)
+- [ ] Criar a credencial Postgres correspondente no n8n, apontando pra essa `DATABASE_URL`
 
 **Workflows n8n** (são 3, não 1 — os 3 duplicam por clínica)
 - [ ] Duplicar o workflow principal ("Lumi")
