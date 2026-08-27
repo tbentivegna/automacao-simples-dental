@@ -35,11 +35,9 @@ Existe um **filtro técnico obrigatório**, não negociável — já está no ch
 
 ## 3. Demonstração
 
-O ativo mais forte que você tem é **mostrar a Lumi de verdade**, não um mockup. Duas formas:
-- **Ao vivo, no harness** (`lumi-harness/run.js` em modo interativo) — você digita como se fosse um paciente, o dentista-lead vê a Lumi responder na hora, sem risco de tocar produção.
-- **Prints/trecho real de conversa da Dra. Aline** (anonimizado) — prova social concreta, mas cuidado com LGPD: nunca mostrar nome completo/telefone real de paciente sem anonimizar antes.
+**Pronto** — `Roteiro_Demo_Vendas.md`: sequência de 6 mensagens pra digitar ao vivo no harness (saudação, dúvida sobre tratamento, agendamento completo, recusa de procedimento não oferecido, urgência/dor, teste de estresse pra lead técnico), com o que comentar depois de cada resposta, como mostrar o painel (funil de resgate é o diferencial mais forte), e uma tabela de objeções comuns com resposta pronta.
 
-**Falta construir**: um roteiro de demo (quais mensagens digitar, em que ordem, pra mostrar os pontos fortes — agendamento completo, recusa educada de algo que não é oferecido, urgência tratada com seriedade) — hoje isso ficaria improvisado.
+O ativo mais forte é **mostrar a Lumi de verdade** (harness, ao vivo, prompt real da Dra. Aline), não um mockup — nunca usar print/trecho de conversa real de paciente (LGPD).
 
 ## 4. Proposta e precificação
 
@@ -99,5 +97,5 @@ Já 100% documentado — `Checklist_Onboarding_Nova_Clinica.md`, seções 2-4 (p
 
 1. ~~Roteiro da Entrevista de personalização~~ pronto (etapa 6) — `Roteiro_Entrevista_Personalizacao.md`.
 2. ~~Modelo de precificação~~ pesquisa de mercado feita e faixa sugerida (etapa 4) — falta só travar os números finais.
-3. Roteiro de demo (etapa 3).
+3. ~~Roteiro de demo~~ pronto (etapa 3) — `Roteiro_Demo_Vendas.md`.
 4. Lista de leads-alvo + pitch de outreach (etapa 1).
