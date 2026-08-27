@@ -43,13 +43,35 @@ O ativo mais forte que você tem é **mostrar a Lumi de verdade**, não um mocku
 
 ## 4. Proposta e precificação
 
-Não tenho números reais de custo/mercado seus pra cravar um preço — mas dá pra montar o **modelo**, você preenche os valores:
+**Pesquisa de mercado (2026-08-27)** — concorrentes diretos de IA no WhatsApp pra clínica odontológica/saúde no Brasil, com preço público:
 
-- **Estrutura sugerida**: taxa de setup (cobre a Entrevista + Onboarding técnico, que tem custo real do seu tempo) + mensalidade (cobre hospedagem — Postgres/Evolution/n8n execution/Easypanel — e suporte contínuo).
-- **Por que não só mensalidade**: setup técnico (seção 7) não é instantâneo nem grátis pra você — cobrar por ele desde o primeiro cliente evita ensinar o mercado a esperar onboarding de graça.
-- **Por que não só taxa única**: hospedagem e sua disponibilidade pra manutenção (como os fixes de hoje) são custo recorrente — sem mensalidade, cada bug futuro vira trabalho não remunerado.
+| Empresa | Entrada | Meio | Topo | Taxa de setup |
+|---|---|---|---|---|
+| [WSeller](https://wseller.co/vendedor-ia-clinica-whatsapp/) | R$ 97/mês | — | — | não divulga |
+| [NEXA IA](https://nexaautomacao.com.br/) | R$ 397/mês | — | "Sob consulta" | sem taxa (declarado) |
+| [Secretária Odonto](https://secretariaodonto.com.br/) | R$ 297/mês¹ | R$ 497/mês¹ | R$ 997/mês¹ | **tem taxa**, valor conforme complexidade do plano |
+| [Agiliza Clínica](https://agilizaclinica.com.br/precos/) | R$ 497/mês | R$ 997/mês | R$ 1.997/mês | sem taxa (declarado) |
+| [Densya](https://densya.com.br/)² | R$ 149,90/mês | R$ 199,90/mês | — | sem taxa (declarado) |
+| [Clinia](https://clinia.io/planos) | "sob consulta" | "sob consulta" | "sob consulta" | não divulga nenhum valor |
+| [Secretária IA](https://usesecretariaia.com/) | plano único, "sob consulta" | — | — | não divulga |
 
-**Falta decidir**: os números (setup + mensalidade), e se existe um período de teste/trial antes do compromisso.
+¹ preço promocional (50% off do "de tabela" R$597/997/1997 — o "de tabela" é provavelmente o número real a comparar).
+² Densya é sistema de gestão completo (agenda/prontuário/financeiro), com IA de WhatsApp só no plano mais caro — não é concorrente direto puro, mais barato porque a IA não é o produto principal.
+
+**Padrão que se repete**: 3 faixas (entrada ~R$300–500, meio ~R$500–1.000, topo "fale conosco"/multi-unidade). Quem tem integração mais profunda (Secretária Odonto) cobra setup separado; quem não cobra parece ter onboarding mais leve/self-service.
+
+**Leitura pro nosso caso**:
+- **Cobrar taxa de setup, sim** — nosso onboarding não é self-service (é o checklist inteiro: provisionar banco, clonar 3 workflows, robô com Playwright logado de verdade no Simples Dental). O comparável certo é a Secretária Odonto, não o WSeller/NEXA (que parecem ter integração mais leve).
+- **Não competir pelo preço de entrada mais baixo** — R$97 (WSeller) é claramente plano-isca, não referência de valor real. Diferenciais que nenhum concorrente pesquisado divulgou ter: integração de verdade com o sistema de gestão (não um widget de agenda à parte), funil de resgate proativo (win-back automático de quem começou a agendar e sumiu), e uma **rotina própria de monitoramento com IA** — health-check automatizado rodando 3x/dia, avisando só quando há problema real, com humano no comando das decisões. Isso é operação madura, não só um chatbot — vale mais que o topo da faixa encontrada, não o meio.
+- **Capacidade é o limite real, não o preço** — hoje é 1 pessoa fazendo onboarding técnico. Preço baixo demais + demanda alta vira gargalo de suporte antes de virar problema de vendas.
+
+**Estrutura sugerida** (proposta, não valor fechado — ajustar com custo real de hospedagem + quanto vale a hora de suporte):
+- **Basic**: R$ 400–600/mês — 1 profissional, funcionalidades centrais (agendar/cancelar/remarcar/lembrete)
+- **Pro**: R$ 900–1.200/mês — múltiplos profissionais, funil de resgate, painel completo (Analytics, Oportunidades, Mensagens)
+- **Advanced**: "Fale conosco" — multi-unidade, integrações extras
+- **Setup**: R$ 800–1.500 único, escalando com o plano (mesmo racional da Secretária Odonto)
+
+**Falta decidir**: confirmar/travar os números acima, e se existe um período de teste/trial antes do compromisso.
 
 ## 5. Fechamento
 
@@ -78,6 +100,6 @@ Já 100% documentado — `Checklist_Onboarding_Nova_Clinica.md`, seções 2-4 (p
 ## Prioridade sugerida pro que falta construir
 
 1. Roteiro da Entrevista de personalização (etapa 6) — você já sinalizou que é o próximo passo.
-2. Modelo de precificação com números reais (etapa 4) — sem isso, não dá pra fechar venda nenhuma.
+2. ~~Modelo de precificação~~ pesquisa de mercado feita e faixa sugerida (etapa 4) — falta só travar os números finais.
 3. Roteiro de demo (etapa 3).
 4. Lista de leads-alvo + pitch de outreach (etapa 1).
