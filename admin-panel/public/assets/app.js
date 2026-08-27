@@ -93,7 +93,7 @@ const secoes = {
   pendencias: carregarPendencias,
   oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
-  agenda: () => carregarAgenda(semanaAtualAgenda),
+  agenda: () => mostrarAgenda(semanaAtualAgenda),
   mensagens: () => carregarConversas(document.getElementById('buscaConversas').value),
   analytics: carregarPaginaAnalytics,
 };
@@ -810,6 +810,13 @@ const STATUS_CONSULTA = [
 
 let semanaAtualAgenda = 0;
 let agendaCache = [];
+// Até qual aba de semana o agendaCache já cobre (-1 = nunca buscou). A
+// automação contra o Simples Dental é lenta, então evitamos rebuscar toda
+// vez que a secretária só troca de aba ou reabre a seção -- só busca de
+// novo quando a aba pedida ainda não está coberta, ou quando alguém pede
+// "Atualizar" de propósito (ver atualizarAgendaCompleta).
+let agendaCacheAteSemanas = -1;
+let agendaAtualizadoEm = null;
 let consultaSelecionada = null;
 
 async function carregarAgenda(semanas) {
@@ -818,10 +825,39 @@ async function carregarAgenda(semanas) {
   try {
     const dados = await chamarApi(`/api/agenda?semanas=${semanas + 1}`);
     agendaCache = dados.compromissos || [];
+    agendaCacheAteSemanas = semanas;
+    agendaAtualizadoEm = new Date();
+    atualizarSeloAgendaAtualizadoEm();
     renderizarAgenda();
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
+}
+
+// Busca as 4 semanas (todas as abas do seletor) de uma vez -- usado no
+// pré-carregamento ao entrar no painel e sempre que algo muda de verdade
+// (Atualizar manual, criar/remarcar/mudar status/rótulo de consulta),
+// assim a troca de aba fica instantânea depois.
+function atualizarAgendaCompleta() {
+  return carregarAgenda(3);
+}
+
+function atualizarSeloAgendaAtualizadoEm() {
+  const alvo = document.getElementById('agendaAtualizadoEm');
+  if (!alvo) return;
+  alvo.textContent = agendaAtualizadoEm
+    ? `Atualizado às ${agendaAtualizadoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`
+    : '';
+}
+
+// Mostra a semana pedida -- se já estiver em cache (login já pré-carregou
+// as 4 semanas), só re-renderiza na hora, sem bater no servidor.
+function mostrarAgenda(semanas) {
+  if (semanas <= agendaCacheAteSemanas) {
+    renderizarAgenda();
+    return;
+  }
+  carregarAgenda(semanas);
 }
 
 // Segunda-feira da semana atual + deslocamento de N semanas -- usado só
@@ -852,15 +888,18 @@ function renderizarAgenda() {
     return;
   }
 
+  const agora = Date.now();
   const linhas = daSemana
     .map((c) => {
       const cancelada = (c.status || '').startsWith('Cancelada');
+      const passada = c.fim < agora;
+      const classes = [cancelada && 'linha-cancelada', !cancelada && passada && 'linha-passada'].filter(Boolean).join(' ');
       const rotulo = c.rotulo
         ? `<span class="ponto-rotulo" style="background:${escapar(c.rotuloCor || '#999')}"></span>${escapar(c.rotulo)}`
         : '<span class="texto-fraco">—</span>';
       const horario = c.fimFormatado ? `${escapar(c.inicioFormatado || '—')} – ${escapar(c.fimFormatado)}` : escapar(c.inicioFormatado || '—');
       return `
-        <tr data-consulta-id="${escapar(c.id || '')}"${cancelada ? ' class="linha-cancelada"' : ''}>
+        <tr data-consulta-id="${escapar(c.id || '')}"${classes ? ` class="${classes}"` : ''}>
           <td>${horario}</td>
           <td>${escapar(c.paciente || '(sem nome)')}</td>
           <td><span class="selo selo-neutro">${escapar(c.status || '—')}</span></td>
@@ -890,10 +929,10 @@ document.getElementById('seletorSemanaAgenda').addEventListener('click', (evento
   if (!botao) return;
   semanaAtualAgenda = Number(botao.dataset.semana);
   document.querySelectorAll('#seletorSemanaAgenda button').forEach((b) => b.classList.toggle('ativo', b === botao));
-  carregarAgenda(semanaAtualAgenda);
+  mostrarAgenda(semanaAtualAgenda);
 });
 
-document.getElementById('botaoAtualizarAgenda').addEventListener('click', () => carregarAgenda(semanaAtualAgenda));
+document.getElementById('botaoAtualizarAgenda').addEventListener('click', atualizarAgendaCompleta);
 
 // Nova consulta -- mesmo padrão do formulário de nova pendência (abre/
 // fecha, autocomplete de paciente por datalist que nunca trava digitação
@@ -979,7 +1018,7 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
       }),
     });
     fecharFormNovaConsulta();
-    await carregarAgenda(semanaAtualAgenda);
+    await atualizarAgendaCompleta();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1049,7 +1088,7 @@ document.getElementById('botaoSalvarStatusConsulta').addEventListener('click', a
       body: JSON.stringify({ status }),
     });
     fecharModalConsulta();
-    await carregarAgenda(semanaAtualAgenda);
+    await atualizarAgendaCompleta();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1075,7 +1114,7 @@ document.getElementById('botaoSalvarRotuloConsulta').addEventListener('click', a
       body: JSON.stringify({ rotulo }),
     });
     fecharModalConsulta();
-    await carregarAgenda(semanaAtualAgenda);
+    await atualizarAgendaCompleta();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1111,7 +1150,7 @@ document.getElementById('botaoRemarcarConsulta').addEventListener('click', async
       }),
     });
     fecharModalConsulta();
-    await carregarAgenda(semanaAtualAgenda);
+    await atualizarAgendaCompleta();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1708,6 +1747,12 @@ carregarPendencias();
 carregarSuspensos();
 carregarAnalytics();
 carregarStatusGlobal();
+// Agenda depende de automação de navegador contra o Simples Dental (lenta,
+// alguns segundos) -- pré-carrega as 4 semanas aqui, em segundo plano,
+// assim quando a secretária clicar em Agenda já tem algo na tela na hora
+// (mostrarAgenda só busca de novo se essa semana ainda não estiver em
+// cache -- ver comentário perto de agendaCacheAteSemanas).
+atualizarAgendaCompleta();
 
 // ============================================================
 // Atualização automática

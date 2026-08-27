@@ -1184,6 +1184,12 @@ html, body {
   text-decoration: line-through;
 }
 
+/* Consulta cujo horário já passou (não cancelada -- só histórico) --
+   mesma opacidade da cancelada, sem risco no texto. */
+.linha-passada td {
+  opacity: 0.55;
+}
+
 /* Bolinha colorida do rótulo nativo do Simples Dental (ex: "INVISALIGN"),
    cor vem dinâmica do próprio Simples Dental via style inline no JS. */
 .ponto-rotulo {
