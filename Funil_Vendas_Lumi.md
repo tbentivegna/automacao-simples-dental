@@ -21,7 +21,7 @@ Etapas 6-7 já estão praticamente prontas (`Checklist_Onboarding_Nova_Clinica.m
 - **Conteúdo** — a própria Dra. Aline postando sobre a experiência com a Lumi (não é você vendendo, é ela mostrando) tende a converter melhor que qualquer post seu de "vendo automação pra dentista".
 - **Parcerias/eventos de odontologia** — associações, grupos de dentistas, cursos de gestão de clínica. Canal mais lento de ativar, mas com bom potencial de volume depois.
 
-**Falta construir**: um pitch curto de 1 frase pra cada canal (não é a mesma mensagem pra indicação vs. outreach frio), e uma lista real de 10-20 dentistas-alvo pra começar o outreach direcionado.
+**Pronto** — `Lista_Leads_e_Outreach.md`: critério de prospecção (ICP), onde procurar, e pitch pronto pra cada canal (indicação, outreach direto, conteúdo). **Falta preencher**: a lista real de 10-20 nomes/contatos — isso só sai da rede real da Dra. Aline + prospecção ativa, não dá pra fabricar sozinho.
 
 ## 2. Qualificação
 
@@ -98,4 +98,6 @@ Já 100% documentado — `Checklist_Onboarding_Nova_Clinica.md`, seções 2-4 (p
 1. ~~Roteiro da Entrevista de personalização~~ pronto (etapa 6) — `Roteiro_Entrevista_Personalizacao.md`.
 2. ~~Modelo de precificação~~ pesquisa de mercado feita e faixa sugerida (etapa 4) — falta só travar os números finais.
 3. ~~Roteiro de demo~~ pronto (etapa 3) — `Roteiro_Demo_Vendas.md`.
-4. Lista de leads-alvo + pitch de outreach (etapa 1).
+4. ~~Pitch de outreach~~ pronto (etapa 1) — `Lista_Leads_e_Outreach.md`. Falta só a lista real de nomes, que só sai de você.
+
+Todos os itens da fila original estão prontos. O que resta é decisão sua (travar preço, puxar a lista de nomes) ou execução (rodar a primeira demo/venda de verdade) — a partir daqui o funil amadurece com a experiência real, não com mais documento.
