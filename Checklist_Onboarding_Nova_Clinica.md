@@ -10,7 +10,7 @@ Use este checklist toda vez que uma clínica nova contratar. Ele assume que a ar
 
 ## 1. Entrevista Estratégica e de Essência (manual, com o dono — não pule, é o coração do "IN dirige")
 
-Capturar e registrar:
+Roteiro completo (o que perguntar, em que ordem, e o que cada resposta alimenta): `Roteiro_Entrevista_Personalizacao.md`. Resumo do que precisa sair da call:
 
 - [ ] Nome completo do profissional e registro (CRO, CRP, CRM etc.)
 - [ ] Especialidades / tratamentos que a clínica realmente atende (lista exata)

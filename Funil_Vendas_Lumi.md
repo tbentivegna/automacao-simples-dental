@@ -79,9 +79,7 @@ Pouco a inventar aqui além do óbvio (aceite formal, primeira cobrança) — ma
 
 ## 6. Entrevista de personalização
 
-Já existe em rascunho — `Checklist_Onboarding_Nova_Clinica.md`, seção 1. Alimenta direto o `Template_Prompt_Assistente_IA.md` e a tela de Configurações do painel.
-
-**Falta** (próxima tarefa que você mencionou): transformar essas perguntas soltas num roteiro de call de verdade — ordem, como formular cada pergunta de um jeito que não pareça formulário, e o que fazer com cada resposta.
+**Pronto** — `Roteiro_Entrevista_Personalizacao.md`: call de 45-60min com o dono, 7 blocos de pergunta (identidade, o que atende/não atende, tom, primeira consulta/preço, horários, regras específicas, operacional), com a ficha de captura rápida no final. Alimenta direto o `Template_Prompt_Assistente_IA.md` e a tela de Configurações do painel.
 
 ## 7. Onboarding técnico
 
@@ -99,7 +97,7 @@ Já 100% documentado — `Checklist_Onboarding_Nova_Clinica.md`, seções 2-4 (p
 
 ## Prioridade sugerida pro que falta construir
 
-1. Roteiro da Entrevista de personalização (etapa 6) — você já sinalizou que é o próximo passo.
+1. ~~Roteiro da Entrevista de personalização~~ pronto (etapa 6) — `Roteiro_Entrevista_Personalizacao.md`.
 2. ~~Modelo de precificação~~ pesquisa de mercado feita e faixa sugerida (etapa 4) — falta só travar os números finais.
 3. Roteiro de demo (etapa 3).
 4. Lista de leads-alvo + pitch de outreach (etapa 1).
