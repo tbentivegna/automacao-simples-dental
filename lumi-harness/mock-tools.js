@@ -7,17 +7,17 @@
 
 const FUSO = 'America/Sao_Paulo';
 const OFFSET_BRASILIA = '-03:00';
-const DURACAO_CONSULTA_MINUTOS = 90;
+const DURACAO_CONSULTA_MINUTOS = 60;
 const SEMANAS_A_VERIFICAR = 4;
 const SABADO_DATA_REFERENCIA = '2026-08-01';
 
 const MODELO_HORARIOS = {
-  segunda: ['08:30', '10:00', '13:30', '15:00'],
+  segunda: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
   terca: [],
-  quarta: ['08:30', '10:00', '13:30', '15:00'],
+  quarta: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
   quinta: [],
-  sexta: ['08:00', '09:30', '11:00'],
-  sabado: ['08:00', '09:30', '11:00'],
+  sexta: ['08:00', '09:00', '10:00'],
+  sabado: ['08:00', '09:00', '10:00'],
   domingo: [],
 };
 

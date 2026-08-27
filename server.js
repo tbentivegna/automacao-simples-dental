@@ -236,16 +236,16 @@ const OFFSET_BRASILIA = '-03:00'; // Brasília não tem mais horário de verão
 // Horários fixos que a Dra. Aline costuma usar em cada dia da semana.
 // Para mudar o expediente no futuro, é só editar esta lista.
 const MODELO_HORARIOS = {
-  segunda: ['08:30', '10:00', '13:30', '15:00'],
+  segunda: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
   terca: [],
-  quarta: ['08:30', '10:00', '13:30', '15:00'],
+  quarta: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
   quinta: [],
-  sexta: ['08:00', '09:30', '11:00'],
-  sabado: ['08:00', '09:30', '11:00'], // só nos sábados "abertos" (quinzenal)
+  sexta: ['08:00', '09:00', '10:00'],
+  sabado: ['08:00', '09:00', '10:00'], // só nos sábados "abertos" (quinzenal)
   domingo: [],
 };
 
-const DURACAO_CONSULTA_MINUTOS = Number(process.env.DURACAO_CONSULTA_MINUTOS || 90);
+const DURACAO_CONSULTA_MINUTOS = Number(process.env.DURACAO_CONSULTA_MINUTOS || 60);
 
 const formatadorDiaISO = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO });
 const NOMES_DIA_SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
