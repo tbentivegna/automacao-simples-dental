@@ -182,17 +182,10 @@ async function carregarAnalytics() {
       if (elCard) elCard.classList.add('cartao-stat--ativo');
       const container = document.getElementById('detalheCard');
       container.hidden = false;
-      if (previewMensagensAberto) {
-        // usuário está dentro da conversa de UM paciente -- reabre a mesma
-        // conversa, não a lista do card (ver previewMensagensAberto acima).
-        const { telefone, nome } = previewMensagensAberto;
-        abrirPreviewMensagens(telefone, nome);
-      } else {
-        container.innerHTML = '<div class="carregando">Carregando…</div>';
-        renderizarDetalheCard(cardAberto, container).catch((erro) => {
-          container.innerHTML = elementoErro(erro.message);
-        });
-      }
+      container.innerHTML = '<div class="carregando">Carregando…</div>';
+      renderizarDetalheCard(cardAberto, container).catch((erro) => {
+        container.innerHTML = elementoErro(erro.message);
+      });
     }
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
@@ -204,12 +197,6 @@ async function carregarAnalytics() {
 // ------------------------------------------------------------
 
 let cardAberto = null;
-
-// Quando o usuário entra na conversa de UM paciente dentro do card
-// "mensagens_trocadas", guarda quem é -- senão o refresh automático de 45s
-// (carregarAnalytics) só sabia reabrir a LISTA do card, jogando o usuário de
-// volta pra fora da conversa que ele estava lendo.
-let previewMensagensAberto = null;
 
 const TITULOS_CARD = {
   criado: 'Consultas criadas',
@@ -234,10 +221,9 @@ function vazioDetalhe(mensagem) {
   return `<div class="estado-vazio"><span class="estado-vazio__emoji">🔎</span>${escapar(mensagem)}</div>`;
 }
 
-function envolverDetalhe(titulo, corpoHtml, linkSecao, comVoltar) {
+function envolverDetalhe(titulo, corpoHtml, linkSecao) {
   return `
     <div class="painel__cabecalho detalhe-card__cabecalho">
-      ${comVoltar ? '<button class="detalhe-card__voltar" data-voltar-mensagens>‹ Voltar</button>' : ''}
       <span>${escapar(titulo)}</span>
       <button class="detalhe-card__fechar" data-fechar-detalhe aria-label="Fechar">✕</button>
     </div>
@@ -291,7 +277,7 @@ function renderizarTabelaMensagens(lista) {
   const linhas = lista
     .map(
       (m) => `
-        <tr class="linha-clicavel" data-preview-mensagens="${escapar(m.telefone)}" data-preview-nome="${escapar(m.nome || m.apelido_whatsapp || m.telefone || '')}">
+        <tr class="linha-clicavel" data-ir-conversa="${escapar(m.telefone)}" data-ir-conversa-nome="${escapar(m.nome || m.apelido_whatsapp || m.telefone || '')}">
           <td>
             ${nomeExibicao(m.nome, m.apelido_whatsapp, '(sem nome)')}
             <div class="texto-fraco">${escapar(m.telefone || '')}</div>
@@ -391,7 +377,6 @@ async function alternarDetalheCard(tipo) {
   if (!container) return;
   const cards = document.querySelectorAll('#conteudoAnalytics [data-card]');
   const jaAberto = cardAberto === tipo;
-  previewMensagensAberto = null;
 
   if (jaAberto) {
     cardAberto = null;
@@ -412,41 +397,6 @@ async function alternarDetalheCard(tipo) {
   }
 }
 
-async function abrirPreviewMensagens(telefone, nome) {
-  const container = document.getElementById('detalheCard');
-  if (!container) return;
-  previewMensagensAberto = { telefone, nome };
-  container.innerHTML = '<div class="carregando">Carregando…</div>';
-  try {
-    const mensagens = await chamarApi(`/api/mensagens?telefone=${encodeURIComponent(telefone)}`);
-    const bolhas = mensagens
-      .map((m) => {
-        const chamouTool = m.tipo === 'ai' && (!m.conteudo || m.conteudo === '[]') && m.tool_chamada;
-        if (chamouTool) {
-          return `
-            <div class="bolha-mensagem bolha-mensagem--tool">
-              <div class="bolha-mensagem__texto">🔧 chamou ${escapar(nomeLegivelTool(m.tool_chamada))}</div>
-              <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
-            </div>`;
-        }
-        return `
-          <div class="bolha-mensagem ${m.tipo === 'human' ? 'bolha-mensagem--paciente' : 'bolha-mensagem--lumi'}">
-            <div class="bolha-mensagem__texto">${escapar(m.conteudo || '')}</div>
-            <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
-          </div>`;
-      })
-      .join('');
-    container.innerHTML = envolverDetalhe(
-      nome || 'Conversa',
-      `<div class="preview-conversa">${bolhas || vazioDetalhe('Sem mensagens registradas pra esse paciente.')}</div>`,
-      null,
-      true
-    );
-  } catch (erro) {
-    container.innerHTML = elementoErro(erro.message);
-  }
-}
-
 document.getElementById('conteudoAnalytics').addEventListener('click', (evento) => {
   const card = evento.target.closest('[data-card]');
   if (card) return alternarDetalheCard(card.dataset.card);
@@ -457,22 +407,15 @@ document.getElementById('conteudoAnalytics').addEventListener('click', (evento) 
   const irSecao = evento.target.closest('[data-ir-secao]');
   if (irSecao) return irParaSecao(irSecao.dataset.irSecao);
 
-  const voltar = evento.target.closest('[data-voltar-mensagens]');
-  if (voltar) {
-    previewMensagensAberto = null;
-    const container = document.getElementById('detalheCard');
-    if (container && cardAberto) {
-      container.innerHTML = '<div class="carregando">Carregando…</div>';
-      renderizarDetalheCard(cardAberto, container).catch((erro) => {
-        container.innerHTML = elementoErro(erro.message);
-      });
-    }
-    return;
-  }
-
-  const linhaMensagens = evento.target.closest('[data-preview-mensagens]');
+  // Clicar num paciente na lista de "Mensagens trocadas" não mostra mais a
+  // conversa aqui embaixo -- vai direto pra página Mensagens, já com essa
+  // conversa aberta (pedido do Tiago: um único lugar pra ler/responder,
+  // sem duplicar a experiência na Visão Geral).
+  const linhaMensagens = evento.target.closest('[data-ir-conversa]');
   if (linhaMensagens) {
-    return abrirPreviewMensagens(linhaMensagens.dataset.previewMensagens, linhaMensagens.dataset.previewNome);
+    irParaSecao('mensagens');
+    abrirConversa(linhaMensagens.dataset.irConversa, linhaMensagens.dataset.irConversaNome);
+    return;
   }
 });
 

@@ -653,20 +653,6 @@ html, body {
   color: var(--cor-urgente);
 }
 
-.detalhe-card__voltar {
-  border: none;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--cor-marca);
-  padding: 0;
-  white-space: nowrap;
-}
-
-.detalhe-card__voltar:hover {
-  color: var(--cor-secundaria);
-}
-
 .detalhe-card__rodape {
   padding: 14px 22px;
   border-top: 1px solid var(--cor-borda);
@@ -684,15 +670,6 @@ html, body {
 
 .linha-clicavel:hover td {
   background: var(--cor-marca-clara);
-}
-
-.preview-conversa {
-  padding: 20px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 420px;
-  overflow-y: auto;
 }
 
 .bolha-mensagem {

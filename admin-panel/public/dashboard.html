@@ -24,6 +24,8 @@
 
       <nav class="nav">
         <button class="nav__item ativo" data-secao="visao-geral">📊 Visão Geral</button>
+        <button class="nav__item" data-secao="pacientes">👥 Pacientes</button>
+        <button class="nav__item" data-secao="agenda">🗓️ Agenda</button>
         <button class="nav__item" data-secao="atendimento-humano">
           🙋 Atendimento Humano
           <span class="nav__badge" id="badgeSuspensos"></span>
@@ -32,10 +34,8 @@
           🔔 Pendências
           <span class="nav__badge" id="badgePendencias"></span>
         </button>
-        <button class="nav__item" data-secao="oportunidades">🎯 Oportunidades</button>
-        <button class="nav__item" data-secao="pacientes">👥 Pacientes</button>
-        <button class="nav__item" data-secao="agenda">🗓️ Agenda</button>
         <button class="nav__item" data-secao="mensagens">💬 Mensagens</button>
+        <button class="nav__item" data-secao="oportunidades">🎯 Oportunidades</button>
         <button class="nav__item" data-secao="analytics">📈 Analytics</button>
       </nav>
 
@@ -75,71 +75,6 @@
         </div>
         <div id="conteudoAnalytics">
           <div class="carregando">Carregando…</div>
-        </div>
-      </section>
-
-      <!-- ============ ATENDIMENTO HUMANO ============ -->
-      <section class="secao" id="secao-atendimento-humano">
-        <div class="cabecalho-secao">
-          <div>
-            <h2>Atendimento Humano</h2>
-            <p>Pacientes com a Lumi pausada — a conversa foi assumida pela equipe. Volta sozinha em 6h sem mensagem, ou digitando "##lumi" na conversa.</p>
-          </div>
-        </div>
-        <div class="painel">
-          <div id="conteudoSuspensos"><div class="carregando">Carregando…</div></div>
-        </div>
-      </section>
-
-      <!-- ============ PENDÊNCIAS ============ -->
-      <section class="secao" id="secao-pendencias">
-        <div class="cabecalho-secao">
-          <div>
-            <h2>Pendências</h2>
-            <p>Situações que a Lumi encaminhou para a equipe. Urgências aparecem primeiro.</p>
-          </div>
-          <button class="botao botao-primario" id="botaoNovaPendencia">+ Nova pendência</button>
-        </div>
-        <form class="form-nova-pendencia" id="formNovaPendencia" hidden>
-          <input type="text" id="novaPendenciaPaciente" list="sugestoesPacientePendencia" autocomplete="off" placeholder="Paciente (nome ou telefone) — opcional, ou descreva livremente" />
-          <datalist id="sugestoesPacientePendencia"></datalist>
-          <textarea id="novaPendenciaDetalhe" placeholder="O que precisa ser feito?" rows="2" required></textarea>
-          <div class="form-nova-pendencia__acoes">
-            <button type="button" class="botao" id="botaoCancelarNovaPendencia">Cancelar</button>
-            <button type="submit" class="botao botao-primario">Adicionar</button>
-          </div>
-        </form>
-        <div class="painel">
-          <div id="conteudoPendencias"><div class="carregando">Carregando…</div></div>
-        </div>
-      </section>
-
-      <!-- ============ OPORTUNIDADES ============ -->
-      <section class="secao" id="secao-oportunidades">
-        <div class="cabecalho-secao">
-          <div>
-            <h2>Oportunidades</h2>
-            <p>Conversas que pararam antes de virar consulta — funil de resgate por etapa.</p>
-          </div>
-        </div>
-        <div class="filtros-oportunidades">
-          <input type="search" class="campo-busca" id="buscaOportunidades" placeholder="Buscar por paciente ou telefone…" />
-          <select id="filtroEtapaOportunidades">
-            <option value="">Todas as etapas</option>
-            <option value="interesse">Interesse</option>
-            <option value="horario_oferecido">Horário oferecido</option>
-          </select>
-          <select id="filtroStatusOportunidades">
-            <option value="">Todos os status</option>
-            <option value="em_andamento">Em andamento</option>
-            <option value="resgate_enviado">Resgate enviado</option>
-            <option value="concluido">Convertido</option>
-            <option value="expirado">Expirado</option>
-          </select>
-          <button class="botao" id="botaoLimparFiltrosOportunidades">Limpar filtros</button>
-        </div>
-        <div class="painel">
-          <div id="conteudoOportunidades"><div class="carregando">Carregando…</div></div>
         </div>
       </section>
 
@@ -214,6 +149,42 @@
         </div>
       </section>
 
+      <!-- ============ ATENDIMENTO HUMANO ============ -->
+      <section class="secao" id="secao-atendimento-humano">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Atendimento Humano</h2>
+            <p>Pacientes com a Lumi pausada — a conversa foi assumida pela equipe. Volta sozinha em 6h sem mensagem, ou digitando "##lumi" na conversa.</p>
+          </div>
+        </div>
+        <div class="painel">
+          <div id="conteudoSuspensos"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+
+      <!-- ============ PENDÊNCIAS ============ -->
+      <section class="secao" id="secao-pendencias">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Pendências</h2>
+            <p>Situações que a Lumi encaminhou para a equipe. Urgências aparecem primeiro.</p>
+          </div>
+          <button class="botao botao-primario" id="botaoNovaPendencia">+ Nova pendência</button>
+        </div>
+        <form class="form-nova-pendencia" id="formNovaPendencia" hidden>
+          <input type="text" id="novaPendenciaPaciente" list="sugestoesPacientePendencia" autocomplete="off" placeholder="Paciente (nome ou telefone) — opcional, ou descreva livremente" />
+          <datalist id="sugestoesPacientePendencia"></datalist>
+          <textarea id="novaPendenciaDetalhe" placeholder="O que precisa ser feito?" rows="2" required></textarea>
+          <div class="form-nova-pendencia__acoes">
+            <button type="button" class="botao" id="botaoCancelarNovaPendencia">Cancelar</button>
+            <button type="submit" class="botao botao-primario">Adicionar</button>
+          </div>
+        </form>
+        <div class="painel">
+          <div id="conteudoPendencias"><div class="carregando">Carregando…</div></div>
+        </div>
+      </section>
+
       <!-- ============ MENSAGENS ============ -->
       <section class="secao" id="secao-mensagens">
         <div class="cabecalho-secao">
@@ -231,6 +202,35 @@
           <div class="thread-mensagens" id="threadMensagens">
             <div class="thread-mensagens__vazio">Selecione uma conversa à esquerda.</div>
           </div>
+        </div>
+      </section>
+
+      <!-- ============ OPORTUNIDADES ============ -->
+      <section class="secao" id="secao-oportunidades">
+        <div class="cabecalho-secao">
+          <div>
+            <h2>Oportunidades</h2>
+            <p>Conversas que pararam antes de virar consulta — funil de resgate por etapa.</p>
+          </div>
+        </div>
+        <div class="filtros-oportunidades">
+          <input type="search" class="campo-busca" id="buscaOportunidades" placeholder="Buscar por paciente ou telefone…" />
+          <select id="filtroEtapaOportunidades">
+            <option value="">Todas as etapas</option>
+            <option value="interesse">Interesse</option>
+            <option value="horario_oferecido">Horário oferecido</option>
+          </select>
+          <select id="filtroStatusOportunidades">
+            <option value="">Todos os status</option>
+            <option value="em_andamento">Em andamento</option>
+            <option value="resgate_enviado">Resgate enviado</option>
+            <option value="concluido">Convertido</option>
+            <option value="expirado">Expirado</option>
+          </select>
+          <button class="botao" id="botaoLimparFiltrosOportunidades">Limpar filtros</button>
+        </div>
+        <div class="painel">
+          <div id="conteudoOportunidades"><div class="carregando">Carregando…</div></div>
         </div>
       </section>
 
