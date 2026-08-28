@@ -6,3 +6,6 @@ n8n/.env
 auth/
 screenshots/
 logs/
+
+# backfill: dados de pacientes (PII) ficam local, so o script vai pro repo
+db/backfill/*.json
