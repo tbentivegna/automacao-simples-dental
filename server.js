@@ -108,6 +108,53 @@ async function fecharFunil({ telefone, status }) {
   }
 }
 
+// Guard do fix 2b (28/08): protege contra a Lumi cancelar um agendamento
+// "no susto" no meio de uma REMARCAÇÃO. Caso real (Guilherme, 27/08): o
+// paciente respondeu "Sim" a um resgate ("ainda tem interesse?") e o
+// modelo interpretou como "sim, cancela" -- cancelou a consulta confirmada
+// sem reagendar nada.
+//
+// Retorna true (=> deve BLOQUEAR o cancelamento) só quando as DUAS coisas
+// valem: (a) existe tentativa de agendamento em_andamento pro telefone com
+// interação nas últimas 2h (o paciente pediu horários e ainda não fechou
+// -- clássico "remarcação em curso"); e (b) nenhuma das últimas mensagens
+// do paciente tem pedido explícito de cancelamento.
+//
+// Fail-open: qualquer erro/infra ausente => retorna false (nunca bloqueia
+// um cancelamento de verdade por causa do guard).
+async function deveBloquearCancelamentoPorRemarcacao(telefoneLocal) {
+  if (!pool || !telefoneLocal) return false;
+  const jid = '55' + somenteDigitos(telefoneLocal) + '@s.whatsapp.net';
+  try {
+    const remarcando = await pool.query(
+      `SELECT 1 FROM public.funil_agendamento
+       WHERE telefone = $1 AND status = 'em_andamento'
+         AND ultima_interacao_em > now() - interval '2 hours'
+       LIMIT 1`,
+      [jid]
+    );
+    if (remarcando.rowCount === 0) return false;
+
+    const msgs = await pool.query(
+      `SELECT message->>'content' AS c
+       FROM public.n8n_chat_histories
+       WHERE session_id = $1 AND message->>'type' = 'human'
+       ORDER BY created_at DESC
+       LIMIT 6`,
+      [jid]
+    );
+    const texto = msgs.rows.map((r) => (r.c || '').toLowerCase()).join('\n');
+    const pediuCancelarExplicito =
+      /\bcancel|desmarc|desist|n[aã]o quero mais|n[aã]o vou (mais )?(poder )?(ir|comparecer)|(remover|tirar|excluir) (a |minha )?consulta/.test(
+        texto
+      );
+    return !pediuCancelarExplicito;
+  } catch (erro) {
+    console.error('[cancelar-agendamento] guard de remarcação falhou -- deixando passar:', erro.message);
+    return false;
+  }
+}
+
 // Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
 // Mapeia agendamento (Simples Dental) -> telefone, pra o workflow de
 // lembretes conseguir descobrir quem avisar sem depender de casar por nome
@@ -2264,6 +2311,19 @@ app.post('/cancelar-agendamento', async (req, res) => {
   try {
     console.log('[cancelar-agendamento] body recebido:', JSON.stringify(req.body));
     const { idAgendamento: id, motivo, telefone } = req.body || {};
+
+    // Fix 2b: não deixa cancelar "no susto" durante uma remarcação (ver
+    // deveBloquearCancelamentoPorRemarcacao). Só se aplica ao cancelamento
+    // pedido pelo paciente via Lumi -- cancelamento "profissional" passa direto.
+    if (motivo !== 'profissional' && (await deveBloquearCancelamentoPorRemarcacao(telefone))) {
+      console.warn('[cancelar-agendamento] BLOQUEADO: remarcação em curso e sem pedido explícito de cancelamento (telefone:', telefone, ')');
+      return res.status(409).json({
+        erro: 'CANCELAMENTO_BLOQUEADO_REMARCACAO',
+        detalhe:
+          'O paciente está no meio de uma remarcação e não pediu cancelamento explícito. Para remarcar, use a ferramenta "Remarcar Agendamento" -- ela já cancela e reagenda de uma vez. Se o paciente REALMENTE quer apenas cancelar sem remarcar, confirme isso com ele numa pergunta direta e só então tente de novo.',
+      });
+    }
+
     const status = motivo === 'profissional' ? 'Cancelada pelo profissional' : 'Cancelada pelo paciente';
     const resultado = await comFilaSegura(() => mudarStatusAgendamento({ id, status, telefone }));
     res.json(resultado);
