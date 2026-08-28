@@ -24,12 +24,12 @@ const WF = 'vUGMz073giDPfGzx';
 
 const CLAUSE = `  AND NOT EXISTS (
     SELECT 1 FROM public.eventos_agenda ev
-    WHERE ev.telefone = regexp_replace(f.telefone, '^55|@.*$', '', 'g')
+    WHERE ev.telefone = substring(split_part(f.telefone, '@', 1) from 3)
       AND ev.tipo IN ('criado','remarcado','lembrete_enviado','confirmado')
       AND ev.data_consulta::date >= (now() AT TIME ZONE 'America/Sao_Paulo')::date
       AND ev.criado_em > COALESCE(
         (SELECT max(cc.criado_em) FROM public.eventos_agenda cc
-          WHERE cc.telefone = regexp_replace(f.telefone, '^55|@.*$', '', 'g')
+          WHERE cc.telefone = substring(split_part(f.telefone, '@', 1) from 3)
             AND cc.tipo = 'cancelado'),
         '-infinity'::timestamptz)
   )
