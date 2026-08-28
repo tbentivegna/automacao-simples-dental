@@ -648,6 +648,13 @@ function proximoPassoOportunidade(o) {
   if (o.status === 'concluido') return 'Nada a fazer — já agendou 🎉';
   if (o.status === 'expirado') return 'Resgate enviado, sem retorno do paciente';
   if (o.status === 'resgate_enviado') return 'Resgate enviado, aguardando resposta';
+  // consulta já marcada (inclusive na mão, no Simples Dental) -- o resgate
+  // não entra. Vem do espelho public.consultas via /sincronizar-agenda.
+  if (o.tem_consulta_futura) {
+    return o.proxima_consulta_formatada
+      ? `Já tem consulta em ${o.proxima_consulta_formatada} — resgate não será enviado`
+      : 'Já tem consulta marcada — resgate não será enviado';
+  }
   if (o.atendimento_humano_ativo) return 'Com atendimento humano — resgate automático não entra';
   // silencio_real_4h reflete a MESMA checagem que "Busca Funil Parado" usa
   // pra decidir se dispara (silêncio de verdade nas últimas 4h desde a
@@ -934,6 +941,37 @@ document.getElementById('seletorSemanaAgenda').addEventListener('click', (evento
 });
 
 document.getElementById('botaoAtualizarAgenda').addEventListener('click', atualizarAgendaCompleta);
+
+// Força o /sincronizar-agenda no bridge -> atualiza public.consultas (o
+// espelho que o resgate automático consulta). Mais pesado que "Atualizar"
+// (resolve telefone e escreve no banco por consulta), então é um botão à
+// parte.
+document.getElementById('botaoSincronizarEspelho').addEventListener('click', async (ev) => {
+  const btn = ev.currentTarget;
+  const rotulo = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⟳ Sincronizando…';
+  try {
+    const r = await chamarApi('/api/agenda/sincronizar', {
+      method: 'POST',
+      body: JSON.stringify({ semanas: 4 }),
+    });
+    alert(
+      'Espelho da agenda sincronizado.\n\n' +
+        `${r.total} consulta(s) nas próximas ${r.semanas} semanas\n` +
+        `${r.novos} nova(s) · ${r.atualizados} atualizada(s) · ${r.removidos} sumiram do calendário` +
+        (r.sem_telefone
+          ? `\n\n${r.sem_telefone} sem telefone vinculado (o nome não bate com o cadastro nem com um dependente).`
+          : '')
+    );
+    await atualizarAgendaCompleta();
+  } catch (erro) {
+    alert('Falha ao sincronizar o espelho: ' + erro.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = rotulo;
+  }
+});
 
 // Nova consulta -- mesmo padrão do formulário de nova pendência (abre/
 // fecha, autocomplete de paciente por datalist que nunca trava digitação

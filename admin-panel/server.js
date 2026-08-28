@@ -41,7 +41,7 @@ const {
   buscarConfiguracaoHorarios,
   salvarConfiguracaoHorarios,
 } = require('./queries');
-const { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
+const { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
 const { enviarMensagem } = require('./evolution');
 
 if (!process.env.ADMIN_PASSWORD) {
@@ -446,6 +446,15 @@ app.get('/api/agenda', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/agenda:', erro);
     res.status(502).json({ erro: 'Falha ao buscar agenda no Simples Dental.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/agenda/sincronizar', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await sincronizarAgenda(req.body && req.body.semanas));
+  } catch (erro) {
+    console.error('Erro em POST /api/agenda/sincronizar:', erro);
+    res.status(502).json({ erro: 'Falha ao sincronizar a agenda.', detalhe: erro.message });
   }
 });
 

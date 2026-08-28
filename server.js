@@ -687,6 +687,121 @@ async function listarAgendaSemana({ semanas } = {}) {
   }
 }
 
+// "11999998888" (ou com o 55) -> "5511999998888@s.whatsapp.net", pra bater
+// com public.cliente.telefone / public.funil_agendamento.telefone.
+function jidDeLocal(valor) {
+  const dig = somenteDigitos(valor);
+  if (!dig) return null;
+  return (dig.startsWith('55') ? dig : `55${dig}`) + '@s.whatsapp.net';
+}
+
+// Resolve o telefone (JID completo) de uma consulta da agenda do Simples
+// Dental, que só expõe o nome do paciente. Ordem: mapeamento direto do bot
+// -> match exato em cliente.nome -> match em paciente_dependente. Qualquer
+// ambiguidade (2+ resultados) devolve null -- consulta fica "órfã".
+async function resolverTelefoneConsulta(nomeLimpo, agendamentoId) {
+  if (!pool) return null;
+  try {
+    if (agendamentoId) {
+      const m = await pool.query(
+        'SELECT telefone FROM public.agendamento_telefone WHERE agendamento_id = $1',
+        [String(agendamentoId)]
+      );
+      if (m.rows[0]?.telefone) return jidDeLocal(m.rows[0].telefone);
+    }
+    if (!nomeLimpo) return null;
+    const c = await pool.query(
+      'SELECT telefone FROM public.cliente WHERE lower(trim(nome)) = lower(trim($1)) LIMIT 2',
+      [nomeLimpo]
+    );
+    if (c.rows.length === 1) return c.rows[0].telefone; // já é JID
+    const d = await pool.query(
+      'SELECT responsavel_telefone FROM public.paciente_dependente WHERE lower(trim(dependente_nome)) = lower(trim($1)) LIMIT 2',
+      [nomeLimpo]
+    );
+    if (d.rows.length === 1) return d.rows[0].responsavel_telefone;
+    return null;
+  } catch (erro) {
+    console.error('[sincronizarAgenda] falha ao resolver telefone de consulta:', erro.message);
+    return null;
+  }
+}
+
+// Varre a agenda real do Simples Dental (4 semanas) e faz upsert em
+// public.consultas -- o espelho local que o guard do resgate e o painel
+// consultam. Consulta que sumiu da varredura (cancelada/movida na mão no
+// SD) vira status 'removido_do_calendario', não é apagada. Chamada sob
+// comFilaSegura (compartilha o lock do navegador com o resto).
+async function sincronizarAgenda({ semanas } = {}) {
+  if (!pool) return { erro: 'DATABASE_URL não configurada -- sync desativado' };
+  const totalSemanas = Math.min(4, Math.max(1, Number(semanas) || Number(process.env.SEMANAS_A_VERIFICAR) || 4));
+  const { context, page } = await abrirPaginaLogada();
+  const sincronizadoEm = new Date().toISOString();
+  try {
+    const compromissos = await coletarCompromissosVariasSemanas(page, totalSemanas);
+    // só consultas reais: têm id e têm horário de fim (descarta bloqueios de dia inteiro)
+    const reais = compromissos.filter((c) => c.id && c.fim > c.inicio);
+
+    let novos = 0;
+    let atualizados = 0;
+    let semTelefone = 0;
+    const idsVistos = [];
+
+    for (const c of reais) {
+      const nomeLimpo = nomeSemSufixoProfissional(c.paciente) || (c.paciente || '').trim();
+      const telefone = await resolverTelefoneConsulta(nomeLimpo, c.id);
+      if (!telefone) semTelefone++;
+      idsVistos.push(String(c.id));
+
+      const r = await pool.query(
+        `INSERT INTO public.consultas
+           (agendamento_id, paciente_nome, inicio, fim, status, telefone, rotulo, origem, visto_em, atualizado_em)
+         VALUES ($1, $2, to_timestamp($3 / 1000.0), to_timestamp($4 / 1000.0), $5, $6, $7, 'sync', now(), now())
+         ON CONFLICT (agendamento_id) DO UPDATE SET
+           paciente_nome = EXCLUDED.paciente_nome,
+           inicio        = EXCLUDED.inicio,
+           fim           = EXCLUDED.fim,
+           status        = EXCLUDED.status,
+           rotulo        = EXCLUDED.rotulo,
+           telefone      = COALESCE(EXCLUDED.telefone, public.consultas.telefone),
+           visto_em      = now(),
+           atualizado_em = now()
+         RETURNING (xmax = 0) AS inserido`,
+        [String(c.id), nomeLimpo, c.inicio, c.fim, c.status, telefone, c.rotulo || null]
+      );
+      if (r.rows[0]?.inserido) novos++;
+      else atualizados++;
+    }
+
+    // Consultas futuras que estavam no espelho e não apareceram nesta
+    // varredura => sumiram do calendário do SD.
+    let removidos = 0;
+    if (idsVistos.length) {
+      const del = await pool.query(
+        `UPDATE public.consultas
+         SET status = 'removido_do_calendario', atualizado_em = now()
+         WHERE inicio >= now()
+           AND status IS DISTINCT FROM 'removido_do_calendario'
+           AND NOT (agendamento_id = ANY ($1))`,
+        [idsVistos]
+      );
+      removidos = del.rowCount;
+    }
+
+    return {
+      total: reais.length,
+      novos,
+      atualizados,
+      removidos,
+      sem_telefone: semTelefone,
+      semanas: totalSemanas,
+      sincronizado_em: sincronizadoEm,
+    };
+  } finally {
+    await context.close();
+  }
+}
+
 async function verificarDisponibilidade({ diaSemana, periodo } = {}) {
   const { context, page } = await abrirPaginaLogada();
   const semanas = Number(process.env.SEMANAS_A_VERIFICAR || 4);
@@ -1281,6 +1396,32 @@ async function criarAgendamento({
     await registrarEventoAgenda({ tipo: 'criado', telefone, categoria, data, hora });
     await salvarTelefoneAgendamento({ agendamentoId: idCriado, telefone });
     await fecharFunil({ telefone: `55${telefoneLocal(telefone)}@s.whatsapp.net`, status: 'concluido' });
+
+    // Vínculo responsável -> dependente: se veio nomeResponsavel, é consulta
+    // pra menor sob o WhatsApp da família. Registra o vínculo pra o sync da
+    // agenda conseguir resolver o telefone dessa consulta depois. Nunca
+    // derruba a resposta -- falha aqui é só log.
+    if (nomeResponsavel && nomePaciente && pool) {
+      try {
+        await pool.query(
+          `INSERT INTO public.paciente_dependente
+             (responsavel_telefone, dependente_nome, dependente_nascimento, dependente_cpf)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (responsavel_telefone, dependente_nome) DO UPDATE SET
+             dependente_nascimento = COALESCE(EXCLUDED.dependente_nascimento, public.paciente_dependente.dependente_nascimento),
+             dependente_cpf        = COALESCE(EXCLUDED.dependente_cpf, public.paciente_dependente.dependente_cpf)`,
+          [
+            `55${telefoneLocal(telefone)}@s.whatsapp.net`,
+            nomePaciente.trim(),
+            dataNascimentoPaciente ? paraDataISO(dataNascimentoPaciente) : null,
+            cpfPaciente ? somenteDigitos(cpfPaciente) : null,
+          ]
+        );
+      } catch (erro) {
+        console.error('[criarAgendamento] falha ao gravar paciente_dependente (não afeta o agendamento):', erro.message);
+      }
+    }
+
     cacheAgenda.clear();
 
     return {
@@ -2251,6 +2392,21 @@ app.get('/agenda-semana', async (req, res) => {
   } catch (erro) {
     console.error('Erro ao listar agenda da semana:', erro);
     res.status(500).json({ erro: 'Falha ao listar agenda da semana', detalhe: erro.message });
+  }
+});
+
+// Sincroniza a agenda real do Simples Dental -> public.consultas (o espelho
+// local). Chamada pelo workflow de resgate (antes do Busca Funil Parado) e
+// pelo botão "Sincronizar agora" da página Agenda do painel.
+// Corpo opcional: { "semanas": 4 }
+app.post('/sincronizar-agenda', async (req, res) => {
+  try {
+    const resultado = await comFilaSegura(() => sincronizarAgenda(req.body || {}));
+    cacheAgenda.clear();
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao sincronizar agenda:', erro);
+    res.status(500).json({ erro: 'Falha ao sincronizar agenda', detalhe: erro.message });
   }
 });
 

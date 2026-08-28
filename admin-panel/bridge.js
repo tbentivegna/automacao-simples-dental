@@ -25,6 +25,16 @@ async function buscarAgendaSemana(semanas) {
   return chamarBridge(`/agenda-semana?semanas=${encodeURIComponent(semanas || 4)}`);
 }
 
+// Força uma sincronização da agenda real do Simples Dental -> public.consultas
+// (o espelho). É Playwright, pode demorar -- timeout folgado.
+async function sincronizarAgenda(semanas) {
+  return chamarBridge('/sincronizar-agenda', {
+    method: 'POST',
+    body: JSON.stringify({ semanas: semanas || 4 }),
+    signal: AbortSignal.timeout(180000),
+  });
+}
+
 async function criarConsulta(payload) {
   return chamarBridge('/criar-agendamento', { method: 'POST', body: JSON.stringify(payload) });
 }
@@ -47,4 +57,4 @@ async function mudarRotuloConsulta({ idAgendamento, rotulo, telefone }) {
   });
 }
 
-module.exports = { buscarAgendaSemana, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };
+module.exports = { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };

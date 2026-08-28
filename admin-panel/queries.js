@@ -407,6 +407,23 @@ async function buscarOportunidades() {
       -- atendimento humano em andamento. Mesma checagem que "Busca Funil
       -- Parado" usa pra excluir do envio.
       coalesce(c.bot_disabled, false) AS atendimento_humano_ativo,
+      -- consulta futura no espelho da agenda (public.consultas, populado
+      -- pelo /sincronizar-agenda). Pega inclusive consulta marcada na mão
+      -- pela equipe no Simples Dental -- que eventos_agenda não via. Mesma
+      -- checagem que "Busca Funil Parado" e "Fecha Funis Com Consulta"
+      -- usam pra não mandar resgate pra quem já tem consulta.
+      EXISTS (
+        SELECT 1 FROM public.consultas ct
+        WHERE ct.telefone = f.telefone
+          AND ct.inicio >= now()
+          AND ct.status NOT IN ('Cancelada pelo paciente','Cancelada pelo profissional','Falta','removido_do_calendario')
+      ) AS tem_consulta_futura,
+      (SELECT to_char(min(ct.inicio) AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM "às" HH24:MI')
+       FROM public.consultas ct
+       WHERE ct.telefone = f.telefone
+         AND ct.inicio >= now()
+         AND ct.status NOT IN ('Cancelada pelo paciente','Cancelada pelo profissional','Falta','removido_do_calendario')
+      ) AS proxima_consulta_formatada,
       -- mesma checagem que "Busca Funil Parado" usa pra excluir do envio --
       -- silêncio de verdade nas últimas 4h, não só "sem mensagem desde a
       -- última marcação" (esse segundo critério travava pra sempre depois
