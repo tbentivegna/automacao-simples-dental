@@ -114,6 +114,17 @@ async function main() {
   });
   const body = await put.json();
   if (!put.ok) throw new Error(`PUT falhou: ${put.status} ${JSON.stringify(body)}`);
-  console.log('OK', workflowId, 'atualizado | active=', body.active);
+
+  // PUT sozinho nem sempre publica nesse n8n -- forca activate + confere.
+  const act = await fetch(`${BASE_URL}/api/v1/workflows/${workflowId}/activate`, {
+    method: 'POST',
+    headers: { 'X-N8N-API-KEY': API_KEY, 'Content-Type': 'application/json' },
+  });
+  const ab = await act.json();
+  const ok = ab.versionId === ab.activeVersionId;
+  console.log(`OK ${workflowId} | PUT ${put.status} | activate ${act.status} | active=${ab.active} | draft==active=${ok}`);
+  if (!ok) throw new Error('draft != active depois do activate -- CONFERIR NA UI');
+  const live = (ab.activeVersion?.nodes || ab.nodes || []).find((n) => n.name === 'Grava Aviso Espera');
+  console.log('Grava Aviso Espera na versao ativa?', !!live);
 }
 main().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });
