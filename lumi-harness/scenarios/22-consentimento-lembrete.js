@@ -1,9 +1,10 @@
 module.exports = {
-  nome: 'Consentimento de lembrete (agenda -> Lumi pergunta -> paciente aceita)',
+  nome: 'Aviso de lembrete opt-out (agenda -> Lumi avisa, não pergunta -> registra "sim")',
   descricao:
-    'Depois de confirmar um agendamento novo, a Lumi deve perguntar se pode mandar ' +
-    'lembrete por WhatsApp e, ao receber a resposta, emitir o agent_action ' +
-    'REGISTRAR_CONSENTIMENTO_LEMBRETE com detail "sim".',
+    'Desde 2026-08-31 o consentimento de lembrete é opt-out: depois de confirmar um ' +
+    'agendamento novo, a Lumi deve AVISAR (não perguntar) que vai mandar lembrete por ' +
+    'WhatsApp, e chamar Registrar Consentimento Lembrete com "sim" na mesma resposta -- ' +
+    'sem esperar o paciente responder pra registrar.',
   telefonePaciente: '11999997777',
   mensagens: [
     'oi, boa tarde',
@@ -12,6 +13,5 @@ module.exports = {
     'queria fazer uma limpeza',
     'pode ser o primeiro horário mesmo',
     'pode confirmar sim',
-    'pode sim, pode mandar',
   ],
 };
