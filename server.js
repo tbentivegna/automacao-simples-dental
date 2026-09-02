@@ -651,11 +651,25 @@ function obterDiasBloqueados(compromissos) {
 
 // Deixa os compromissos legíveis para humanos (e para o n8n exibir),
 // mantendo os campos originais em milissegundos para os cálculos internos.
+//
+// jaOcorreu (02/09, achado da análise semanal de lições aprendidas, caso
+// Thalita): calculado aqui em código de propósito, não deixado pro modelo
+// inferir por conta própria comparando datas -- Lumi não checou se "a
+// consulta de hoje" já tinha passado (disse "ela vai te orientar na
+// consulta de hoje" às 16h, sendo que a consulta foi às 8h30 da manhã) e
+// nem chegou a chamar a ferramenta antes de presumir isso. Também não dá
+// pra confiar só no campo "status" do Simples Dental pra saber se já
+// aconteceu -- a Dra. Aline às vezes esquece de marcar "Finalizada" mesmo
+// depois do horário já ter passado. jaOcorreu compara direto o horário de
+// término contra o agora, então funciona independente do status estar
+// atualizado ou não.
 function formatarCompromissos(compromissos) {
+  const agora = Date.now();
   return compromissos.map((c) => {
     if (c.fim > c.inicio) {
       return {
         ...c,
+        jaOcorreu: c.fim < agora,
         inicioFormatado: new Date(c.inicio).toLocaleString('pt-BR', {
           timeZone: FUSO,
           day: '2-digit',
@@ -677,6 +691,7 @@ function formatarCompromissos(compromissos) {
 
     return {
       ...c,
+      jaOcorreu: c.inicio < agora,
       inicioFormatado: `Dia inteiro - ${diaBR}`,
       fimFormatado: null,
     };

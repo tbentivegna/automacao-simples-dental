@@ -246,10 +246,15 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return {
       encontrado: true,
       nomePaciente,
+      // jaOcorreu: mesmo campo calculado que server.js expõe (ver
+      // formatarCompromissos lá) -- compara o horário real contra agora, não
+      // depende do campo status estar atualizado (a Dra. Aline às vezes
+      // esquece de marcar "Finalizada").
       agendamentos: doPaciente.map((a) => ({
         id: a.id,
         status: a.status,
         paciente: a.paciente,
+        jaOcorreu: new Date(`${a.dataISO}T${a.hora}:00${OFFSET_BRASILIA}`).getTime() + DURACAO_CONSULTA_MINUTOS * 60000 < Date.now(),
         inicioFormatado: `${new Date(`${a.dataISO}T${a.hora}:00${OFFSET_BRASILIA}`).toLocaleString('pt-BR', {
           timeZone: FUSO,
           day: '2-digit',
