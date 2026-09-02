@@ -114,11 +114,25 @@ async function fecharFunil({ telefone, status }) {
 // modelo interpretou como "sim, cancela" -- cancelou a consulta confirmada
 // sem reagendar nada.
 //
-// Retorna true (=> deve BLOQUEAR o cancelamento) só quando as DUAS coisas
-// valem: (a) existe tentativa de agendamento em_andamento pro telefone com
-// interação nas últimas 2h (o paciente pediu horários e ainda não fechou
-// -- clássico "remarcação em curso"); e (b) nenhuma das últimas mensagens
-// do paciente tem pedido explícito de cancelamento.
+// Generalizado 02/09 (achado da análise semanal de lições aprendidas,
+// caso Gabriella 26/08): a versão original só cobria "tentativa em_andamento
+// no funil" (cenário pós-resgate, tipo Guilherme). Mas a Gabriella já tinha
+// consulta CONFIRMADA (não uma tentativa em aberto) e pediu "podemos
+// remarcar hoje então?" -- a Lumi chamou Cancelar mesmo assim, sem oferecer
+// horário novo, e ainda informou disponibilidade errada. O prompt já tem
+// regra explícita cobrindo isso (seção ❌ CANCELAMENTO: "se ele quer trocar
+// de horário/dia... é REAGENDAMENTO, nunca Cancelar sozinha") e mesmo assim
+// falhou ao vivo -- mesma lição de sempre (ver feedback_prompt_vs_code_
+// guarantees): regra "sempre X" só é confiável com trava em código.
+//
+// Retorna true (=> deve BLOQUEAR o cancelamento) quando NÃO há pedido
+// explícito de cancelamento nas últimas mensagens do paciente E pelo menos
+// uma destas duas condições vale:
+//   (a) existe tentativa de agendamento em_andamento pro telefone com
+//       interação nas últimas 2h (cenário original, tipo Guilherme);
+//   (b) as últimas mensagens do paciente têm linguagem de remarcação/
+//       reagendamento (cenário novo, tipo Gabriella -- consulta já
+//       confirmada sendo remanejada ao vivo, sem tentativa em aberto).
 //
 // Fail-open: qualquer erro/infra ausente => retorna false (nunca bloqueia
 // um cancelamento de verdade por causa do guard).
@@ -126,15 +140,6 @@ async function deveBloquearCancelamentoPorRemarcacao(telefoneLocal) {
   if (!pool || !telefoneLocal) return false;
   const jid = '55' + somenteDigitos(telefoneLocal) + '@s.whatsapp.net';
   try {
-    const remarcando = await pool.query(
-      `SELECT 1 FROM public.funil_agendamento
-       WHERE telefone = $1 AND status = 'em_andamento'
-         AND ultima_interacao_em > now() - interval '2 hours'
-       LIMIT 1`,
-      [jid]
-    );
-    if (remarcando.rowCount === 0) return false;
-
     const msgs = await pool.query(
       `SELECT message->>'content' AS c
        FROM public.n8n_chat_histories
@@ -148,7 +153,20 @@ async function deveBloquearCancelamentoPorRemarcacao(telefoneLocal) {
       /\bcancel|desmarc|desist|n[aã]o quero mais|n[aã]o vou (mais )?(poder )?(ir|comparecer)|(remover|tirar|excluir) (a |minha )?consulta/.test(
         texto
       );
-    return !pediuCancelarExplicito;
+    if (pediuCancelarExplicito) return false;
+
+    const remarcando = await pool.query(
+      `SELECT 1 FROM public.funil_agendamento
+       WHERE telefone = $1 AND status = 'em_andamento'
+         AND ultima_interacao_em > now() - interval '2 hours'
+       LIMIT 1`,
+      [jid]
+    );
+    if (remarcando.rowCount > 0) return true;
+
+    const pediuRemarcar =
+      /\bremarc|mudar (o )?hor[áa]rio|outro hor[áa]rio|trocar (o )?dia|mais tarde|mais cedo|reagendar/.test(texto);
+    return pediuRemarcar;
   } catch (erro) {
     console.error('[cancelar-agendamento] guard de remarcação falhou -- deixando passar:', erro.message);
     return false;
