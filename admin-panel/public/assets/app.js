@@ -96,7 +96,10 @@ const secoes = {
   agenda: () => mostrarAgenda(semanaAtualAgenda),
   mensagens: () => carregarConversas(document.getElementById('buscaConversas').value),
   analytics: carregarPaginaAnalytics,
-  configuracoes: carregarConfiguracaoHorarios,
+  configuracoes: () => {
+    carregarConfiguracaoHorarios();
+    carregarLicoesAprendidas();
+  },
 };
 
 document.querySelectorAll('.nav__item[data-secao]').forEach((botao) => {
@@ -1847,6 +1850,89 @@ document.getElementById('formConfiguracaoHorarios').addEventListener('submit', a
   } finally {
     botao.disabled = false;
     botao.textContent = 'Salvar';
+  }
+});
+
+// ============================================================
+// Lições aprendidas (análise semanal de intervenções da equipe)
+// ============================================================
+
+const ROTULOS_TIPO_SUGESTAO = { prompt: 'Ajuste de prompt', codigo: 'Ajuste de código', harness_only: 'Só cenário de teste' };
+const ROTULOS_CONFIANCA = { alta: 'Confiança alta', media: 'Confiança média', baixa: 'Confiança baixa' };
+
+async function carregarLicoesAprendidas() {
+  const alvo = document.getElementById('conteudoLicoesAprendidas');
+  try {
+    const lista = await chamarApi('/api/licoes-aprendidas');
+    if (lista.length === 0) {
+      alvo.innerHTML =
+        '<div class="estado-vazio"><span class="estado-vazio__emoji">🧠</span>Nenhum achado ainda. A análise semanal ainda não rodou, ou não encontrou nenhuma correção real nas últimas rodadas.</div>';
+      return;
+    }
+    alvo.innerHTML = lista.map(renderizarLicaoAprendida).join('');
+  } catch (erro) {
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
+
+function renderizarLicaoAprendida(l) {
+  const seloStatus =
+    l.status === 'pendente'
+      ? '<span class="selo selo-urgente">Aguardando revisão</span>'
+      : l.status === 'aprovado'
+        ? '<span class="selo selo-neutro">Aprovado — aguardando aplicação</span>'
+        : l.status === 'aplicado'
+          ? '<span class="selo selo-neutro">Aplicado</span>'
+          : '<span class="selo selo-neutro">Rejeitado</span>';
+  return `
+    <div class="cartao-licao" data-linha-licao="${l.id}">
+      <div class="cartao-licao__cabecalho">
+        ${seloStatus}
+        <span class="selo selo-neutro">${escapar(ROTULOS_TIPO_SUGESTAO[l.tipo_sugestao] || l.tipo_sugestao)}</span>
+        <span class="selo selo-neutro">${escapar(ROTULOS_CONFIANCA[l.confianca] || l.confianca)}</span>
+        <span class="texto-fraco">período ${escapar(l.periodo_inicio || '')} – ${escapar(l.periodo_fim || '')}</span>
+      </div>
+      <div class="cartao-licao__paciente">
+        ${nomeExibicao(l.paciente_nome, l.paciente_apelido_whatsapp, l.paciente_telefone ? '(paciente sem nome salvo)' : '(sem paciente vinculado)')}
+        ${l.paciente_telefone ? `<span class="texto-fraco"> · ${escapar(l.paciente_telefone)}</span>` : ''}
+      </div>
+      <p class="cartao-licao__resumo">${escapar(l.resumo || '')}</p>
+      ${l.trecho_sugerido ? `<pre class="cartao-licao__trecho">${escapar(l.trecho_sugerido)}</pre>` : ''}
+      ${
+        l.status === 'pendente'
+          ? `
+        <div class="cartao-licao__acoes">
+          <input type="text" class="cartao-licao__comentario" data-comentario="${l.id}" placeholder="Comentário (opcional)" />
+          <button class="botao botao-primario" data-decidir="${l.id}" data-decisao="aprovado">Aprovar</button>
+          <button class="botao" data-decidir="${l.id}" data-decisao="rejeitado">Rejeitar</button>
+        </div>`
+          : `
+        <div class="texto-fraco">
+          Decidido em ${escapar(l.decidido_em_formatado || '—')}${l.comentario_tiago ? ` — "${escapar(l.comentario_tiago)}"` : ''}
+        </div>`
+      }
+    </div>`;
+}
+
+document.getElementById('conteudoLicoesAprendidas').addEventListener('click', async (evento) => {
+  const botao = evento.target.closest('button[data-decidir]');
+  if (!botao) return;
+  const id = botao.dataset.decidir;
+  const decisao = botao.dataset.decisao;
+  const campoComentario = document.querySelector(`[data-comentario="${id}"]`);
+  const comentario = campoComentario ? campoComentario.value : '';
+  const cartao = document.querySelector(`[data-linha-licao="${id}"]`);
+  cartao.querySelectorAll('button[data-decidir]').forEach((b) => (b.disabled = true));
+  try {
+    await chamarApi(`/api/licoes-aprendidas/${id}/decidir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decisao, comentario }),
+    });
+    await carregarLicoesAprendidas();
+  } catch (erro) {
+    alert(erro.message);
+    cartao.querySelectorAll('button[data-decidir]').forEach((b) => (b.disabled = false));
   }
 });
 

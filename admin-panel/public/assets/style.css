@@ -1254,6 +1254,67 @@ html, body {
   justify-content: flex-end;
 }
 
+.painel-licoes-aprendidas {
+  margin-top: 24px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cartao-licao {
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cartao-licao__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cartao-licao__paciente {
+  font-weight: 600;
+}
+
+.cartao-licao__resumo {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cartao-licao__trecho {
+  background: var(--cor-fundo-alt);
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.cartao-licao__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cartao-licao__comentario {
+  flex: 1 1 220px;
+  padding: 8px 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--cor-cartao);
+  color: inherit;
+}
+
 /* Linha cancelada na Agenda -- continua visível (a visão precisa mostrar
    tudo), só marcada visualmente pra não confundir com uma consulta ativa. */
 .linha-cancelada td {

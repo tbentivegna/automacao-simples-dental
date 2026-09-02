@@ -342,6 +342,53 @@ async function buscarPendencias() {
   return rows;
 }
 
+// Achados da análise semanal de "lições aprendidas" (ver
+// scripts/analise-semanal-prompt.md) -- pendentes primeiro, depois os já
+// decididos, mais recentes primeiro em cada grupo. licoes_aprendidas usa
+// timestamptz de verdade (migration 013), não precisa do hack "AT TIME
+// ZONE 'UTC' duplo" que as colunas antigas (cliente/agent_actions) pedem.
+async function buscarLicoesAprendidas() {
+  const { rows } = await pool.query(
+    `SELECT
+      la.id,
+      to_char(la.periodo_inicio, 'DD/MM/YYYY') AS periodo_inicio,
+      to_char(la.periodo_fim, 'DD/MM/YYYY') AS periodo_fim,
+      la.paciente_telefone,
+      c.nome AS paciente_nome,
+      c.apelido_whatsapp AS paciente_apelido_whatsapp,
+      la.resumo,
+      la.tipo_sugestao,
+      la.trecho_sugerido,
+      la.confianca,
+      la.status,
+      la.comentario_tiago,
+      to_char(la.created_at AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado,
+      to_char(la.decidido_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS decidido_em_formatado
+    FROM public.licoes_aprendidas la
+    LEFT JOIN public.cliente c ON c.telefone = la.paciente_telefone
+    ORDER BY (la.status = 'pendente') DESC, la.created_at DESC
+    LIMIT 100;`
+  );
+  return rows;
+}
+
+// Aprova/rejeita um achado -- nunca aplica nada sozinho, só registra a
+// decisão. Aplicar de fato (harness -> DEV -> PROD) é uma sessão do
+// Claude Code revisada por humano, não uma automação deste botão.
+async function decidirLicaoAprendida(id, decisao, comentario) {
+  if (!['aprovado', 'rejeitado'].includes(decisao)) {
+    throw new Error('decisão inválida: ' + decisao);
+  }
+  const { rows } = await pool.query(
+    `UPDATE public.licoes_aprendidas
+     SET status = $2, comentario_tiago = $3, decidido_em = now()
+     WHERE id = $1 AND status = 'pendente'
+     RETURNING id;`,
+    [id, decisao, (comentario || '').trim() || null]
+  );
+  return rows.length > 0;
+}
+
 // Sugestões pro autocomplete do campo "Paciente" ao criar pendência manual
 // -- só dispara com 2+ caracteres, retorna poucos resultados. Não é pra
 // travar quem quer digitar algo que não é paciente nenhum (ex: "Comprar
@@ -952,4 +999,6 @@ module.exports = {
   buscarNuvemPalavras,
   buscarConfiguracaoHorarios,
   salvarConfiguracaoHorarios,
+  buscarLicoesAprendidas,
+  decidirLicaoAprendida,
 };

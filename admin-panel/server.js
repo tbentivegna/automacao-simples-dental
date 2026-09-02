@@ -40,6 +40,8 @@ const {
   buscarNuvemPalavras,
   buscarConfiguracaoHorarios,
   salvarConfiguracaoHorarios,
+  buscarLicoesAprendidas,
+  decidirLicaoAprendida,
 } = require('./queries');
 const { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
 const { enviarMensagem } = require('./evolution');
@@ -359,6 +361,33 @@ app.put('/api/configuracoes/horarios', exigirAutenticacaoApi, async (req, res) =
   } catch (erro) {
     console.error('Erro em PUT /api/configuracoes/horarios:', erro);
     res.status(500).json({ erro: 'Falha ao salvar configuração de horários.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/licoes-aprendidas', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarLicoesAprendidas());
+  } catch (erro) {
+    console.error('Erro em /api/licoes-aprendidas:', erro);
+    res.status(500).json({ erro: 'Falha ao buscar lições aprendidas.', detalhe: erro.message });
+  }
+});
+
+app.post('/api/licoes-aprendidas/:id/decidir', exigirAutenticacaoApi, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { decisao, comentario } = req.body || {};
+  if (!id || !['aprovado', 'rejeitado'].includes(decisao)) {
+    return res.status(400).json({ erro: 'Informe id válido e decisao "aprovado" ou "rejeitado".' });
+  }
+  try {
+    const ok = await decidirLicaoAprendida(id, decisao, comentario);
+    if (!ok) {
+      return res.status(404).json({ erro: 'Achado não encontrado ou já decidido.' });
+    }
+    res.json({ sucesso: true });
+  } catch (erro) {
+    console.error('Erro em /api/licoes-aprendidas/:id/decidir:', erro);
+    res.status(500).json({ erro: 'Falha ao registrar decisão.', detalhe: erro.message });
   }
 });
 
