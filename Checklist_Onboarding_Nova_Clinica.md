@@ -51,7 +51,7 @@ Isolamento é por **banco (database) separado, não schema separado**, dentro do
 ⚠️ **Nunca clonar o banco de produção da Dra. Aline como "template"** (nem com `CREATE DATABASE ... TEMPLATE`) — isso copiaria dados reais de pacientes dela pro banco da clínica nova, problema sério de LGPD. O jeito certo é sempre partir de um banco vazio.
 
 - [ ] `CREATE DATABASE <clinica_x>` no Postgres existente do Easypanel (banco novo, vazio)
-- [ ] Rodar TODAS as migrations de `db/migrations/`, em ordem, contra esse banco novo (schema fica idêntico ao de produção, sem nenhuma linha de paciente)
+- [ ] Rodar TODAS as migrations de `db/migrations/`, em ordem (**a partir da 001** -- confirmado 03/09 batendo 13/13 tabelas com produção; antes dessa data faltava a 001, que captura `cliente`/`agent_actions`/`n8n_chat_histories`/`whatsapp_debounce`, tabelas que existiam em prod desde antes do sistema de migrations e nunca tinham sido capturadas em arquivo nenhum), contra esse banco novo (schema fica idêntico ao de produção, sem nenhuma linha de paciente)
 - [ ] Criar um `ROLE` Postgres próprio desta clínica (usuário + senha dedicados), com permissão só nesse banco — nunca reaproveitar o superuser nem a credencial de outra clínica
 - [ ] Montar a `DATABASE_URL` desta clínica com esse role/banco novos — é o valor usado no robô, no painel admin, e na credencial Postgres do n8n (ver seções abaixo)
 - [ ] Criar a credencial Postgres correspondente no n8n, apontando pra essa `DATABASE_URL`
