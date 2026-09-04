@@ -1290,7 +1290,12 @@ async function renderizarGradeHoraria(dias) {
       // trava o clique de criar consulta, só avisa com um selo informativo
       // (diferente de um bloqueio sem rótulo, esse sim provavelmente uma
       // folga de verdade).
-      const feriado = bloqueio ? nomeFeriado(formatarDataISO(diaMs)) : null;
+      // Calculado sempre, independente de existir marcador de bloqueio nos
+      // dados -- feriado é um fato do calendário, não algo que só existe
+      // quando o Simples Dental (ou o standalone-bridge) diz que o dia
+      // está fechado. Sem isso, o standalone (sem conceito de "dia
+      // bloqueado" nenhum) nunca mostrava o selo de feriado.
+      const feriado = nomeFeriado(formatarDataISO(diaMs));
       const classes = [
         'agenda-coluna-dia',
         diaMs === hoje && 'agenda-coluna-dia--hoje',
@@ -1341,7 +1346,8 @@ function renderizarAgendaMes() {
       const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
       const bloqueado = doDia.some(ehBloqueioDeDia);
       const dataIso = formatarDataISO(diaMs);
-      const feriado = bloqueado ? nomeFeriado(dataIso) : null;
+      // Calculado sempre -- ver comentário equivalente em renderizarGradeHoraria.
+      const feriado = nomeFeriado(dataIso);
       const reais = doDia.filter((c) => !ehBloqueioDeDia(c)).sort((a, b) => a.inicio - b.inicio);
       const visiveis = reais.slice(0, 3);
       const resto = reais.length - visiveis.length;
