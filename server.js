@@ -1705,7 +1705,21 @@ async function mudarStatusAgendamento({ id, status, telefone }) {
     // então o ternário antigo nunca via os outros 4 valores.
     const tipoEvento = status === 'Confirmada' ? 'confirmado' : status.startsWith('Cancelada') ? 'cancelado' : null;
     if (tipoEvento) {
-      await registrarEventoAgenda({ tipo: tipoEvento, telefone });
+      // telefone é opcional nas rotas que chamam esta função (a IA às vezes
+      // não repassa) -- achado real 04/09: isso deixava eventos_agenda com
+      // telefone NULL pra confirmado/cancelado, e o drill-down do Visão
+      // Geral nunca conseguia resolver o nome do paciente pra esses cards.
+      // agendamento_telefone já mapeia agendamento -> telefone (gravado por
+      // salvarTelefoneAgendamento sempre que o bot cria/confirma/cancela/
+      // remarca), então usa como fallback antes de registrar sem telefone.
+      let telefoneEvento = telefone;
+      if (!telefoneEvento && pool) {
+        const mapeado = await pool
+          .query('SELECT telefone FROM public.agendamento_telefone WHERE agendamento_id = $1', [String(id)])
+          .catch(() => null);
+        telefoneEvento = mapeado?.rows[0]?.telefone || null;
+      }
+      await registrarEventoAgenda({ tipo: tipoEvento, telefone: telefoneEvento });
     }
     await salvarTelefoneAgendamento({ agendamentoId: id, telefone });
     cacheAgenda.clear();

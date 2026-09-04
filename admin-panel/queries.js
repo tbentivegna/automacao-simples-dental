@@ -163,12 +163,18 @@ async function buscarDetalheAgendamentos(tipo, janela) {
       ea.hora_consulta,
       to_char(ea.criado_em AT TIME ZONE '${FUSO_CLINICA}', 'DD/MM/YYYY "às" HH24:MI') AS criado_em_formatado
     FROM public.eventos_agenda ea
-    -- ea.telefone é gravado "cru" (ex: 11992985426), sem o "55" nem o
-    -- sufixo @s.whatsapp.net -- é o formato que o Simples Dental exige
-    -- (ver n8n/lumi-workflow.json, tools de agendamento). cliente.telefone
-    -- guarda o JID completo do WhatsApp, então reconstrói o formato antes
-    -- de casar os dois, senão o JOIN nunca bate e "nome" sempre vem NULL.
-    LEFT JOIN public.cliente c ON c.telefone = ('55' || ea.telefone || '@s.whatsapp.net')
+    -- ea.telefone vem em DOIS formatos diferentes, dependendo de qual
+    -- bridge escreveu: "cru" (ex: 11992985426, sem "55" nem sufixo -- é o
+    -- formato que o Simples Dental exige, ver server.js/raiz) OU JID
+    -- completo (ex: 5511992985426@s.whatsapp.net -- convenção do
+    -- standalone-bridge, onde telefone já é JID em toda parte). cliente.
+    -- telefone sempre guarda o JID completo -- achado real testando o
+    -- painel_demo (04/09): antes só reconstruía o formato cru, então toda
+    -- consulta criada via standalone-bridge vinha com nome NULL aqui,
+    -- mesmo o paciente já tendo nome cadastrado.
+    LEFT JOIN public.cliente c ON c.telefone = (
+      CASE WHEN ea.telefone LIKE '%@s.whatsapp.net' THEN ea.telefone ELSE '55' || ea.telefone || '@s.whatsapp.net' END
+    )
     WHERE ea.tipo = $1 AND ea.criado_em >= ${clausulaDesde('$2')}
     ORDER BY ea.criado_em DESC
     LIMIT 50;`,
