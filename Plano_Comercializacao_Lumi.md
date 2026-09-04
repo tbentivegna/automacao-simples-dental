@@ -180,11 +180,16 @@ acima). Falta: revisão de UX do painel com olhar de primeira vez, decidir
 formato final de publicação do manual (PDF exportado do markdown, ou
 página no site), e a gravação do vídeo em si (depende de você).
 
-**Fase 4 — Site de comercialização** (UI/UX + Marketing, depois da Fase 1)
-Vitrine pública: proposta de valor, como funciona, case Aline (após
-autorização), captura de lead (WhatsApp direto ou formulário — modelo
-híbrido não precisa de checkout). Posso prototipar como página pra você
-revisar antes de decidir domínio/hospedagem definitiva.
+**Fase 4 — Site de comercialização** (UI/UX + Marketing) — ✅ protótipo publicado 04/09/2026
+Vitrine de página única — hero ("IA Auxilia, IN Dirige"), os dois
+caminhos (Simples Dental integrado / Standalone), o painel como
+diferencial central, confiança (só alegações já confirmadas na Fase 2),
+planos sem preço travado, FAQ (adaptado do roteiro de demo), CTA
+WhatsApp direto (modelo híbrido, sem formulário — um artifact público
+não pode usar a capability `db`, que restringe a página à organização).
+Case da Dra. Aline propositalmente sem nome ainda (autorização formal
+pendente). Fonte em `site/index.html` (repo) + protótipo publicado como
+Artifact pra revisão. Domínio/hospedagem final seguem em aberto.
 
 **Fase 5 — Ir a mercado** (Marketing + você)
 Já documentado em `Lista_Leads_e_Outreach.md` — falta a lista real de
@@ -214,6 +219,10 @@ nomes e a decisão de pedir o post da Dra. Aline antes de outreach frio.
   com legenda/voz gerada?
 - Domínio do site comercial: novo domínio próprio, ou subdomínio de
   `tbentivegna.com.br`?
+- CTA do site usa o número pessoal do Tiago (5511981174657, já
+  estabelecido como canal de contato ao longo do projeto) — confirmar se
+  é esse mesmo o número certo pra receber lead de venda antes de
+  divulgar o link publicamente.
 
 ## Próximo passo imediato
 

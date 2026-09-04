@@ -6,6 +6,49 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-04 — Fase 4: protótipo do site publicado
+
+Tiago autorizou seguir ("Pode seguir") depois de Fase 2 fechada. Construí
+o site de comercialização (página única): hero com "IA Auxilia, IN
+Dirige", os dois caminhos de qualificação (Simples Dental / Standalone),
+o painel como diferencial central (vitrine dos 6 recursos: Agenda,
+Mensagens, Oportunidades, Analytics, Pendências, Configurações), seção
+de confiança (só as alegações já confirmadas na Fase 2 -- isolamento
+multi-tenant, monitoramento, backup testado -- nenhuma promessa de SLA
+numérico), planos (Basic/Pro/Advanced) sem preço travado, FAQ adaptado
+do `Roteiro_Demo_Vendas.md`, CTA WhatsApp direto em toda a página.
+
+**Decisão de design**: sem formulário de captura de lead -- um artifact
+público não pode declarar a capability `db` (torna a página restrita à
+organização, incompatível com compartilhar publicamente com prospect).
+CTA é só `wa.me` com mensagem pré-preenchida, consistente com o modelo
+híbrido já decidido.
+
+**Case da Dra. Aline propositalmente genérico** -- autorização formal
+dela ainda não foi confirmada nesta conversa, então o site não a nomeia
+nem fabrica depoimento nenhum em nome dela -- só "em uso real, em
+produção, numa clínica odontológica".
+
+**Identidade visual**: reaproveitada a logo real (recém-corrigida) e a
+mesma paleta/tipografia (Playfair Display + Raleway, dourado sobre
+fundo escuro) já usada na tela de login do painel de verdade -- não
+inventei uma identidade nova pro site.
+
+Publicado como Artifact privado pra revisão:
+https://claude.ai/code/artifact/34e3b332-c8d9-4f2b-8bcd-c3f5f7ae2596 --
+não consegui verificar visualmente eu mesmo (o browser desta sessão não
+tem login no Claude, artifact privado exige autenticação do dono);
+validei via checagem de HTML bem-formado (tags balanceadas, zero
+placeholder sobrando) em vez de screenshot. Fonte versionada em
+`site/index.html` + `site/assets/logo-lumi.png` (caminho relativo, sem
+o base64 embutido que o artifact usa).
+
+**Decisões em aberto novas**: confirmar se o número de WhatsApp do CTA
+(pessoal do Tiago) é o certo antes de divulgar o link; domínio/hospedagem
+definitiva.
+
+---
+
 ## 2026-09-04 — Backup/disaster recovery resolvido, testado ponta a ponta
 
 Tiago confirmou: não existia nenhuma rotina de backup mesmo. Construído
