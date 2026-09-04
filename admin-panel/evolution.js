@@ -94,4 +94,42 @@ async function obterQrCode() {
   return { base64: dados.base64 };
 }
 
-module.exports = { enviarMensagem, statusConexao, obterQrCode };
+// Desconecta a sessão do WhatsApp linkada nesta instância (sem apagar a
+// instância em si -- nome/configuração/webhook continuam existindo na
+// Evolution API, só o número atual sai). Necessário antes de conseguir um
+// QR novo quando já tem um número conectado -- /instance/connect só
+// devolve QR pra instância desconectada (confirmado ao vivo: chamado numa
+// instância "open", devolve o status atual sem nenhum campo base64).
+// Só usado por trocarNumero() -- nunca exposto sozinho pro front, pra não
+// deixar a Lumi desconectada sem nenhum caminho de volta visível no painel.
+async function desconectarInstancia() {
+  if (!EVOLUTION_BASE_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_ALINE) {
+    throw new Error(
+      'Configuração da Evolution API ausente (EVOLUTION_BASE_URL/EVOLUTION_API_KEY/EVOLUTION_INSTANCE_ALINE).'
+    );
+  }
+  const resposta = await fetch(`${EVOLUTION_BASE_URL}/instance/logout/${EVOLUTION_INSTANCE_ALINE}`, {
+    method: 'DELETE',
+    headers: { apikey: EVOLUTION_API_KEY },
+  });
+  const dados = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    throw new Error(dados.response?.message?.[0] || dados.message || dados.error || 'Falha ao desconectar a instância.');
+  }
+}
+
+// Troca o número conectado: desconecta a sessão atual e devolve um QR code
+// novo pra escanear com outro celular. AÇÃO DESTRUTIVA -- desconecta na
+// hora o número que estiver ativo agora (em produção, é o WhatsApp real da
+// clínica atendendo paciente). O front exige confirmação explícita do
+// usuário antes de chamar esta rota (ver #botaoTrocarNumero em app.js).
+async function trocarNumero() {
+  await desconectarInstancia();
+  // A Evolution API precisa de um instante pra terminar de processar o
+  // logout antes de connect voltar a gerar QR -- mesmo padrão de espera
+  // depois de mudar estado já usado nos scripts de n8n deste projeto.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  return obterQrCode();
+}
+
+module.exports = { enviarMensagem, statusConexao, obterQrCode, trocarNumero };

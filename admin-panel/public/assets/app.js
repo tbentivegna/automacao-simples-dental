@@ -2574,8 +2574,11 @@ function renderizarConexaoWhatsapp(status) {
   const selo = status.conectado
     ? '<span class="selo selo-sucesso">● Conectado</span>'
     : '<span class="selo selo-urgente">● Desconectado</span>';
+  // Conectada: só oferece trocar de número (desconecta a atual antes de
+  // gerar QR novo). Desconectada: só oferece reconectar -- não faz sentido
+  // "trocar" um número que já não está conectado a nada.
   const botao = status.conectado
-    ? ''
+    ? '<div><button class="botao" id="botaoTrocarNumero">Conectar outro número</button></div>'
     : '<div><button class="botao botao-primario" id="botaoGerarQrCode">Gerar QR code pra reconectar</button></div>';
   return `
     <p><strong>${escapar(status.instancia)}</strong> — ${selo}</p>
@@ -2584,19 +2587,44 @@ function renderizarConexaoWhatsapp(status) {
 }
 
 document.getElementById('conteudoConexaoWhatsapp').addEventListener('click', async (evento) => {
-  if (evento.target.id !== 'botaoGerarQrCode') return;
-  const botao = evento.target;
-  const areaQrCode = document.getElementById('areaQrCode');
-  botao.disabled = true;
-  botao.textContent = 'Gerando QR code…';
-  try {
-    const { base64 } = await chamarApi('/api/whatsapp/qrcode');
-    areaQrCode.innerHTML = `<img class="qrcode-whatsapp" src="${base64}" alt="QR code pra reconectar o WhatsApp" />`;
-  } catch (erro) {
-    areaQrCode.innerHTML = elementoErro(erro.message);
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Gerar QR code pra reconectar';
+  if (evento.target.id === 'botaoGerarQrCode') {
+    const botao = evento.target;
+    const areaQrCode = document.getElementById('areaQrCode');
+    botao.disabled = true;
+    botao.textContent = 'Gerando QR code…';
+    try {
+      const { base64 } = await chamarApi('/api/whatsapp/qrcode');
+      areaQrCode.innerHTML = `<img class="qrcode-whatsapp" src="${base64}" alt="QR code pra reconectar o WhatsApp" />`;
+    } catch (erro) {
+      areaQrCode.innerHTML = elementoErro(erro.message);
+    } finally {
+      botao.disabled = false;
+      botao.textContent = 'Gerar QR code pra reconectar';
+    }
+    return;
+  }
+
+  if (evento.target.id === 'botaoTrocarNumero') {
+    if (
+      !confirm(
+        'Isso desconecta AGORA o número atual do WhatsApp desta instância -- se for a instância de produção, a Lumi para de responder pacientes até o QR novo ser escaneado. Confirma que quer trocar o número?'
+      )
+    ) {
+      return;
+    }
+    const botao = evento.target;
+    const areaQrCode = document.getElementById('areaQrCode');
+    botao.disabled = true;
+    botao.textContent = 'Desconectando e gerando QR novo…';
+    try {
+      const { base64 } = await chamarApi('/api/whatsapp/trocar-numero', { method: 'POST' });
+      areaQrCode.innerHTML = `<img class="qrcode-whatsapp" src="${base64}" alt="QR code pra conectar o número novo" />`;
+      botao.textContent = 'Escaneie o QR code com o número novo';
+    } catch (erro) {
+      areaQrCode.innerHTML = elementoErro(erro.message);
+      botao.disabled = false;
+      botao.textContent = 'Conectar outro número';
+    }
   }
 });
 

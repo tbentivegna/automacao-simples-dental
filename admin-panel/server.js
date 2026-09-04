@@ -45,7 +45,7 @@ const {
   decidirLicaoAprendida,
 } = require('./queries');
 const { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
-const { enviarMensagem, statusConexao, obterQrCode } = require('./evolution');
+const { enviarMensagem, statusConexao, obterQrCode, trocarNumero } = require('./evolution');
 
 if (!process.env.ADMIN_PASSWORD) {
   throw new Error('ADMIN_PASSWORD não configurada -- veja .env.example.');
@@ -201,6 +201,19 @@ app.get('/api/whatsapp/qrcode', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em GET /api/whatsapp/qrcode:', erro);
     res.status(502).json({ erro: 'Falha ao gerar QR code.', detalhe: erro.message });
+  }
+});
+
+// Desconecta o número atual e devolve um QR novo -- usado pra conectar um
+// número DIFERENTE numa instância que já está conectada (/qrcode acima só
+// funciona quando já está desconectada). Ação destrutiva: o front exige
+// confirmação explícita antes de chamar (ver #botaoTrocarNumero em app.js).
+app.post('/api/whatsapp/trocar-numero', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await trocarNumero());
+  } catch (erro) {
+    console.error('Erro em POST /api/whatsapp/trocar-numero:', erro);
+    res.status(502).json({ erro: 'Falha ao trocar o número conectado.', detalhe: erro.message });
   }
 });
 
