@@ -29,6 +29,7 @@ const {
   buscarOportunidades,
   reativarOportunidade,
   buscarSugestoesPacientes,
+  buscarNomeClientePorTelefone,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,
@@ -57,6 +58,18 @@ app.use(express.json());
 // CSS/JS/imagens ficam liberados sem login -- não têm dado nenhum de
 // paciente, só estrutura. Quem protege os dados de verdade é a API abaixo.
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+
+// Config pública de branding -- lida por login.html E dashboard.html
+// (assets/branding.js), por isso NÃO fica atrás de exigirAutenticacaoApi
+// (a tela de login precisa do nome da clínica antes de qualquer sessão
+// existir). Não expõe nada sensível, só rótulos de UI. Mesmo código/cores/
+// logo em toda instância do painel -- só esses 2 textos mudam por
+// variável de ambiente (ver plano "Painel demo do Standalone").
+const NOME_CLINICA = process.env.NOME_CLINICA || 'Dra. Aline Bentivegna';
+const MOSTRAR_SINCRONIZAR_ESPELHO = process.env.MOSTRAR_SINCRONIZAR_ESPELHO !== 'false';
+app.get('/api/config', (req, res) => {
+  res.json({ nomeClinica: NOME_CLINICA, mostrarSincronizarEspelho: MOSTRAR_SINCRONIZAR_ESPELHO });
+});
 
 // ============================================================
 // Login
@@ -474,7 +487,7 @@ app.get('/api/agenda', exigirAutenticacaoApi, async (req, res) => {
     res.json(await buscarAgendaSemana(req.query.semanas));
   } catch (erro) {
     console.error('Erro em /api/agenda:', erro);
-    res.status(502).json({ erro: 'Falha ao buscar agenda no Simples Dental.', detalhe: erro.message });
+    res.status(502).json({ erro: 'Falha ao buscar agenda.', detalhe: erro.message });
   }
 });
 
@@ -489,7 +502,17 @@ app.post('/api/agenda/sincronizar', exigirAutenticacaoApi, async (req, res) => {
 
 app.post('/api/agenda/consultas', exigirAutenticacaoApi, async (req, res) => {
   try {
-    res.json(await criarConsulta(req.body || {}));
+    const payload = { ...(req.body || {}) };
+    // O bridge da raiz (Simples Dental) resolve o paciente do lado de lá e
+    // ignora esse campo se vier; o standalone-bridge exige nomePaciente
+    // (public.consultas não tem de onde puxar um nome sozinho). O
+    // formulário de Nova Consulta só pede telefone -- resolve o nome de
+    // quem já é cadastrado, e usa o próprio telefone como nome provisório
+    // pra quem ainda não é (fica fácil de corrigir depois pelo modal).
+    if (!payload.nomePaciente && payload.telefone) {
+      payload.nomePaciente = (await buscarNomeClientePorTelefone(payload.telefone)) || payload.telefone;
+    }
+    res.json(await criarConsulta(payload));
   } catch (erro) {
     console.error('Erro em POST /api/agenda/consultas:', erro);
     res.status(502).json({ erro: 'Falha ao criar consulta.', detalhe: erro.message });

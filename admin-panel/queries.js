@@ -409,6 +409,22 @@ async function buscarSugestoesPacientes(termo) {
   return rows;
 }
 
+// Resolve o nome de um paciente já cadastrado a partir do telefone digitado
+// no formulário de Nova Consulta -- achado testando o painel_demo: o
+// standalone-bridge exige nomePaciente pra criar consulta (não existe um
+// "Simples Dental" pra puxar o nome de lá como no bridge da raiz, que
+// ignora esse campo se ele vier). Usado só como fallback quando o form não
+// manda nomePaciente explicitamente.
+async function buscarNomeClientePorTelefone(telefone) {
+  const termoSeguro = (telefone || '').trim();
+  if (!termoSeguro) return null;
+  const { rows } = await pool.query(
+    `SELECT nome, apelido_whatsapp FROM public.cliente WHERE telefone ILIKE '%' || $1 || '%' LIMIT 1;`,
+    [termoSeguro]
+  );
+  return rows[0]?.nome || rows[0]?.apelido_whatsapp || null;
+}
+
 // Pendência criada manualmente pela equipe (ex: secretária), pra situação
 // que não passou pela Lumi -- mesma tabela/formato das automáticas, só
 // com action fixo "OUTROS" (não tenta adivinhar categoria) e domain
@@ -988,6 +1004,7 @@ module.exports = {
   buscarOportunidades,
   reativarOportunidade,
   buscarSugestoesPacientes,
+  buscarNomeClientePorTelefone,
   buscarPacientes,
   buscarStatusGlobal,
   pausarGlobal,

@@ -14,11 +14,11 @@
     <aside class="barra-lateral" id="barraLateral">
       <div class="barra-lateral__topo-mobile">
         <button class="botao-menu" id="botaoMenu" aria-label="Abrir menu" aria-expanded="false">☰</button>
-        <img class="marca-lumi-img marca-lumi-img--mobile" src="/assets/logo-lumi.png" alt="Lumi — Concierge Digital, Dra. Aline Bentivegna" />
+        <img class="marca-lumi-img marca-lumi-img--mobile" src="/assets/logo-lumi.png" alt="Lumi — Concierge Digital, Dra. Aline Bentivegna" data-marca-lumi />
       </div>
 
       <div class="barra-lateral__marca">
-        <img class="marca-lumi-img" src="/assets/logo-lumi.png" alt="Lumi — Concierge Digital, Dra. Aline Bentivegna" />
+        <img class="marca-lumi-img" src="/assets/logo-lumi.png" alt="Lumi — Concierge Digital, Dra. Aline Bentivegna" data-marca-lumi />
         <small>Painel administrativo</small>
       </div>
 
@@ -98,7 +98,7 @@
         <div class="cabecalho-secao">
           <div>
             <h2>Agenda</h2>
-            <p>Consultas no Simples Dental — dados ao vivo. <span id="agendaAtualizadoEm"></span></p>
+            <p>Consultas — dados ao vivo. <span id="agendaAtualizadoEm"></span></p>
           </div>
           <div class="cabecalho-secao__acoes">
             <button class="botao" id="botaoAtualizarAgenda">↻ Atualizar</button>
@@ -139,7 +139,7 @@
           <select id="novaConsultaCategoria">
             <option value="">Categoria (opcional)</option>
           </select>
-          <input type="text" id="novaConsultaRotulo" list="opcoesRotulo" autocomplete="off" placeholder="Rótulo do Simples Dental (opcional)" />
+          <input type="text" id="novaConsultaRotulo" list="opcoesRotulo" autocomplete="off" placeholder="Rótulo (opcional)" />
           <textarea id="novaConsultaObservacao" placeholder="Observação (opcional)" rows="2"></textarea>
           <div class="form-nova-pendencia__acoes">
             <button type="button" class="botao" id="botaoCancelarNovaConsulta">Cancelar</button>
@@ -427,7 +427,7 @@
 
         <div class="modal-consulta__bloco">
           <label for="modalConsultaRotulo">Rótulo</label>
-          <input type="text" id="modalConsultaRotulo" list="opcoesRotulo" autocomplete="off" placeholder="Nome exato do rótulo (ex: HOF)" />
+          <input type="text" id="modalConsultaRotulo" list="opcoesRotulo" autocomplete="off" placeholder="Rótulo (ex: HOF)" />
           <button type="button" class="botao botao-primario" id="botaoSalvarRotuloConsulta">Salvar rótulo</button>
         </div>
 
@@ -446,6 +446,7 @@
   </div>
 
   <script src="/assets/vendor/chart.umd.min.js"></script>
+  <script src="/assets/branding.js"></script>
   <script src="/assets/app.js"></script>
 </body>
 </html>

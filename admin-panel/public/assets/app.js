@@ -1671,7 +1671,7 @@ document.getElementById('botaoSalvarRotuloConsulta').addEventListener('click', a
   if (!consultaSelecionada) return;
   const rotulo = document.getElementById('modalConsultaRotulo').value.trim();
   if (!rotulo) {
-    alert('Digite o nome exato de um rótulo já existente no Simples Dental.');
+    alert('Digite um rótulo.');
     return;
   }
   const idConsulta = consultaSelecionada.id;
