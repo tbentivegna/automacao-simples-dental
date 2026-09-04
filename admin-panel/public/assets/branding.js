@@ -20,6 +20,13 @@
   document.querySelectorAll('img[data-marca-lumi]').forEach((img) => {
     img.alt = `Lumi — Concierge Digital, ${nome}`;
   });
+  // Nome da clínica como texto visível de verdade -- até 04/09 isso vinha
+  // desenhado dentro do PNG da logo (só o alt, invisível, mudava por
+  // instalação), então o nome real da Dra. Aline aparecia até no
+  // painel_demo. Ver .marca-lumi-subtitulo em style.css.
+  document.querySelectorAll('[data-marca-lumi-subtitulo]').forEach((el) => {
+    el.textContent = `Concierge Digital — ${nome}`;
+  });
 
   if (config.mostrarSincronizarEspelho === false) {
     const botao = document.getElementById('botaoSincronizarEspelho');

@@ -102,6 +102,21 @@ button {
   margin: 0 auto;
 }
 
+/* Nome da clínica (NOME_CLINICA) como texto de verdade, não mais
+   desenhado dentro do PNG da logo -- achado 04/09: a imagem antiga tinha
+   "CONCIERGE DIGITAL -- DRA. ALINE BENTIVEGNA" nos pixels, então o nome
+   real da Aline aparecia em qualquer instalação (inclusive o demo),
+   mesmo com NOME_CLINICA configurado diferente. Populado por
+   branding.js, mesmo texto/estilo usado no login e na barra lateral. */
+.marca-lumi-subtitulo {
+  display: block;
+  margin-top: -8px;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .cartao-login h1 {
   font-size: 1.3rem;
   margin-bottom: 4px;
