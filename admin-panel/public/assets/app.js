@@ -948,7 +948,7 @@ function renderizarAgenda() {
   const alvo = document.getElementById('conteudoAgenda');
   const { inicioSemana, fimSemana } = limitesSemana(semanaAtualAgenda);
   const daSemana = agendaCache
-    .filter((c) => c.fim > c.inicio) // descarta bloqueios de dia inteiro
+    .filter((c) => !ehBloqueioDeDia(c)) // descarta bloqueios de dia inteiro
     .filter((c) => c.inicio >= inicioSemana && c.inicio < fimSemana)
     .sort((a, b) => a.inicio - b.inicio);
 
@@ -1009,6 +1009,18 @@ document.getElementById('seletorSemanaAgenda').addEventListener('click', (evento
 
 function inicioDoDiaLocal(data) {
   return new Date(data.getFullYear(), data.getMonth(), data.getDate()).getTime();
+}
+
+// Bloqueio de dia inteiro no Simples Dental -- achado testando de verdade
+// (07/09/2026, feriado da Independência): nem todo bloqueio vem com
+// fim<=inicio (o marcador "clássico" que o resto do código já tratava).
+// Às vezes vem como um span de 24h inteiras (fim == inicio + 1 dia), que
+// passava batido no filtro antigo e aparecia como um "compromisso" vazio
+// à meia-noite. Em qualquer um dos dois formatos, não tem id nem paciente
+// reais (o scraper não achou data-consulta-id/.fc-event-title de
+// verdade) -- esse é o sinal confiável, mais do que só olhar fim/inicio.
+function ehBloqueioDeDia(c) {
+  return c.id == null && c.paciente == null;
 }
 
 function formatarDataISO(msOuData) {
@@ -1091,14 +1103,75 @@ function calcularFaixaHoras(config, diasVisiveis, compromissosDoIntervalo) {
     }
   }
   for (const c of compromissosDoIntervalo) {
-    if (c.fim <= c.inicio) continue; // bloqueio de dia inteiro não conta pra faixa de horas
+    if (ehBloqueioDeDia(c)) continue; // bloqueio de dia inteiro não conta pra faixa de horas
     const inicioData = new Date(c.inicio);
     const fimData = new Date(c.fim);
     min = Math.min(min, inicioData.getHours() * 60 + inicioData.getMinutes());
     max = Math.max(max, fimData.getHours() * 60 + fimData.getMinutes());
   }
-  if (min === Infinity) return { inicioMin: 8 * 60, fimMin: 19 * 60 };
-  return { inicioMin: Math.max(0, min - 30), fimMin: Math.min(24 * 60, max + 30) };
+  // Pedido do Tiago: a grade sempre começa às 07:00, não varia dia a dia --
+  // mais fácil da secretária saber onde olhar. Só abre mão disso se um
+  // compromisso real começar antes (não corta dado de verdade pra manter
+  // a régua fixa).
+  const INICIO_PADRAO_MIN = 7 * 60;
+  if (min === Infinity) return { inicioMin: INICIO_PADRAO_MIN, fimMin: 19 * 60 };
+  return { inicioMin: Math.min(INICIO_PADRAO_MIN, Math.max(0, min - 30)), fimMin: Math.min(24 * 60, max + 30) };
+}
+
+// Feriados nacionais fixos + móveis (baseados na Páscoa, algoritmo de
+// Meeus/Jones/Butcher) -- usado só pra diferenciar "feriado" (a Dra.
+// Aline às vezes atende mesmo assim) de outros bloqueios de dia inteiro
+// no Simples Dental (folga real, sem rótulo pra saber o motivo). Não
+// tenta cobrir feriado municipal/estadual, só os nacionais.
+function calcularPascoa(ano) {
+  const a = ano % 19;
+  const b = Math.floor(ano / 100);
+  const c = ano % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mesDia = h + l - 7 * m + 114;
+  const mes = Math.floor(mesDia / 31); // 3 = março, 4 = abril
+  const dia = (mesDia % 31) + 1;
+  return new Date(ano, mes - 1, dia);
+}
+
+function feriadosNacionaisBR(ano) {
+  const pascoa = calcularPascoa(ano);
+  const emRelacaoAPascoa = (offsetDias) => {
+    const d = new Date(pascoa);
+    d.setDate(d.getDate() + offsetDias);
+    return formatarDataISO(d);
+  };
+  const mapa = new Map([
+    [`${ano}-01-01`, 'Confraternização Universal'],
+    [`${ano}-04-21`, 'Tiradentes'],
+    [`${ano}-05-01`, 'Dia do Trabalho'],
+    [`${ano}-09-07`, 'Independência do Brasil'],
+    [`${ano}-10-12`, 'Nossa Senhora Aparecida'],
+    [`${ano}-11-02`, 'Finados'],
+    [`${ano}-11-15`, 'Proclamação da República'],
+    [`${ano}-11-20`, 'Consciência Negra'],
+    [`${ano}-12-25`, 'Natal'],
+    [emRelacaoAPascoa(-48), 'Carnaval'],
+    [emRelacaoAPascoa(-47), 'Carnaval'],
+    [emRelacaoAPascoa(-2), 'Sexta-feira Santa'],
+    [emRelacaoAPascoa(60), 'Corpus Christi'],
+  ]);
+  return mapa;
+}
+
+const feriadosPorAno = new Map(); // ano -> Map(dataISO -> nome)
+function nomeFeriado(dataISO) {
+  const ano = Number(dataISO.slice(0, 4));
+  if (!feriadosPorAno.has(ano)) feriadosPorAno.set(ano, feriadosNacionaisBR(ano));
+  return feriadosPorAno.get(ano).get(dataISO) || null;
 }
 
 // Empacota eventos que se sobrepõem em colunas lado a lado (mesma técnica
@@ -1209,16 +1282,27 @@ async function renderizarGradeHoraria(dias) {
   const colunasHtml = dias
     .map((diaMs) => {
       const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
-      const bloqueio = doDia.find((c) => c.fim <= c.inicio);
-      const reais = doDia.filter((c) => c.fim > c.inicio);
+      const bloqueio = doDia.find(ehBloqueioDeDia);
+      const reais = doDia.filter((c) => !ehBloqueioDeDia(c));
       const empacotados = empacotarColunas(reais);
       const eventosHtml = empacotados.map((c) => renderizarEventoGrade(c, inicioMin, agora)).join('');
-      const classes = ['agenda-coluna-dia', diaMs === hoje && 'agenda-coluna-dia--hoje', bloqueio && 'agenda-coluna-dia--bloqueada']
+      // Feriado nacional: a Dra. Aline às vezes atende mesmo assim -- não
+      // trava o clique de criar consulta, só avisa com um selo informativo
+      // (diferente de um bloqueio sem rótulo, esse sim provavelmente uma
+      // folga de verdade).
+      const feriado = bloqueio ? nomeFeriado(formatarDataISO(diaMs)) : null;
+      const classes = [
+        'agenda-coluna-dia',
+        diaMs === hoje && 'agenda-coluna-dia--hoje',
+        bloqueio && !feriado && 'agenda-coluna-dia--bloqueada',
+      ]
         .filter(Boolean)
         .join(' ');
-      const bannerBloqueio = bloqueio
-        ? `<div class="agenda-coluna-dia__bloqueio-rotulo">${escapar(bloqueio.rotulo || 'Dia bloqueado')}</div>`
-        : '';
+      const bannerBloqueio = feriado
+        ? `<div class="agenda-coluna-dia__feriado-rotulo">Feriado: ${escapar(feriado)}</div>`
+        : bloqueio
+          ? `<div class="agenda-coluna-dia__bloqueio-rotulo">${escapar(bloqueio.rotulo || 'Dia bloqueado')}</div>`
+          : '';
       return `<div class="${classes}" style="height:${alturaTotal}px" data-data="${formatarDataISO(diaMs)}" data-inicio-min="${inicioMin}">${bannerBloqueio}${eventosHtml}</div>`;
     })
     .join('');
@@ -1255,8 +1339,10 @@ function renderizarAgendaMes() {
   const celulas = dias
     .map((diaMs) => {
       const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
-      const bloqueado = doDia.some((c) => c.fim <= c.inicio);
-      const reais = doDia.filter((c) => c.fim > c.inicio).sort((a, b) => a.inicio - b.inicio);
+      const bloqueado = doDia.some(ehBloqueioDeDia);
+      const dataIso = formatarDataISO(diaMs);
+      const feriado = bloqueado ? nomeFeriado(dataIso) : null;
+      const reais = doDia.filter((c) => !ehBloqueioDeDia(c)).sort((a, b) => a.inicio - b.inicio);
       const visiveis = reais.slice(0, 3);
       const resto = reais.length - visiveis.length;
       const chips = visiveis
@@ -1266,14 +1352,21 @@ function renderizarAgendaMes() {
           return `<div class="${classe}" data-consulta-id="${escapar(c.id || '')}">${escapar(hora)} ${escapar(c.paciente || '')}</div>`;
         })
         .join('');
-      const maisHtml = resto > 0 ? `<div class="agenda-mes__mais" data-abrir-dia="${formatarDataISO(diaMs)}">+${resto} mais</div>` : '';
-      const dataIso = formatarDataISO(diaMs);
-      const classes = ['agenda-mes__dia', diaMs === hoje && 'agenda-mes__dia--hoje', bloqueado && 'agenda-mes__dia--bloqueada']
+      const maisHtml = resto > 0 ? `<div class="agenda-mes__mais" data-abrir-dia="${dataIso}">+${resto} mais</div>` : '';
+      // Feriado nacional não trava o clique (Aline às vezes atende), só
+      // mostra o selo -- mesmo critério da grade Dia/Semana.
+      const feriadoHtml = feriado ? `<div class="agenda-mes__feriado">Feriado: ${escapar(feriado)}</div>` : '';
+      const classes = [
+        'agenda-mes__dia',
+        diaMs === hoje && 'agenda-mes__dia--hoje',
+        bloqueado && !feriado && 'agenda-mes__dia--bloqueada',
+      ]
         .filter(Boolean)
         .join(' ');
       return `
         <div class="${classes}" data-slot-data="${dataIso}">
           <div class="agenda-mes__dia__numero" data-abrir-dia="${dataIso}">${new Date(diaMs).getDate()}</div>
+          ${feriadoHtml}
           <div class="agenda-mes__dia__eventos">${chips}${maisHtml}</div>
         </div>`;
     })
