@@ -1460,9 +1460,14 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
   const rotulo = document.getElementById('novaConsultaRotulo').value.trim();
   const observacao = document.getElementById('novaConsultaObservacao').value.trim();
 
-  const botaoEnviar = formNovaConsulta.querySelector('button[type="submit"]');
-  botaoEnviar.disabled = true;
-  botaoEnviar.textContent = 'Agendando…';
+  // Sem patch otimista de verdade aqui -- /criar-agendamento não devolve o
+  // id real da consulta, então não dá pra colocar um item clicável no
+  // cache antes da hora. Mas o formulário fecha JÁ (otimista de verdade
+  // pro fluxo: não fica esperando os ~20s da automação), e se der erro a
+  // gente reabre com os mesmos dados preenchidos -- nada se perde.
+  const valoresParaRestaurar = { telefone, dataInput, hora, duracaoMinutos, categoria, rotulo, observacao };
+  fecharFormNovaConsulta();
+
   try {
     await chamarApi('/api/agenda/consultas', {
       method: 'POST',
@@ -1477,18 +1482,17 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
         observacao: observacao || undefined,
       }),
     });
-    fecharFormNovaConsulta();
-    // Sem patch otimista aqui -- /criar-agendamento não devolve o id real
-    // da consulta (só sucesso/dados), então não dá pra colocar um item
-    // clicável de verdade no cache. O ganho já vem de não travar a tela:
-    // o formulário fecha na hora, a consulta aparece na grade em segundo
-    // plano assim que a confirmação com o Simples Dental terminar.
     atualizarAgendaEmSegundoPlano();
   } catch (erro) {
-    alert(erro.message);
-  } finally {
-    botaoEnviar.disabled = false;
-    botaoEnviar.textContent = 'Agendar';
+    alert(`Não foi possível criar a consulta: ${erro.message}\n\nSeus dados foram mantidos -- corrija e tente de novo.`);
+    abrirFormNovaConsulta();
+    document.getElementById('novaConsultaPaciente').value = valoresParaRestaurar.telefone;
+    document.getElementById('novaConsultaData').value = valoresParaRestaurar.dataInput;
+    document.getElementById('novaConsultaHora').value = valoresParaRestaurar.hora;
+    document.getElementById('novaConsultaDuracao').value = valoresParaRestaurar.duracaoMinutos;
+    document.getElementById('novaConsultaCategoria').value = valoresParaRestaurar.categoria;
+    document.getElementById('novaConsultaRotulo').value = valoresParaRestaurar.rotulo;
+    document.getElementById('novaConsultaObservacao').value = valoresParaRestaurar.observacao;
   }
 });
 
@@ -1540,27 +1544,33 @@ document.addEventListener('keydown', (evento) => {
   if (evento.key === 'Escape' && !document.getElementById('modalConsulta').hidden) fecharModalConsulta();
 });
 
+// Os 3 handlers abaixo (status/rótulo/remarcar) são otimistas DE VERDADE:
+// fecham o modal e mudam a consulta na tela ANTES de saber se o servidor
+// confirmou -- não só depois. O salvamento em si ainda é automação real
+// contra o Simples Dental (10-20s+, não dá pra acelerar isso sem trocar
+// a automação), mas a secretária não fica olhando pra isso: ela já vê o
+// resultado e segue trabalhando. Se a escrita falhar de verdade (ex:
+// horário ocupado), a mudança é desfeita e um alerta avisa -- caso raro,
+// mas tratado (achado testando: remarcar pra um horário ocupado dá 502).
 document.getElementById('botaoSalvarStatusConsulta').addEventListener('click', async () => {
   if (!consultaSelecionada) return;
+  const idConsulta = consultaSelecionada.id;
   const status = document.getElementById('modalConsultaStatus').value;
-  const botao = document.getElementById('botaoSalvarStatusConsulta');
-  botao.disabled = true;
-  botao.textContent = 'Salvando…';
+  const statusAnterior = consultaSelecionada.status;
+
+  fecharModalConsulta();
+  atualizarConsultaNoCache(idConsulta, { status });
+
   try {
-    const idConsulta = consultaSelecionada.id;
     await chamarApi(`/api/agenda/consultas/${idConsulta}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
-    fecharModalConsulta();
-    atualizarConsultaNoCache(idConsulta, { status });
     atualizarAgendaEmSegundoPlano();
   } catch (erro) {
-    alert(erro.message);
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Salvar status';
+    atualizarConsultaNoCache(idConsulta, { status: statusAnterior });
+    alert(`Não foi possível salvar o status: ${erro.message}\n\nA mudança foi desfeita.`);
   }
 });
 
@@ -1571,27 +1581,25 @@ document.getElementById('botaoSalvarRotuloConsulta').addEventListener('click', a
     alert('Digite o nome exato de um rótulo já existente no Simples Dental.');
     return;
   }
-  const botao = document.getElementById('botaoSalvarRotuloConsulta');
-  botao.disabled = true;
-  botao.textContent = 'Salvando…';
+  const idConsulta = consultaSelecionada.id;
+  const rotuloAnterior = consultaSelecionada.rotulo;
+
+  fecharModalConsulta();
+  // rotuloCor (cor da bolinha) fica desatualizada até a confirmação em
+  // segundo plano -- não dá pra saber a cor nova sem consultar o Simples
+  // Dental de verdade, mas o texto do rótulo já reflete a mudança.
+  atualizarConsultaNoCache(idConsulta, { rotulo });
+
   try {
-    const idConsulta = consultaSelecionada.id;
     await chamarApi(`/api/agenda/consultas/${idConsulta}/rotulo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rotulo }),
     });
-    fecharModalConsulta();
-    // rotuloCor (cor da bolinha) fica desatualizada até a confirmação em
-    // segundo plano -- não dá pra saber a cor nova sem consultar o Simples
-    // Dental de verdade, mas o texto do rótulo já reflete a mudança.
-    atualizarConsultaNoCache(idConsulta, { rotulo });
     atualizarAgendaEmSegundoPlano();
   } catch (erro) {
-    alert(erro.message);
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Salvar rótulo';
+    atualizarConsultaNoCache(idConsulta, { rotulo: rotuloAnterior });
+    alert(`Não foi possível salvar o rótulo: ${erro.message}\n\nA mudança foi desfeita.`);
   }
 });
 
@@ -1607,12 +1615,33 @@ document.getElementById('botaoRemarcarConsulta').addEventListener('click', async
   const duracaoMinutos = document.getElementById('modalConsultaRemarcarDuracao').value;
   const observacao = document.getElementById('modalConsultaRemarcarObservacao').value.trim();
 
-  const botao = document.getElementById('botaoRemarcarConsulta');
-  botao.disabled = true;
-  botao.textContent = 'Remarcando…';
+  const idConsulta = consultaSelecionada.id;
+  const duracaoOriginalMin = Math.round((consultaSelecionada.fim - consultaSelecionada.inicio) / 60000);
+  // Guarda o estado de antes pra poder desfazer se o servidor recusar
+  // (ex: "horário não está mais disponível").
+  const estadoAnterior = {
+    inicio: consultaSelecionada.inicio,
+    fim: consultaSelecionada.fim,
+    jaOcorreu: consultaSelecionada.jaOcorreu,
+    inicioFormatado: consultaSelecionada.inicioFormatado,
+    fimFormatado: consultaSelecionada.fimFormatado,
+  };
+
+  fecharModalConsulta();
+  // Recalcula inicio/fim (e os textos formatados que a grade usa pra
+  // exibir) na hora -- remarcar muda ONDE o compromisso aparece na grade,
+  // não só um campo de texto.
+  const novoInicio = new Date(`${dataInput}T${hora}`).getTime();
+  const novoFim = novoInicio + (duracaoMinutos ? Number(duracaoMinutos) : duracaoOriginalMin) * 60000;
+  atualizarConsultaNoCache(idConsulta, {
+    inicio: novoInicio,
+    fim: novoFim,
+    jaOcorreu: novoFim < Date.now(),
+    inicioFormatado: `${dia}/${mes}/${ano}, ${hora}`,
+    fimFormatado: new Date(novoFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+  });
+
   try {
-    const idConsulta = consultaSelecionada.id;
-    const duracaoOriginalMin = Math.round((consultaSelecionada.fim - consultaSelecionada.inicio) / 60000);
     await chamarApi(`/api/agenda/consultas/${idConsulta}/remarcar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1623,26 +1652,10 @@ document.getElementById('botaoRemarcarConsulta').addEventListener('click', async
         observacao: observacao || undefined,
       }),
     });
-    fecharModalConsulta();
-    // Recalcula inicio/fim (e os textos formatados que a grade usa pra
-    // exibir) na hora -- remarcar muda ONDE o compromisso aparece na
-    // grade, não só um campo de texto, então o patch otimista aqui importa
-    // ainda mais que status/rótulo.
-    const novoInicio = new Date(`${dataInput}T${hora}`).getTime();
-    const novoFim = novoInicio + (duracaoMinutos ? Number(duracaoMinutos) : duracaoOriginalMin) * 60000;
-    atualizarConsultaNoCache(idConsulta, {
-      inicio: novoInicio,
-      fim: novoFim,
-      jaOcorreu: novoFim < Date.now(),
-      inicioFormatado: `${dia}/${mes}/${ano}, ${hora}`,
-      fimFormatado: new Date(novoFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    });
     atualizarAgendaEmSegundoPlano();
   } catch (erro) {
-    alert(erro.message);
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Remarcar';
+    atualizarConsultaNoCache(idConsulta, estadoAnterior);
+    alert(`Não foi possível remarcar: ${erro.message}\n\nA mudança foi desfeita.`);
   }
 });
 
