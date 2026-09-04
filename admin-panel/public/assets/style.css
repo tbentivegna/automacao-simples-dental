@@ -37,8 +37,10 @@
 
   --raio: 4px;
   --raio-pequeno: 3px;
+  --raio-grande: 14px;
   --sombra: 0 1px 2px rgba(31, 31, 31, 0.04), 0 4px 16px rgba(31, 31, 31, 0.05);
   --sombra-hover: 0 2px 6px rgba(31, 31, 31, 0.07), 0 8px 24px rgba(31, 31, 31, 0.09);
+  --transicao: all 0.2s ease;
 
   font-family: var(--fonte-corpo);
 }
@@ -569,6 +571,229 @@ html, body {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
   margin-bottom: 28px;
+}
+
+/* ============================================================
+   Agenda -- grade visual (Dia/Semana/Mês), complementa a .tabela
+   (modo Lista) que já existe. Ver plano "Agenda em grade visual".
+   ============================================================ */
+
+.agenda-barra-visualizacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.agenda-nav-dia {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mesma pegadinha do form-nova-pendencia/banner-pausado: [hidden] tem a
+   mesma especificidade que ".seletor-janela"/".agenda-nav-dia" (que usam
+   display:flex), e a classe vence por vir depois -- sem isto os controles
+   de Semana/Dia continuam visíveis mesmo com o atributo hidden setado. */
+#seletorSemanaAgenda[hidden],
+.agenda-nav-dia[hidden] {
+  display: none;
+}
+
+.agenda-nav-dia__rotulo {
+  font-weight: 600;
+  font-size: 14.5px;
+  min-width: 170px;
+  text-align: center;
+}
+
+.agenda-grade-painel {
+  overflow: hidden;
+}
+
+#agendaGrade {
+  overflow-x: auto;
+}
+
+.agenda-grade {
+  display: grid;
+  grid-template-columns: 56px repeat(var(--agenda-colunas, 7), minmax(120px, 1fr));
+  min-width: fit-content;
+}
+
+.agenda-grade__cabecalho-vazio,
+.agenda-grade__cabecalho-dia {
+  position: sticky;
+  top: 0;
+  background: var(--cor-cartao);
+  border-bottom: 1px solid var(--cor-borda);
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: capitalize;
+  z-index: 2;
+}
+
+.agenda-grade__cabecalho-dia--hoje {
+  color: var(--cor-marca-escura);
+}
+
+.agenda-grade__eixo {
+  position: relative;
+  border-right: 1px solid var(--cor-borda);
+}
+
+.agenda-grade__hora {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 11.5px;
+  color: var(--cor-texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-coluna-dia {
+  position: relative;
+  border-right: 1px solid var(--cor-borda);
+  background-image: repeating-linear-gradient(to bottom, var(--cor-borda) 0, var(--cor-borda) 1px, transparent 1px, transparent 60px);
+  cursor: pointer;
+}
+
+.agenda-coluna-dia--hoje {
+  background-color: var(--cor-marca-clara);
+}
+
+.agenda-coluna-dia--bloqueada {
+  background-image: repeating-linear-gradient(45deg, var(--cor-fundo-alt), var(--cor-fundo-alt) 8px, var(--cor-borda) 8px, var(--cor-borda) 16px);
+  cursor: default;
+}
+
+.agenda-coluna-dia__bloqueio-rotulo {
+  position: sticky;
+  top: 4px;
+  margin: 4px;
+  padding: 4px 8px;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-urgente-fundo);
+  color: var(--cor-urgente);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.agenda-evento {
+  position: absolute;
+  overflow: hidden;
+  padding: 3px 6px;
+  border-radius: var(--raio-pequeno);
+  border-left: 3px solid var(--cor-marca);
+  background: var(--cor-cartao);
+  box-shadow: var(--sombra);
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+
+.agenda-evento:hover {
+  box-shadow: var(--sombra-hover);
+  z-index: 3;
+}
+
+.agenda-evento__hora {
+  display: block;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-evento__paciente {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-evento--cancelada {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.agenda-evento--passada {
+  opacity: 0.55;
+}
+
+/* Grade Mês -- 7 colunas fixas, "faux borders" via gap+fundo. */
+.agenda-mes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--cor-borda);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  overflow: hidden;
+  min-width: 700px;
+}
+
+.agenda-mes__dia {
+  background: var(--cor-cartao);
+  min-height: 108px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.agenda-mes__dia--hoje {
+  background: var(--cor-marca-clara);
+}
+
+.agenda-mes__dia--bloqueada {
+  background-image: repeating-linear-gradient(45deg, var(--cor-fundo-alt), var(--cor-fundo-alt) 8px, var(--cor-borda) 8px, var(--cor-borda) 16px);
+  cursor: default;
+}
+
+.agenda-mes__dia__numero {
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-start;
+  padding: 2px 6px;
+  border-radius: var(--raio-pequeno);
+  transition: var(--transicao);
+}
+
+.agenda-mes__dia__numero:hover {
+  background: var(--cor-fundo-alt);
+}
+
+.agenda-mes__dia__eventos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.agenda-mes__evento {
+  font-size: 11.5px;
+  padding: 2px 5px;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-marca-clara);
+  color: var(--cor-marca-escura);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-mes__mais {
+  font-size: 11px;
+  color: var(--cor-texto-fraco);
+  cursor: pointer;
 }
 
 .cartao-stat {
@@ -1621,6 +1846,18 @@ html, body {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-bottom: 20px;
+  }
+
+  .agenda-grade {
+    grid-template-columns: 44px repeat(var(--agenda-colunas, 7), minmax(96px, 1fr));
+  }
+
+  .agenda-mes {
+    min-width: 560px;
+  }
+
+  .agenda-mes__dia {
+    min-height: 84px;
   }
 
   .cartao-stat {

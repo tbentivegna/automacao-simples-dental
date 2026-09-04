@@ -107,11 +107,27 @@
           </div>
         </div>
 
-        <div class="seletor-janela" id="seletorSemanaAgenda">
-          <button data-semana="0" class="ativo">Esta semana</button>
-          <button data-semana="1">+1 semana</button>
-          <button data-semana="2">+2 semanas</button>
-          <button data-semana="3">+3 semanas</button>
+        <div class="agenda-barra-visualizacao">
+          <div class="seletor-janela" id="seletorVisualizacaoAgenda">
+            <button data-visualizacao="dia">Dia</button>
+            <button data-visualizacao="semana" class="ativo">Semana</button>
+            <button data-visualizacao="mes">Mês</button>
+            <button data-visualizacao="lista">Lista</button>
+          </div>
+
+          <div class="seletor-janela" id="seletorSemanaAgenda">
+            <button data-semana="0" class="ativo">Esta semana</button>
+            <button data-semana="1">+1 semana</button>
+            <button data-semana="2">+2 semanas</button>
+            <button data-semana="3">+3 semanas</button>
+          </div>
+
+          <div class="agenda-nav-dia" id="navegacaoDiaAgenda" hidden>
+            <button type="button" class="botao" id="botaoDiaAnterior" aria-label="Dia anterior">‹</button>
+            <button type="button" class="botao" id="botaoDiaHoje">Hoje</button>
+            <span class="agenda-nav-dia__rotulo" id="agendaDiaRotulo"></span>
+            <button type="button" class="botao" id="botaoDiaProximo" aria-label="Próximo dia">›</button>
+          </div>
         </div>
 
         <form class="form-nova-pendencia" id="formNovaConsulta" hidden>
@@ -148,6 +164,10 @@
 
         <div class="painel">
           <div id="conteudoAgenda"><div class="carregando">Carregando…</div></div>
+        </div>
+
+        <div class="painel agenda-grade-painel" id="painelAgendaGrade" hidden>
+          <div id="agendaGrade"><div class="carregando">Carregando…</div></div>
         </div>
       </section>
 

@@ -93,7 +93,7 @@ const secoes = {
   pendencias: carregarPendencias,
   oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
-  agenda: () => mostrarAgenda(semanaAtualAgenda),
+  agenda: () => mostrarAgendaVisualizacaoAtual(),
   mensagens: () => carregarConversas(document.getElementById('buscaConversas').value),
   analytics: carregarPaginaAnalytics,
   configuracoes: () => {
@@ -830,8 +830,15 @@ let agendaCacheAteSemanas = -1;
 let agendaAtualizadoEm = null;
 let consultaSelecionada = null;
 
+// Grade visual (Dia/Semana/Mês/Lista) -- ver plano "Agenda em grade visual".
+let visualizacaoAgenda = 'semana'; // 'dia' | 'semana' | 'mes' | 'lista'
+let diaAtualAgenda = inicioDoDiaLocal(new Date()); // meia-noite local, dia mostrado no modo Dia
+let configuracaoHorariosCache = null; // cache do GET /api/configuracoes/horarios (eixo de horas da grade)
+
 async function carregarAgenda(semanas) {
-  const alvo = document.getElementById('conteudoAgenda');
+  // Mostra "Carregando…" no container que está visível de fato -- a tabela
+  // (Lista) ou a grade (Dia/Semana/Mês), conforme o modo atual.
+  const alvo = document.getElementById(visualizacaoAgenda === 'lista' ? 'conteudoAgenda' : 'agendaGrade');
   alvo.innerHTML = '<div class="carregando">Carregando…</div>';
   try {
     const dados = await chamarApi(`/api/agenda?semanas=${semanas + 1}`);
@@ -839,7 +846,7 @@ async function carregarAgenda(semanas) {
     agendaCacheAteSemanas = semanas;
     agendaAtualizadoEm = new Date();
     atualizarSeloAgendaAtualizadoEm();
-    renderizarAgenda();
+    renderizarVisualizacaoAtual();
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
@@ -865,7 +872,7 @@ function atualizarSeloAgendaAtualizadoEm() {
 // as 4 semanas), só re-renderiza na hora, sem bater no servidor.
 function mostrarAgenda(semanas) {
   if (semanas <= agendaCacheAteSemanas) {
-    renderizarAgenda();
+    renderizarVisualizacaoAtual();
     return;
   }
   carregarAgenda(semanas);
@@ -943,6 +950,335 @@ document.getElementById('seletorSemanaAgenda').addEventListener('click', (evento
   mostrarAgenda(semanaAtualAgenda);
 });
 
+// ============================================================
+// Grade visual da Agenda (Dia / Semana / Mês) -- complementa a Lista acima,
+// sem alterar nada dela. Reaproveita agendaCache, limitesSemana,
+// abrirModalConsulta e o form #formNovaConsulta que já existem.
+// ============================================================
+
+function inicioDoDiaLocal(data) {
+  return new Date(data.getFullYear(), data.getMonth(), data.getDate()).getTime();
+}
+
+function formatarDataISO(msOuData) {
+  const d = msOuData instanceof Date ? msOuData : new Date(msOuData);
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+// Em qual das 4 abas de semana (0-3) o dia cai -- usado só pelo modo Dia,
+// pra saber se precisa buscar mais dados antes de navegar pra lá.
+function semanaOffsetParaData(diaMs) {
+  for (let offset = 0; offset <= 3; offset++) {
+    const { inicioSemana, fimSemana } = limitesSemana(offset);
+    if (diaMs >= inicioSemana && diaMs < fimSemana) return offset;
+  }
+  return 3; // fora do que o backend cobre -- usa o máximo já buscável
+}
+
+function mostrarAgendaVisualizacaoAtual() {
+  let semanaNecessaria;
+  if (visualizacaoAgenda === 'mes') semanaNecessaria = 3; // "mês" = janela de 4 semanas inteira
+  else if (visualizacaoAgenda === 'dia') semanaNecessaria = semanaOffsetParaData(diaAtualAgenda);
+  else semanaNecessaria = semanaAtualAgenda; // 'semana' | 'lista'
+
+  if (semanaNecessaria > agendaCacheAteSemanas) {
+    carregarAgenda(semanaNecessaria); // já chama renderizarVisualizacaoAtual() no fim
+  } else {
+    renderizarVisualizacaoAtual();
+  }
+}
+
+function renderizarVisualizacaoAtual() {
+  document.getElementById('conteudoAgenda').closest('.painel').hidden = visualizacaoAgenda !== 'lista';
+  document.getElementById('painelAgendaGrade').hidden = visualizacaoAgenda === 'lista';
+  document.getElementById('seletorSemanaAgenda').hidden = visualizacaoAgenda === 'dia' || visualizacaoAgenda === 'mes';
+  document.getElementById('navegacaoDiaAgenda').hidden = visualizacaoAgenda !== 'dia';
+
+  if (visualizacaoAgenda === 'dia') {
+    document.getElementById('agendaDiaRotulo').textContent = new Date(diaAtualAgenda).toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+    });
+  }
+
+  if (visualizacaoAgenda === 'lista') renderizarAgenda();
+  else if (visualizacaoAgenda === 'dia') renderizarAgendaDia();
+  else if (visualizacaoAgenda === 'mes') renderizarAgendaMes();
+  else renderizarAgendaSemanaGrade();
+}
+
+async function obterConfiguracaoHorarios() {
+  if (configuracaoHorariosCache) return configuracaoHorariosCache;
+  try {
+    configuracaoHorariosCache = await chamarApi('/api/configuracoes/horarios');
+  } catch {
+    configuracaoHorariosCache = { horarios: {}, duracaoConsultaMinutos: 60 };
+  }
+  return configuracaoHorariosCache;
+}
+
+const DIAS_SEMANA_INDEX = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+
+// Intervalo de horas (minutos desde 00:00) que a grade Dia/Semana mostra.
+// "horarios" na configuração é uma LISTA de horários oferecidos, não um
+// intervalo de abre/fecha -- calculamos o min/max a partir dela pros dias
+// visíveis, mais qualquer compromisso real fora disso (ex: consulta lançada
+// direto no Simples Dental fora dos horários padrão), com 30min de folga.
+function calcularFaixaHoras(config, diasVisiveis, compromissosDoIntervalo) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const diaMs of diasVisiveis) {
+    const nomeDia = DIAS_SEMANA_INDEX[new Date(diaMs).getDay()];
+    for (const hhmm of config.horarios?.[nomeDia] || []) {
+      const [h, m] = hhmm.split(':').map(Number);
+      min = Math.min(min, h * 60 + m);
+      max = Math.max(max, h * 60 + m + (config.duracaoConsultaMinutos || 60));
+    }
+  }
+  for (const c of compromissosDoIntervalo) {
+    if (c.fim <= c.inicio) continue; // bloqueio de dia inteiro não conta pra faixa de horas
+    const inicioData = new Date(c.inicio);
+    const fimData = new Date(c.fim);
+    min = Math.min(min, inicioData.getHours() * 60 + inicioData.getMinutes());
+    max = Math.max(max, fimData.getHours() * 60 + fimData.getMinutes());
+  }
+  if (min === Infinity) return { inicioMin: 8 * 60, fimMin: 19 * 60 };
+  return { inicioMin: Math.max(0, min - 30), fimMin: Math.min(24 * 60, max + 30) };
+}
+
+// Empacota eventos que se sobrepõem em colunas lado a lado (mesma técnica
+// de calendários tipo Google Calendar/FullCalendar) -- eventos sem
+// sobreposição ocupam a largura inteira da coluna do dia. O Simples Dental
+// normalmente já impede choque de horário, mas isso não depende disso pra
+// não quebrar visualmente num caso raro (ex: consulta lançada manualmente).
+function empacotarColunas(eventosDoDia) {
+  const ordenados = [...eventosDoDia].sort((a, b) => a.inicio - b.inicio || a.fim - b.fim);
+  const fimPorColuna = [];
+  const posicionados = ordenados.map((c) => {
+    let coluna = fimPorColuna.findIndex((fim) => fim <= c.inicio);
+    if (coluna === -1) {
+      coluna = fimPorColuna.length;
+      fimPorColuna.push(0);
+    }
+    fimPorColuna[coluna] = c.fim;
+    return { ...c, colunaProvisoria: coluna };
+  });
+
+  // Agrupa em clusters de eventos mutuamente conectados por sobreposição --
+  // sem isso, um evento isolado herdaria largura de 1/N só por ter ficado
+  // numa coluna alta, mesmo sem ninguém do lado dele.
+  let fimClusterAtual = -Infinity;
+  let clusterAtual = null;
+  const clusters = [];
+  for (const c of posicionados) {
+    if (!clusterAtual || c.inicio >= fimClusterAtual) {
+      clusterAtual = [];
+      clusters.push(clusterAtual);
+      fimClusterAtual = -Infinity;
+    }
+    clusterAtual.push(c);
+    fimClusterAtual = Math.max(fimClusterAtual, c.fim);
+  }
+
+  return clusters.flatMap((cluster) => {
+    const totalColunas = Math.max(...cluster.map((c) => c.colunaProvisoria)) + 1;
+    return cluster.map((c) => ({ ...c, coluna: c.colunaProvisoria, totalColunas }));
+  });
+}
+
+const PX_POR_MINUTO = 1.1; // ~66px por hora
+
+function renderizarEventoGrade(c, inicioMin, agora) {
+  const inicioData = new Date(c.inicio);
+  const inicioMinEvento = inicioData.getHours() * 60 + inicioData.getMinutes();
+  const duracaoMin = Math.max((c.fim - c.inicio) / 60000, 15); // piso visual de 15min
+  const top = (inicioMinEvento - inicioMin) * PX_POR_MINUTO;
+  const altura = duracaoMin * PX_POR_MINUTO;
+  const larguraPct = 100 / c.totalColunas;
+  const esquerdaPct = c.coluna * larguraPct;
+  const cancelada = (c.status || '').startsWith('Cancelada');
+  const passada = c.fim < agora;
+  const classes = ['agenda-evento', cancelada && 'agenda-evento--cancelada', !cancelada && passada && 'agenda-evento--passada']
+    .filter(Boolean)
+    .join(' ');
+  const hora = c.inicioFormatado ? c.inicioFormatado.split(' ').pop() : '';
+  return `
+    <div class="${classes}" data-consulta-id="${escapar(c.id || '')}"
+      style="top:${top}px;height:${altura}px;left:calc(${esquerdaPct}% + 2px);width:calc(${larguraPct}% - 4px);border-left-color:${escapar(c.rotuloCor || '#B89A68')}">
+      <span class="agenda-evento__hora">${escapar(hora)}</span>
+      <span class="agenda-evento__paciente">${escapar(c.paciente || '(sem nome)')}</span>
+    </div>`;
+}
+
+// Motor comum das grades de Dia (1 coluna) e Semana (7 colunas).
+async function renderizarGradeHoraria(dias) {
+  const alvo = document.getElementById('agendaGrade');
+  const config = await obterConfiguracaoHorarios();
+  const inicioIntervalo = dias[0];
+  const fimIntervalo = dias[dias.length - 1] + 86_400_000;
+  const doIntervalo = agendaCache.filter((c) => c.inicio >= inicioIntervalo && c.inicio < fimIntervalo);
+  const { inicioMin, fimMin } = calcularFaixaHoras(config, dias, doIntervalo);
+  const agora = Date.now();
+  const hoje = inicioDoDiaLocal(new Date());
+
+  let horasHtml = '';
+  for (let m = Math.ceil(inicioMin / 60) * 60; m <= fimMin; m += 60) {
+    const top = (m - inicioMin) * PX_POR_MINUTO;
+    horasHtml += `<div class="agenda-grade__hora" style="top:${top}px">${String(Math.floor(m / 60)).padStart(2, '0')}:00</div>`;
+  }
+
+  const alturaTotal = (fimMin - inicioMin) * PX_POR_MINUTO;
+  const cabecalhosHtml = dias
+    .map((diaMs) => {
+      const rotulo = new Date(diaMs).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      return `<div class="agenda-grade__cabecalho-dia${diaMs === hoje ? ' agenda-grade__cabecalho-dia--hoje' : ''}">${escapar(rotulo)}</div>`;
+    })
+    .join('');
+
+  const colunasHtml = dias
+    .map((diaMs) => {
+      const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
+      const bloqueio = doDia.find((c) => c.fim <= c.inicio);
+      const reais = doDia.filter((c) => c.fim > c.inicio);
+      const empacotados = empacotarColunas(reais);
+      const eventosHtml = empacotados.map((c) => renderizarEventoGrade(c, inicioMin, agora)).join('');
+      const classes = ['agenda-coluna-dia', diaMs === hoje && 'agenda-coluna-dia--hoje', bloqueio && 'agenda-coluna-dia--bloqueada']
+        .filter(Boolean)
+        .join(' ');
+      const bannerBloqueio = bloqueio
+        ? `<div class="agenda-coluna-dia__bloqueio-rotulo">${escapar(bloqueio.rotulo || 'Dia bloqueado')}</div>`
+        : '';
+      return `<div class="${classes}" style="height:${alturaTotal}px" data-data="${formatarDataISO(diaMs)}" data-inicio-min="${inicioMin}">${bannerBloqueio}${eventosHtml}</div>`;
+    })
+    .join('');
+
+  alvo.innerHTML = `
+    <div class="agenda-grade" style="--agenda-colunas:${dias.length}">
+      <div class="agenda-grade__cabecalho-vazio"></div>
+      ${cabecalhosHtml}
+      <div class="agenda-grade__eixo" style="height:${alturaTotal}px">${horasHtml}</div>
+      ${colunasHtml}
+    </div>`;
+}
+
+function renderizarAgendaDia() {
+  renderizarGradeHoraria([diaAtualAgenda]);
+}
+
+function renderizarAgendaSemanaGrade() {
+  const { inicioSemana } = limitesSemana(semanaAtualAgenda);
+  const dias = Array.from({ length: 7 }, (_, i) => inicioSemana + i * 86_400_000);
+  renderizarGradeHoraria(dias);
+}
+
+// Mês = janela rolante de 4 semanas a partir de hoje, NUNCA mês de
+// calendário de verdade (sem "mês anterior", sem dias já passados fora da
+// semana atual) -- o bridge (Playwright contra o Simples Dental) só
+// consegue buscar as próximas N semanas a partir de agora.
+function renderizarAgendaMes() {
+  const alvo = document.getElementById('agendaGrade');
+  const { inicioSemana: inicio } = limitesSemana(0);
+  const dias = Array.from({ length: 28 }, (_, i) => inicio + i * 86_400_000);
+  const hoje = inicioDoDiaLocal(new Date());
+
+  const celulas = dias
+    .map((diaMs) => {
+      const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
+      const bloqueado = doDia.some((c) => c.fim <= c.inicio);
+      const reais = doDia.filter((c) => c.fim > c.inicio).sort((a, b) => a.inicio - b.inicio);
+      const visiveis = reais.slice(0, 3);
+      const resto = reais.length - visiveis.length;
+      const chips = visiveis
+        .map((c) => {
+          const hora = c.inicioFormatado ? c.inicioFormatado.split(' ').pop() : '';
+          return `<div class="agenda-mes__evento" data-consulta-id="${escapar(c.id || '')}">${escapar(hora)} ${escapar(c.paciente || '')}</div>`;
+        })
+        .join('');
+      const maisHtml = resto > 0 ? `<div class="agenda-mes__mais" data-abrir-dia="${formatarDataISO(diaMs)}">+${resto} mais</div>` : '';
+      const dataIso = formatarDataISO(diaMs);
+      const classes = ['agenda-mes__dia', diaMs === hoje && 'agenda-mes__dia--hoje', bloqueado && 'agenda-mes__dia--bloqueada']
+        .filter(Boolean)
+        .join(' ');
+      return `
+        <div class="${classes}" data-slot-data="${dataIso}">
+          <div class="agenda-mes__dia__numero" data-abrir-dia="${dataIso}">${new Date(diaMs).getDate()}</div>
+          <div class="agenda-mes__dia__eventos">${chips}${maisHtml}</div>
+        </div>`;
+    })
+    .join('');
+
+  alvo.innerHTML = `<div class="agenda-mes">${celulas}</div>`;
+}
+
+// Clique num evento (Dia/Semana/Mês) -> mesmo modal que a Lista já usa.
+// Clique num dia/"+N mais" (Mês) -> pula pro modo Dia daquele dia. Clique
+// em espaço vazio (Dia/Semana com snap de 15min, ou célula do Mês sem
+// horário) -> abre o formulário de nova consulta já existente, pré-cheio.
+document.getElementById('agendaGrade').addEventListener('click', (evento) => {
+  const chip = evento.target.closest('[data-consulta-id]');
+  if (chip) {
+    const compromisso = agendaCache.find((c) => String(c.id) === chip.dataset.consultaId);
+    if (compromisso) abrirModalConsulta(compromisso);
+    return;
+  }
+
+  const abrirDia = evento.target.closest('[data-abrir-dia]');
+  if (abrirDia) {
+    diaAtualAgenda = inicioDoDiaLocal(new Date(`${abrirDia.dataset.abrirDia}T00:00:00`));
+    visualizacaoAgenda = 'dia';
+    document.querySelectorAll('#seletorVisualizacaoAgenda button').forEach((b) => b.classList.toggle('ativo', b.dataset.visualizacao === 'dia'));
+    mostrarAgendaVisualizacaoAtual();
+    return;
+  }
+
+  const colunaDia = evento.target.closest('.agenda-coluna-dia');
+  if (colunaDia && !colunaDia.classList.contains('agenda-coluna-dia--bloqueada')) {
+    const rect = colunaDia.getBoundingClientRect();
+    const minutosNoEixo = (evento.clientY - rect.top) / PX_POR_MINUTO;
+    const minutoAbsoluto = Number(colunaDia.dataset.inicioMin) + minutosNoEixo;
+    const minutoArredondado = Math.max(0, Math.round(minutoAbsoluto / 15) * 15);
+    abrirFormNovaConsultaPreenchido(colunaDia.dataset.data, minutoArredondado);
+    return;
+  }
+
+  const celulaDiaMes = evento.target.closest('.agenda-mes__dia');
+  if (celulaDiaMes && !celulaDiaMes.classList.contains('agenda-mes__dia--bloqueada')) {
+    abrirFormNovaConsultaPreenchido(celulaDiaMes.dataset.slotData, null);
+  }
+});
+
+document.getElementById('seletorVisualizacaoAgenda').addEventListener('click', (evento) => {
+  const botao = evento.target.closest('button[data-visualizacao]');
+  if (!botao) return;
+  visualizacaoAgenda = botao.dataset.visualizacao;
+  document.querySelectorAll('#seletorVisualizacaoAgenda button').forEach((b) => b.classList.toggle('ativo', b === botao));
+  mostrarAgendaVisualizacaoAtual();
+});
+
+document.getElementById('botaoDiaAnterior').addEventListener('click', () => navegarDia(-1));
+document.getElementById('botaoDiaProximo').addEventListener('click', () => navegarDia(1));
+document.getElementById('botaoDiaHoje').addEventListener('click', () => {
+  diaAtualAgenda = inicioDoDiaLocal(new Date());
+  mostrarAgendaVisualizacaoAtual();
+});
+
+// Trava a navegação de Dia na mesma janela de 4 semanas que o backend
+// consegue buscar (mesmo limite que já vale pras abas de Semana) -- sem
+// isso daria pra "andar" pra uma data que a Lumi/painel nunca vai ter dado
+// pra mostrar.
+function navegarDia(delta) {
+  const { inicioSemana: limiteInferior } = limitesSemana(0);
+  const { fimSemana: limiteSuperior } = limitesSemana(3);
+  const alvo = diaAtualAgenda + delta * 86_400_000;
+  if (alvo < limiteInferior || alvo >= limiteSuperior) return;
+  diaAtualAgenda = alvo;
+  mostrarAgendaVisualizacaoAtual();
+}
+
 document.getElementById('botaoAtualizarAgenda').addEventListener('click', atualizarAgendaCompleta);
 
 // Força o /sincronizar-agenda no bridge -> atualiza public.consultas (o
@@ -989,6 +1325,20 @@ function abrirFormNovaConsulta() {
 function fecharFormNovaConsulta() {
   formNovaConsulta.hidden = true;
   formNovaConsulta.reset();
+}
+
+// Mesmo formulário de sempre, só que já aberto com data (e hora, quando
+// houver granularidade) pré-preenchidas -- usado pelos cliques em espaço
+// vazio da grade Dia/Semana/Mês.
+function abrirFormNovaConsultaPreenchido(dataISO, minutoDoDia) {
+  abrirFormNovaConsulta();
+  if (dataISO) document.getElementById('novaConsultaData').value = dataISO;
+  if (minutoDoDia != null) {
+    const h = String(Math.floor(minutoDoDia / 60)).padStart(2, '0');
+    const m = String(minutoDoDia % 60).padStart(2, '0');
+    document.getElementById('novaConsultaHora').value = `${h}:${m}`;
+  }
+  document.getElementById('novaConsultaPaciente').focus();
 }
 
 document.getElementById('botaoNovaConsulta').addEventListener('click', abrirFormNovaConsulta);
