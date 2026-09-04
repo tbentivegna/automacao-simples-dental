@@ -1314,7 +1314,7 @@ async function renderizarGradeHoraria(dias) {
     .join('');
 
   alvo.innerHTML = `
-    <div class="agenda-grade" style="--agenda-colunas:${dias.length}">
+    <div class="agenda-grade" style="--agenda-colunas:${dias.length};--agenda-altura-hora:${PX_POR_MINUTO * 60}px">
       <div class="agenda-grade__cabecalho-vazio"></div>
       ${cabecalhosHtml}
       <div class="agenda-grade__eixo" style="height:${alturaTotal}px">${horasHtml}</div>

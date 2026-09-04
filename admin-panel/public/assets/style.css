@@ -680,7 +680,16 @@ html, body {
 .agenda-coluna-dia {
   position: relative;
   border-right: 1px solid var(--cor-borda);
-  background-image: repeating-linear-gradient(to bottom, var(--cor-borda) 0, var(--cor-borda) 1px, transparent 1px, transparent 60px);
+  /* Intervalo tem que bater com PX_POR_MINUTO*60 (app.js) -- fixo em 60px
+     aqui desalinhava da grade real (1h = 66px), crescendo a cada hora.
+     --agenda-altura-hora vem do JS, no elemento .agenda-grade pai. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--cor-borda) 0,
+    var(--cor-borda) 1px,
+    transparent 1px,
+    transparent var(--agenda-altura-hora, 66px)
+  );
   cursor: pointer;
 }
 
