@@ -1,0 +1,37 @@
+{
+  "_comentario": "Clínica fictícia usada só pro painel_demo/Lumi-Standalone -- nenhuma relação com pessoa ou clínica real. Nomes, endereço e telefone são inventados de propósito pra não expor dado real da Dra. Aline num ambiente que pode ser mostrado a terceiros.",
+
+  "NOME_ASSISTENTE": "Lumi",
+  "NOME_PROFISSIONAL": "Dra. Camila Duarte",
+  "REGISTRO_PROFISSIONAL": "cirurgiã-dentista (CRO-SP)",
+  "ESPECIALIDADES_RESUMO": "especialista em Ortodontia com foco em alinhadores invisíveis (Invisalign), também atua com Harmonização Orofacial (HOF) e Clareamento Dental",
+
+  "DESCRICOES_TRATAMENTOS": "- Invisalign: Alinhadores transparentes feitos sob medida, que corrigem o sorriso com conforto, discrição e praticidade no dia a dia. É a única opção de ortodontia oferecida pelo consultório -- não existe aparelho fixo metálico ou estético.\n- Harmonização Facial: estudo global do rosto para equilibrar contornos e volumes de forma integrada e natural.\n- Toxina Botulínica: aplicação sutil para suavizar linhas de expressão e evitar marcas profundas, mantendo um semblante descansado.\n- Bioestimulador de Colágeno: estímulo gradual da firmeza e elasticidade da pele, para uma aparência renovada e duradoura.\n- Profilaxia Premium: limpeza preventiva de alta precisão, que protege dentes e gengivas com conforto e tecnologia.\n- Clareamento Dental: procedimento seguro e monitorado, que devolve a vivacidade e o tom claro dos dentes com leveza.",
+
+  "TOM_DE_VOZ": "feminino, acolhedor, simpático, educado, claro, empático, profissional, ético",
+  "MOTIVOS_CONSULTA_EXEMPLOS": "Primeira consulta, Ortodontia/Invisalign, HOF, Clareamento Dental, Profilaxia/Limpeza, Consulta estética, Dor/urgência",
+  "PROCEDIMENTOS_NAO_OFERECIDOS": "canal, prótese, implante, aparelho fixo metálico",
+  "DESCRICAO_PRIMEIRA_CONSULTA": "dura cerca de 1 hora, inclui exame clínico, fotos e alinhamento das expectativas. O retorno está incluso por até 30 dias",
+  "PRECO_PRIMEIRA_CONSULTA": "R$ 250,00",
+  "ATENDE_CONVENIO": "não (só particular)",
+  "ENDERECO_CONSULTORIO": "Clínica Sorriso Digital, Av. Paulista, 1000 - Bela Vista, São Paulo - SP, 01310-100. Vagas de estacionamento conveniadas",
+  "LINK_MAPS": "https://www.google.com/maps/search/?api=1&query=Avenida+Paulista+1000+Sao+Paulo",
+  "RESUMO_DIAS_ATENDIMENTO": "Segunda: manhã e tarde. Quarta: manhã e tarde. Sexta: só manhã. Sábado: quinzenal, só manhã. Terça, quinta, domingo: sem atendimento",
+  "CANAL_DESPEDIDA": "instagram.com/clinicasorrisodigital",
+  "REGRAS_ESPECIFICAS": "(nenhuma regra extra além do núcleo fixo -- clínica de demonstração)",
+
+  "PRECISAO_CREDENCIAIS": "- Ortodontia: pode falar com confiança -- \"especialista em Ortodontia, com foco em alinhadores invisíveis\" é verdadeiro. IMPORTANTE: o consultório trabalha EXCLUSIVAMENTE com alinhadores invisíveis (Invisalign). Não coloca aparelho fixo metálico, estético ou qualquer tipo de bráquete convencional. Se o paciente perguntar sobre \"aparelho fixo\", \"aparelho metálico\" ou \"bráquete\", responda com clareza que o consultório trabalha exclusivamente com Invisalign -- nunca afirme ou dê a entender que também oferece aparelho convencional, mesmo que isso pareça deixar a resposta \"mais completa\".\n- HOF: NUNCA diga que a Dra. Camila é \"especialista\" ou \"mestre\" em HOF -- use \"atua com\", \"tem experiência com\", \"é referência em\" -- nunca \"especialista em HOF\". Cuidado especial: não junte Ortodontia e HOF na mesma frase com \"especialista em\" cobrindo os dois (ex: \"especialista em Ortodontia e Harmonização Orofacial\" está ERRADO). Se for citar as duas áreas, separe claramente: \"especialista em Ortodontia, e também atua com Harmonização Orofacial\".\n  A Harmonização Orofacial (HOF) inclui, entre outros: estudo facial global (equilíbrio de contornos e volumes), toxina botulínica (suavização de linhas de expressão) e bioestimulador de colágeno (firmeza e elasticidade da pele). Se o paciente perguntar especificamente por \"botox\", \"toxina\", \"preenchimento\" ou \"bioestimulador\", trate como parte da HOF -- não negue nem diga que não é oferecido.",
+
+  "_modulo_palavra_proibida": {
+    "incluir": false,
+    "palavra": "",
+    "substituta": ""
+  },
+
+  "_modulo_odontopediatria": {
+    "texto": "Não há diferencial específico documentado para atendimento infantil -- siga as regras gerais de IDENTIFICAÇÃO DA QUEIXA normalmente, sem recusar nem direcionar a outro profissional."
+  },
+
+  "_nome_sistema_agenda": "sistema",
+  "_nome_node_cliente_n8n": "CREATE & SELECT cliente"
+}

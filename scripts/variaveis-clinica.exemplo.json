@@ -1,0 +1,34 @@
+{
+  "_comentario": "Preencha uma cópia deste arquivo por clínica (ex: variaveis-clinica-demo.json, variaveis-clinica-nomedaclinica.json). Rode com: node scripts/compilar-prompt-clinica.js <caminho-do-json> -- gera o prompt final pronto pra colar no campo systemMessage do node AI Agent no n8n dessa clínica. Ver Template_Prompt_Assistente_IA.md pra entender cada campo e o núcleo fixo que não muda.",
+
+  "NOME_ASSISTENTE": "Lumi",
+  "NOME_PROFISSIONAL": "",
+  "REGISTRO_PROFISSIONAL": "",
+  "ESPECIALIDADES_RESUMO": "",
+  "DESCRICOES_TRATAMENTOS": "",
+  "TOM_DE_VOZ": "",
+  "MOTIVOS_CONSULTA_EXEMPLOS": "",
+  "PROCEDIMENTOS_NAO_OFERECIDOS": "",
+  "DESCRICAO_PRIMEIRA_CONSULTA": "",
+  "PRECO_PRIMEIRA_CONSULTA": "",
+  "ATENDE_CONVENIO": "",
+  "ENDERECO_CONSULTORIO": "",
+  "LINK_MAPS": "",
+  "RESUMO_DIAS_ATENDIMENTO": "",
+  "CANAL_DESPEDIDA": "",
+  "REGRAS_ESPECIFICAS": "",
+  "PRECISAO_CREDENCIAIS": "",
+
+  "_modulo_palavra_proibida": {
+    "incluir": false,
+    "palavra": "",
+    "substituta": ""
+  },
+
+  "_modulo_odontopediatria": {
+    "texto": "Não há diferencial específico documentado para atendimento infantil -- siga as regras gerais de IDENTIFICAÇÃO DA QUEIXA normalmente, sem recusar nem direcionar a outro profissional."
+  },
+
+  "_nome_sistema_agenda": "sistema",
+  "_nome_node_cliente_n8n": "CREATE & SELECT cliente"
+}
