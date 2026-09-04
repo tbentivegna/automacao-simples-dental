@@ -155,6 +155,49 @@ function agruparPorDiaSemana(horariosPorData) {
   return resumo;
 }
 
+// Deixa os compromissos legíveis para humanos (usado pela Agenda do painel
+// administrativo) -- cópia quase literal de formatarCompromissos em
+// server.js/raiz (linhas 666-699), função pura de data, sem Playwright.
+// jaOcorreu é calculado aqui em código de propósito (mesmo racional do
+// gêmeo na raiz, caso Thalita -- não dá pra confiar só no status pra
+// saber se a consulta já aconteceu). O ramo "dia inteiro" (fim<=inicio)
+// fica por paridade de contrato -- o standalone não produz esse tipo de
+// evento hoje (sem Playwright não existe bloqueio de dia inteiro vindo de
+// lugar nenhum), mas mantém a resposta no mesmo formato caso um dia
+// exista uma forma de marcar um dia bloqueado aqui também.
+function formatarCompromissos(compromissos) {
+  const agora = Date.now();
+  return compromissos.map((c) => {
+    if (c.fim > c.inicio) {
+      return {
+        ...c,
+        jaOcorreu: c.fim < agora,
+        inicioFormatado: new Date(c.inicio).toLocaleString('pt-BR', {
+          timeZone: FUSO,
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        fimFormatado: new Date(c.fim).toLocaleString('pt-BR', {
+          timeZone: FUSO,
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      };
+    }
+
+    const diaBR = new Date(c.inicio).toLocaleDateString('pt-BR', { timeZone: FUSO });
+    return {
+      ...c,
+      jaOcorreu: c.inicio < agora,
+      inicioFormatado: `Dia inteiro - ${diaBR}`,
+      fimFormatado: null,
+    };
+  });
+}
+
 module.exports = {
   FUSO,
   OFFSET_BRASILIA,
@@ -167,4 +210,5 @@ module.exports = {
   ehSabadoAberto,
   calcularSlotsSemana,
   agruparPorDiaSemana,
+  formatarCompromissos,
 };

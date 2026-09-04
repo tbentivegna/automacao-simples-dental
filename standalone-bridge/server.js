@@ -17,6 +17,8 @@ const {
   buscarAgendamentosPaciente,
   mudarStatusAgendamento,
   remarcarAgendamento,
+  listarAgendaSemana,
+  mudarRotuloAgendamento,
 } = require('./consultas');
 
 const app = express();
@@ -130,6 +132,47 @@ app.post('/remarcar-agendamento', async (req, res) => {
       erro: conflito ? 'Horário não está mais disponível' : 'Falha ao remarcar agendamento',
       detalhe: erro.message,
     });
+  }
+});
+
+// ============================================================
+// Rotas usadas pela página Agenda do painel administrativo (não são
+// ferramentas da Lumi) -- ver plano "Painel demo do Standalone".
+// ============================================================
+
+// Query param opcional "semanas" (1-4, padrão SEMANAS_A_VERIFICAR).
+app.get('/agenda-semana', async (req, res) => {
+  try {
+    const resultado = await listarAgendaSemana({ semanas: req.query.semanas });
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao listar agenda da semana:', erro);
+    res.status(500).json({ erro: 'Falha ao listar agenda da semana', detalhe: erro.message });
+  }
+});
+
+// Diferente de /confirmar-agendamento e /cancelar-agendamento (que só
+// cobrem 2 dos 6 status), esta rota aceita qualquer valor de
+// STATUS_VALIDOS (validado dentro de mudarStatusAgendamento).
+app.post('/alterar-status-agendamento', async (req, res) => {
+  try {
+    const { idAgendamento: id, status, telefone } = req.body || {};
+    const resultado = await mudarStatusAgendamento({ id, status, telefone });
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao alterar status do agendamento:', erro);
+    res.status(500).json({ erro: 'Falha ao alterar status do agendamento', detalhe: erro.message });
+  }
+});
+
+app.post('/alterar-rotulo-agendamento', async (req, res) => {
+  try {
+    const { idAgendamento: id, rotulo, telefone } = req.body || {};
+    const resultado = await mudarRotuloAgendamento({ id, rotulo, telefone });
+    res.json(resultado);
+  } catch (erro) {
+    console.error('Erro ao alterar rótulo do agendamento:', erro);
+    res.status(500).json({ erro: 'Falha ao alterar rótulo do agendamento', detalhe: erro.message });
   }
 });
 
