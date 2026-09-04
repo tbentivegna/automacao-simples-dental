@@ -835,29 +835,80 @@ let visualizacaoAgenda = 'semana'; // 'dia' | 'semana' | 'mes' | 'lista'
 let diaAtualAgenda = inicioDoDiaLocal(new Date()); // meia-noite local, dia mostrado no modo Dia
 let configuracaoHorariosCache = null; // cache do GET /api/configuracoes/horarios (eixo de horas da grade)
 
+// Busca real no bridge (Playwright contra o Simples Dental -- lenta, uma
+// automação de cada vez no servidor), com de-duplicação: se já tem uma
+// busca em andamento que cobre (>=) o que foi pedido, "pega carona" nela
+// em vez de empilhar outra atrás na fila do bridge. Sem isto, entrar na
+// Agenda enquanto o pré-carregamento do login ainda está rodando disparava
+// uma segunda busca de 4 semanas que ficava esperando atrás da primeira --
+// e a tela parecia "presa no Carregando" pela soma das duas (achado real,
+// 2026-09-04).
+let requisicaoAgendaEmAndamento = null; // { semanas, promessa }
+
+function buscarAgendaCompartilhada(semanas) {
+  if (requisicaoAgendaEmAndamento && semanas <= requisicaoAgendaEmAndamento.semanas) {
+    return requisicaoAgendaEmAndamento.promessa;
+  }
+  const promessa = (async () => {
+    try {
+      const dados = await chamarApi(`/api/agenda?semanas=${semanas + 1}`);
+      agendaCache = dados.compromissos || [];
+      agendaCacheAteSemanas = semanas;
+      agendaAtualizadoEm = new Date();
+      atualizarSeloAgendaAtualizadoEm();
+    } finally {
+      if (requisicaoAgendaEmAndamento?.promessa === promessa) requisicaoAgendaEmAndamento = null;
+    }
+  })();
+  requisicaoAgendaEmAndamento = { semanas, promessa };
+  return promessa;
+}
+
 async function carregarAgenda(semanas) {
   // Mostra "Carregando…" no container que está visível de fato -- a tabela
   // (Lista) ou a grade (Dia/Semana/Mês), conforme o modo atual.
   const alvo = document.getElementById(visualizacaoAgenda === 'lista' ? 'conteudoAgenda' : 'agendaGrade');
   alvo.innerHTML = '<div class="carregando">Carregando…</div>';
   try {
-    const dados = await chamarApi(`/api/agenda?semanas=${semanas + 1}`);
-    agendaCache = dados.compromissos || [];
-    agendaCacheAteSemanas = semanas;
-    agendaAtualizadoEm = new Date();
-    atualizarSeloAgendaAtualizadoEm();
+    await buscarAgendaCompartilhada(semanas);
     renderizarVisualizacaoAtual();
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
 }
 
-// Busca as 4 semanas (todas as abas do seletor) de uma vez -- usado no
-// pré-carregamento ao entrar no painel e sempre que algo muda de verdade
-// (Atualizar manual, criar/remarcar/mudar status/rótulo de consulta),
-// assim a troca de aba fica instantânea depois.
+// Busca as 4 semanas (todas as abas do seletor) de uma vez, MOSTRANDO
+// "Carregando" -- usado só quando o próprio usuário pediu uma releitura
+// explícita (botão Atualizar, sincronizar espelho, pré-carregamento do
+// login). Para depois de criar/editar uma consulta, ver
+// atualizarAgendaEmSegundoPlano() -- a mudança já aparece na hora
+// (atualizarConsultaNoCache) e isto só confirma com o Simples Dental de
+// verdade, sem travar a tela.
 function atualizarAgendaCompleta() {
   return carregarAgenda(3);
+}
+
+// Aplica uma mudança já confirmada pelo servidor direto no cache local e
+// re-renderiza na hora -- a secretária não fica esperando a releitura
+// completa (10-30s+) só pra ver o que ela mesma acabou de mudar.
+function atualizarConsultaNoCache(id, patch) {
+  const idx = agendaCache.findIndex((c) => String(c.id) === String(id));
+  if (idx === -1) return;
+  agendaCache[idx] = { ...agendaCache[idx], ...patch };
+  renderizarVisualizacaoAtual();
+}
+
+// Confirma com o Simples Dental de verdade em segundo plano, sem mostrar
+// "Carregando" nem travar a tela -- a versão otimista (atualizarConsultaNoCache)
+// já está na tela; se isto falhar ou trouxer algo diferente, corrige
+// silenciosamente quando terminar (ou na próxima ação/Atualizar manual).
+async function atualizarAgendaEmSegundoPlano() {
+  try {
+    await buscarAgendaCompartilhada(3);
+    renderizarVisualizacaoAtual();
+  } catch {
+    // silencioso de propósito -- ver comentário acima
+  }
 }
 
 function atualizarSeloAgendaAtualizadoEm() {
@@ -1427,7 +1478,12 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
       }),
     });
     fecharFormNovaConsulta();
-    await atualizarAgendaCompleta();
+    // Sem patch otimista aqui -- /criar-agendamento não devolve o id real
+    // da consulta (só sucesso/dados), então não dá pra colocar um item
+    // clicável de verdade no cache. O ganho já vem de não travar a tela:
+    // o formulário fecha na hora, a consulta aparece na grade em segundo
+    // plano assim que a confirmação com o Simples Dental terminar.
+    atualizarAgendaEmSegundoPlano();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1491,13 +1547,15 @@ document.getElementById('botaoSalvarStatusConsulta').addEventListener('click', a
   botao.disabled = true;
   botao.textContent = 'Salvando…';
   try {
-    await chamarApi(`/api/agenda/consultas/${consultaSelecionada.id}/status`, {
+    const idConsulta = consultaSelecionada.id;
+    await chamarApi(`/api/agenda/consultas/${idConsulta}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
     fecharModalConsulta();
-    await atualizarAgendaCompleta();
+    atualizarConsultaNoCache(idConsulta, { status });
+    atualizarAgendaEmSegundoPlano();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1517,13 +1575,18 @@ document.getElementById('botaoSalvarRotuloConsulta').addEventListener('click', a
   botao.disabled = true;
   botao.textContent = 'Salvando…';
   try {
-    await chamarApi(`/api/agenda/consultas/${consultaSelecionada.id}/rotulo`, {
+    const idConsulta = consultaSelecionada.id;
+    await chamarApi(`/api/agenda/consultas/${idConsulta}/rotulo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rotulo }),
     });
     fecharModalConsulta();
-    await atualizarAgendaCompleta();
+    // rotuloCor (cor da bolinha) fica desatualizada até a confirmação em
+    // segundo plano -- não dá pra saber a cor nova sem consultar o Simples
+    // Dental de verdade, mas o texto do rótulo já reflete a mudança.
+    atualizarConsultaNoCache(idConsulta, { rotulo });
+    atualizarAgendaEmSegundoPlano();
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -1548,7 +1611,9 @@ document.getElementById('botaoRemarcarConsulta').addEventListener('click', async
   botao.disabled = true;
   botao.textContent = 'Remarcando…';
   try {
-    await chamarApi(`/api/agenda/consultas/${consultaSelecionada.id}/remarcar`, {
+    const idConsulta = consultaSelecionada.id;
+    const duracaoOriginalMin = Math.round((consultaSelecionada.fim - consultaSelecionada.inicio) / 60000);
+    await chamarApi(`/api/agenda/consultas/${idConsulta}/remarcar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1559,7 +1624,20 @@ document.getElementById('botaoRemarcarConsulta').addEventListener('click', async
       }),
     });
     fecharModalConsulta();
-    await atualizarAgendaCompleta();
+    // Recalcula inicio/fim (e os textos formatados que a grade usa pra
+    // exibir) na hora -- remarcar muda ONDE o compromisso aparece na
+    // grade, não só um campo de texto, então o patch otimista aqui importa
+    // ainda mais que status/rótulo.
+    const novoInicio = new Date(`${dataInput}T${hora}`).getTime();
+    const novoFim = novoInicio + (duracaoMinutos ? Number(duracaoMinutos) : duracaoOriginalMin) * 60000;
+    atualizarConsultaNoCache(idConsulta, {
+      inicio: novoInicio,
+      fim: novoFim,
+      jaOcorreu: novoFim < Date.now(),
+      inicioFormatado: `${dia}/${mes}/${ano}, ${hora}`,
+      fimFormatado: new Date(novoFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    });
+    atualizarAgendaEmSegundoPlano();
   } catch (erro) {
     alert(erro.message);
   } finally {
