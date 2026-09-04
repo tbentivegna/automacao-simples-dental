@@ -538,6 +538,13 @@ html, body {
   white-space: pre-wrap;
 }
 
+/* Modal de consulta é campos de formulário, não prosa -- não precisa do
+   mesmo respiro do modal de mensagem (que é texto corrido do paciente). */
+#modalConsulta .modal-corpo {
+  padding: 16px 20px;
+  white-space: normal;
+}
+
 /* ============================================================
    Componentes
    ============================================================ */
@@ -689,7 +696,6 @@ html, body {
   padding: 3px 6px;
   border-radius: var(--raio-pequeno);
   border-left: 3px solid var(--cor-marca);
-  background: var(--cor-cartao);
   box-shadow: var(--sombra);
   font-size: 12px;
   line-height: 1.3;
@@ -716,13 +722,55 @@ html, body {
   white-space: nowrap;
 }
 
-.agenda-evento--cancelada {
-  opacity: 0.55;
-  text-decoration: line-through;
+.agenda-evento__ponto-rotulo {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: 50%;
+  vertical-align: middle;
 }
 
 .agenda-evento--passada {
-  opacity: 0.55;
+  opacity: 0.6;
+}
+
+/* Cor do container pelo STATUS da consulta (Agendada/Confirmada/Em
+   atendimento/Falta/Cancelada) -- sem isto o fundo ficava muito parecido
+   com o fundo da própria coluna, difícil de perceber de relance. Mesmas
+   cores semânticas que .selo-sucesso/-urgente/-alerta/-info já usam em
+   outras partes do painel, reaproveitadas aqui tanto na grade (.agenda-
+   evento) quanto no Mês (.agenda-mes__evento). */
+.agenda-status-agendada {
+  background: var(--cor-info-fundo);
+  border-left-color: var(--cor-info);
+  color: var(--cor-info);
+}
+
+.agenda-status-confirmada {
+  background: var(--cor-sucesso-fundo);
+  border-left-color: var(--cor-sucesso);
+  color: var(--cor-sucesso);
+}
+
+.agenda-status-em-atendimento {
+  background: var(--cor-marca-clara);
+  border-left-color: var(--cor-marca-escura);
+  color: var(--cor-marca-escura);
+}
+
+.agenda-status-falta {
+  background: var(--cor-urgente-fundo);
+  border-left-color: var(--cor-urgente);
+  color: var(--cor-urgente);
+}
+
+.agenda-status-cancelada {
+  background: var(--cor-fundo-alt);
+  border-left-color: var(--cor-texto-fraco);
+  color: var(--cor-texto-fraco);
+  opacity: 0.7;
+  text-decoration: line-through;
 }
 
 /* Grade Mês -- 7 colunas fixas, "faux borders" via gap+fundo. */
@@ -777,12 +825,14 @@ html, body {
   overflow: hidden;
 }
 
+/* Cor vem das classes .agenda-status-* (aplicadas junto no HTML) -- fica
+   depois delas no arquivo de propósito, senão a especificidade empatada
+   faria o background daqui vencer o do status (mesma pegadinha do
+   [hidden] documentada mais acima). */
 .agenda-mes__evento {
   font-size: 11.5px;
   padding: 2px 5px;
   border-radius: var(--raio-pequeno);
-  background: var(--cor-marca-clara);
-  color: var(--cor-marca-escura);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -1358,25 +1408,40 @@ html, body {
   gap: 10px;
 }
 
+/* Info da consulta (paciente/horário/rótulo) no topo do modal -- 3 <p>
+   soltos herdavam a margem padrão do navegador (~1em cada), o que sozinho
+   já empurrava bastante altura. Enxuga pra caber sem rolagem na maioria
+   dos casos. */
+#modalConsultaInfo p {
+  margin: 0 0 4px;
+}
+
+#modalConsultaInfo p:last-child {
+  margin-bottom: 0;
+}
+
 /* Bloco de ação dentro do modal de consulta (status / remarcar) -- mesmo
    visual de campo do form-nova-pendencia, mas fora dele (o modal não é um
-   <form> só, são duas ações independentes). */
+   <form> só, são duas ações independentes). Espaçamento mais enxuto que o
+   form-nova-pendencia de propósito: aqui são 3 blocos empilhados na mesma
+   tela, lá é só 1. */
 .modal-consulta__bloco {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 16px;
-  margin-top: 16px;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 10px;
   border-top: 1px solid var(--cor-borda);
 }
 
 .modal-consulta__bloco:first-of-type {
   padding-top: 0;
-  margin-top: 16px;
+  margin-top: 12px;
+  border-top: none;
 }
 
 .modal-consulta__bloco label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--cor-texto-suave);
 }
@@ -1384,10 +1449,10 @@ html, body {
 .modal-consulta__bloco input,
 .modal-consulta__bloco textarea,
 .modal-consulta__bloco select {
-  padding: 10px 14px;
+  padding: 7px 12px;
   border: 1px solid var(--cor-borda-forte);
   border-radius: var(--raio-pequeno);
-  font-size: 15px;
+  font-size: 14px;
   font-family: inherit;
   background: var(--cor-fundo);
   color: var(--cor-texto);
@@ -1400,6 +1465,27 @@ html, body {
   outline: none;
   border-color: var(--cor-marca);
   box-shadow: 0 0 0 3px rgba(138, 90, 52, 0.15);
+}
+
+.modal-consulta__bloco textarea {
+  min-height: 40px;
+}
+
+/* Data/hora/duração do Remarcar lado a lado -- eram 3 campos empilhados
+   sozinhos, maior contribuinte pra altura do modal. */
+.modal-consulta__linha {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-consulta__linha input {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-consulta__bloco .botao {
+  align-self: flex-start;
+  padding: 7px 14px;
 }
 
 /* Tela de Configurações (horários de atendimento) -- mesmo visual de campo

@@ -1092,6 +1092,18 @@ function empacotarColunas(eventosDoDia) {
 
 const PX_POR_MINUTO = 1.1; // ~66px por hora
 
+// Cor do container pelo STATUS da consulta (não pelo rótulo do Simples
+// Dental) -- pedido do Tiago, o fundo branco-no-branco dificultava
+// perceber o status de relance. Reaproveita as cores semânticas que o
+// resto do painel já usa (.selo-sucesso/-urgente/-alerta/-info).
+function classeStatusEvento(status) {
+  if ((status || '').startsWith('Cancelada')) return 'agenda-status-cancelada';
+  if (status === 'Confirmada') return 'agenda-status-confirmada';
+  if (status === 'Em atendimento') return 'agenda-status-em-atendimento';
+  if (status === 'Falta') return 'agenda-status-falta';
+  return 'agenda-status-agendada'; // padrão -- inclusive status vazio/desconhecido
+}
+
 function renderizarEventoGrade(c, inicioMin, agora) {
   const inicioData = new Date(c.inicio);
   const inicioMinEvento = inicioData.getHours() * 60 + inicioData.getMinutes();
@@ -1100,16 +1112,20 @@ function renderizarEventoGrade(c, inicioMin, agora) {
   const altura = duracaoMin * PX_POR_MINUTO;
   const larguraPct = 100 / c.totalColunas;
   const esquerdaPct = c.coluna * larguraPct;
-  const cancelada = (c.status || '').startsWith('Cancelada');
   const passada = c.fim < agora;
-  const classes = ['agenda-evento', cancelada && 'agenda-evento--cancelada', !cancelada && passada && 'agenda-evento--passada']
+  const classes = ['agenda-evento', classeStatusEvento(c.status), passada && 'agenda-evento--passada']
     .filter(Boolean)
     .join(' ');
   const hora = c.inicioFormatado ? c.inicioFormatado.split(' ').pop() : '';
+  // Rótulo do Simples Dental (tipo de consulta) vira um pontinho discreto --
+  // o status é quem manda na cor do container agora.
+  const pontoRotulo = c.rotulo
+    ? `<span class="agenda-evento__ponto-rotulo" style="background:${escapar(c.rotuloCor || '#999')}" title="${escapar(c.rotulo)}"></span>`
+    : '';
   return `
     <div class="${classes}" data-consulta-id="${escapar(c.id || '')}"
-      style="top:${top}px;height:${altura}px;left:calc(${esquerdaPct}% + 2px);width:calc(${larguraPct}% - 4px);border-left-color:${escapar(c.rotuloCor || '#B89A68')}">
-      <span class="agenda-evento__hora">${escapar(hora)}</span>
+      style="top:${top}px;height:${altura}px;left:calc(${esquerdaPct}% + 2px);width:calc(${larguraPct}% - 4px)">
+      <span class="agenda-evento__hora">${pontoRotulo}${escapar(hora)}</span>
       <span class="agenda-evento__paciente">${escapar(c.paciente || '(sem nome)')}</span>
     </div>`;
 }
@@ -1195,7 +1211,8 @@ function renderizarAgendaMes() {
       const chips = visiveis
         .map((c) => {
           const hora = c.inicioFormatado ? c.inicioFormatado.split(' ').pop() : '';
-          return `<div class="agenda-mes__evento" data-consulta-id="${escapar(c.id || '')}">${escapar(hora)} ${escapar(c.paciente || '')}</div>`;
+          const classe = `agenda-mes__evento ${classeStatusEvento(c.status)}`;
+          return `<div class="${classe}" data-consulta-id="${escapar(c.id || '')}">${escapar(hora)} ${escapar(c.paciente || '')}</div>`;
         })
         .join('');
       const maisHtml = resto > 0 ? `<div class="agenda-mes__mais" data-abrir-dia="${formatarDataISO(diaMs)}">+${resto} mais</div>` : '';

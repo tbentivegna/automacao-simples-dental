@@ -433,9 +433,11 @@
 
         <div class="modal-consulta__bloco">
           <label>Remarcar</label>
-          <input type="date" id="modalConsultaRemarcarData" />
-          <input type="time" id="modalConsultaRemarcarHora" />
-          <input type="number" id="modalConsultaRemarcarDuracao" placeholder="Duração em minutos (opcional)" min="15" step="15" />
+          <div class="modal-consulta__linha">
+            <input type="date" id="modalConsultaRemarcarData" />
+            <input type="time" id="modalConsultaRemarcarHora" />
+            <input type="number" id="modalConsultaRemarcarDuracao" placeholder="Duração (min)" min="15" step="15" />
+          </div>
           <textarea id="modalConsultaRemarcarObservacao" placeholder="Observação (opcional)" rows="2"></textarea>
           <button type="button" class="botao" id="botaoRemarcarConsulta">Remarcar</button>
         </div>
