@@ -10,6 +10,22 @@ function escapar(texto) {
   return div.innerHTML;
 }
 
+// Fallback pra quando não tem rotuloCor (ex: standalone-bridge -- achado
+// real 04/09: public.consultas não tem essa coluna, todo rótulo caía no
+// mesmo cinza fixo '#999', então rótulos diferentes ficavam visualmente
+// idênticos). Gera uma cor estável a partir do texto do rótulo (mesmo
+// texto sempre vira a mesma cor), sem precisar de uma paleta cadastrada
+// em algum lugar -- só usado quando o backend não manda uma cor real
+// (ex: Simples Dental, que expõe a cor de verdade configurada por lá).
+function corParaRotulo(texto) {
+  let hash = 0;
+  for (let i = 0; i < texto.length; i++) {
+    hash = (hash << 5) - hash + texto.charCodeAt(i);
+    hash |= 0;
+  }
+  return `hsl(${Math.abs(hash) % 360}, 60%, 45%)`;
+}
+
 // Nome oficial (confirmado pela Lumi) tem prioridade; sem ele, cai pro
 // apelido do perfil do WhatsApp (auto-declarado, só pra identificação --
 // nunca usado como nome oficial em nenhum outro lugar do sistema).
@@ -965,7 +981,7 @@ function renderizarAgenda() {
       const passada = c.fim < agora;
       const classes = [cancelada && 'linha-cancelada', !cancelada && passada && 'linha-passada'].filter(Boolean).join(' ');
       const rotulo = c.rotulo
-        ? `<span class="ponto-rotulo" style="background:${escapar(c.rotuloCor || '#999')}"></span>${escapar(c.rotulo)}`
+        ? `<span class="ponto-rotulo" style="background:${escapar(c.rotuloCor || corParaRotulo(c.rotulo))}"></span>${escapar(c.rotulo)}`
         : '<span class="texto-fraco">—</span>';
       const horario = c.fimFormatado ? `${escapar(c.inicioFormatado || '—')} – ${escapar(c.fimFormatado)}` : escapar(c.inicioFormatado || '—');
       return `
@@ -1245,7 +1261,7 @@ function renderizarEventoGrade(c, inicioMin, agora) {
   // Rótulo do Simples Dental (tipo de consulta) vira um pontinho discreto --
   // o status é quem manda na cor do container agora.
   const pontoRotulo = c.rotulo
-    ? `<span class="agenda-evento__ponto-rotulo" style="background:${escapar(c.rotuloCor || '#999')}" title="${escapar(c.rotulo)}"></span>`
+    ? `<span class="agenda-evento__ponto-rotulo" style="background:${escapar(c.rotuloCor || corParaRotulo(c.rotulo))}" title="${escapar(c.rotulo)}"></span>`
     : '';
   return `
     <div class="${classes}" data-consulta-id="${escapar(c.id || '')}"
@@ -1602,7 +1618,7 @@ function abrirModalConsulta(compromisso) {
   consultaSelecionada = compromisso;
 
   const rotuloHtml = compromisso.rotulo
-    ? `<span class="ponto-rotulo" style="background:${escapar(compromisso.rotuloCor || '#999')}"></span>${escapar(compromisso.rotulo)}`
+    ? `<span class="ponto-rotulo" style="background:${escapar(compromisso.rotuloCor || corParaRotulo(compromisso.rotulo))}"></span>${escapar(compromisso.rotulo)}`
     : 'Sem rótulo';
   const horario = compromisso.fimFormatado
     ? `${escapar(compromisso.inicioFormatado || '—')} – ${escapar(compromisso.fimFormatado)}`
