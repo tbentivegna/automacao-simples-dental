@@ -415,6 +415,17 @@ html, body {
   height: 100%;
 }
 
+/* Agenda: mesmo padrão -- título/botões/alternador de visualização ficam
+   fixos, só a grade (Dia/Semana/Mês) rola por dentro, com o cabeçalho de
+   dias grudado no topo dela (position:sticky em .agenda-grade__cabecalho-*
+   já definido mais abaixo). Modo Lista não usa isto -- a tabela continua
+   rolando junto com a página, como sempre foi. */
+#secao-agenda.ativa {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 #secao-pacientes .painel {
   flex: 1;
   display: flex;
@@ -616,11 +627,16 @@ html, body {
 }
 
 .agenda-grade-painel {
-  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 #agendaGrade {
-  overflow-x: auto;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
 }
 
 .agenda-grade {
