@@ -25,6 +25,13 @@ const PROVEDORES = {
     apiKeyEnv: 'GEMINI_API_KEY',
     modeloPadrao: 'gemini-flash-latest',
   },
+  openai: {
+    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    apiKeyEnv: 'OPENAI_API_KEY',
+    // gpt-4o-mini está obsoleto (setembro/2026) -- família atual é GPT-5.4.
+    // Ver project_lumi_openai_tool_selection_failure na memória.
+    modeloPadrao: 'gpt-5.4-mini',
+  },
 };
 
 function corTerminal(texto, codigo) {
