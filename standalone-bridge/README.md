@@ -4,12 +4,20 @@ Ponte de automação equivalente ao `server.js` da raiz (Simples Dental, via Pla
 
 Diferença real em relação aos outros dois: aqui **não existe sistema externo nenhum**. `public.consultas` -- que hoje é só um espelho local da agenda real do Simples Dental (ver `db/migrations/011_consultas.sql`) -- vira a **fonte de verdade única**. Sem Playwright, sem API de terceiro, sem sincronização: cada rota é só uma query no mesmo Postgres que o resto do sistema já usa.
 
-## Status: esqueleto funcional, não testado ao vivo ainda
+## Status: MVP, testado ao vivo, deployado (04/09/2026)
 
-As 6 rotas + `/health` existem, com lógica real (não stub) -- diferente do `clinicorp-bridge/` na sua Fase 0, aqui não há credencial externa esperando: tudo já pode ser testado direto contra um Postgres real. Ainda **não foi**:
-- Plugado num workflow n8n de verdade (nem `Lumi - Standalone`, que existe mas ainda aponta pro bridge do Simples Dental).
-- Testado com um banco de uma clínica nova de verdade (migrations rodadas do zero).
-- Rodado em produção nem uma vez.
+Atualizado depois de uma rodada real de uso -- as 6 rotas + `/health`
+existem com lógica real (não stub), plugadas de verdade no workflow n8n
+`Lumi - Standalone`, deployadas no Easypanel, com instância dedicada do
+Evolution API (`Demo`, com autosserviço de status/reconexão/troca de
+número no painel admin -- ver `Plano_Comercializacao_Lumi.md`), e já
+**testadas de ponta a ponta com mensagem real de WhatsApp** (conversa →
+IA → agendamento real em `lumi_standalone_teste` → visível no painel).
+Bugs reais achados nesse uso ao vivo (nomes de paciente não resolvendo no
+drill-down do Visão Geral, grid da Agenda desalinhado, cor do rótulo sem
+variação) já foram corrigidos. Não é mais esqueleto -- é a base pronta pra
+vender como produto (ver `Plano_Comercializacao_Lumi.md`), com os gaps
+abaixo ainda deliberadamente em aberto.
 
 ## O que fica mais simples aqui (sem sistema externo)
 

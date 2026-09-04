@@ -14,6 +14,12 @@ Marketing). Log contínuo de progresso em
   autorização com ela antes de publicar qualquer coisa que a nomeie).
 - Marca do produto: **Lumi** — já usado consistentemente em todo material
   existente, não "assistente de IA" genérico.
+- Pilar central de mensagem (adicionado pelo Tiago, 04/09): **"IA Auxilia,
+  IN (Inteligência Natural) Dirige"** — e o painel de gestão (não só a
+  conversa) é o maior diferencial competitivo, deve aparecer em primeiro
+  lugar em qualquer material, não como resposta a pergunta. Ver
+  [Proposta_de_Valor_Lumi.md](Proposta_de_Valor_Lumi.md), o documento-fonte
+  dessa mensagem.
 
 ---
 
@@ -82,12 +88,16 @@ terceiros).
 ## 3. Gaps reais — o que falta, por lente
 
 ### Marketing
-- [ ] Atualizar `Funil_Vendas_Lumi.md` §2-4 pra bifurcar
-  Simples-Dental-integrado vs. Standalone (qualificação, objeção, preço).
-- [ ] Value proposition formal e curta (um parágrafo + 3 bullets) — hoje
-  a proposta de valor existe espalhada dentro do roteiro de demo e das
-  respostas de objeção, não como peça própria reaproveitável (ex: bio de
-  site, abertura de proposta comercial).
+- [x] Atualizar `Funil_Vendas_Lumi.md` §2-4 pra bifurcar
+  Simples-Dental-integrado vs. Standalone (qualificação, objeção, preço) —
+  feito 04/09. Setup fee diferenciado por variante é hipótese desta
+  rodada, ainda não validada.
+- [x] Value proposition formal e curta — feito 04/09, ver
+  [Proposta_de_Valor_Lumi.md](Proposta_de_Valor_Lumi.md). Reforçada com o
+  pilar "painel > chatbot" + "IA Auxilia, IN Dirige" a pedido do Tiago,
+  propagada também pro `Roteiro_Demo_Vendas.md` (mostrar o painel virou
+  parte proativa do roteiro, não resposta condicional) e pro
+  `Funil_Vendas_Lumi.md` §4.
 - [ ] Site de comercialização — **não existe hoje nenhuma página pública**.
   Formato proposto na Fase 3 abaixo.
 - [ ] Formalizar autorização da Dra. Aline pra uso público do case
@@ -131,10 +141,10 @@ terceiros).
 
 ## 4. Roadmap de fases
 
-**Fase 1 — Fechar a lacuna do Standalone no funil existente** (Marketing)
-Atualizar qualificação/objeção/preço pra cobrir as duas variantes, e
-escrever a value proposition formal e curta. Rápido, e destrava tudo que
-vem depois (site e manuais dependem de mensagem fechada).
+**Fase 1 — Fechar a lacuna do Standalone no funil existente** (Marketing) — ✅ feito 04/09/2026
+Qualificação/objeção/preço atualizados pra cobrir as duas variantes,
+value proposition formal escrita com "painel > chatbot" + "IA Auxilia, IN
+Dirige" como pilar central.
 
 **Fase 2 — Prontidão técnica pra vender de verdade** (Back-end/Segurança)
 Formalizar isolamento multi-tenant, política mínima de LGPD, checar backup

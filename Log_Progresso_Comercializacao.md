@@ -6,6 +6,43 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-04 — Fase 1 concluída: funil bifurcado + proposta de valor
+
+Tiago autorizou modo automático ("vou validando de vez em quando... pode
+assumir as decisões que, se necessário, valido no fim de tudo") e trouxe
+um input de posicionamento em paralelo: o **painel** (não só a conversa)
+é o maior diferencial, e a máxima **"IA Auxilia, IN (Inteligência
+Natural) Dirige"** deve ser mensagem de primeira linha, não detalhe
+interno.
+
+**Entregue**:
+- `Proposta_de_Valor_Lumi.md` (novo) — documento-fonte da mensagem,
+  parágrafo + 4 pilares, "IA Auxilia, IN Dirige" e o painel em primeiro
+  lugar.
+- `Funil_Vendas_Lumi.md` — §2 (qualificação) bifurcada Simples
+  Dental/Standalone, deixou de ser filtro bloqueante único; §4 (preço)
+  ganhou setup diferenciado por variante (hipótese, não validada:
+  R$800-1.500 integrada / R$400-800 Standalone).
+- `Lista_Leads_e_Outreach.md` — ICP atualizado pra refletir a bifurcação.
+- `Roteiro_Demo_Vendas.md` — "mostrar o painel" deixou de ser condicional
+  ("se o lead perguntar") e virou parte proativa do roteiro; objeção
+  "preciso trocar de sistema?" bifurcada; objetivo da demo passou de 3
+  pra 4 pontos (incluindo o painel).
+- `Checklist_Onboarding_Nova_Clinica.md` §0 — qualificação com 3 caminhos
+  (Simples Dental / Standalone / Clinicorp) em vez de 2; §2 com aviso
+  pra não seguir o passo a passo do robô Simples Dental numa clínica
+  Standalone.
+- **Achado lateral, corrigido**: `standalone-bridge/README.md` ainda
+  dizia "não testado ao vivo ainda / não rodado em produção nem uma vez"
+  — desatualizado desde que virou MVP nesta mesma sessão. Corrigido antes
+  de deixar o checklist apontar pra um documento enganoso.
+
+**Próximo passo**: Fase 2 (prontidão técnica pra vender — isolamento
+multi-tenant, LGPD, backup, SLA), já que Fase 4 (site) depende de
+alegações que aguentem escrutínio público.
+
+---
+
 ## 2026-09-04 — Kickoff da comercialização
 
 **Marco**: MVP do Lumi Standalone considerado pronto pelo Tiago ("acredito

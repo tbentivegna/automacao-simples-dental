@@ -25,11 +25,27 @@ Etapas 6-7 já estão praticamente prontas (`Checklist_Onboarding_Nova_Clinica.m
 
 ## 2. Qualificação
 
-Existe um **filtro técnico obrigatório**, não negociável — já está no checklist (seção 0), mas cabe repetir aqui porque é o primeiro filtro do funil, antes até de agendar demo:
+**Atualizado 04/09/2026**: deixou de ser um filtro único e bloqueante —
+virou uma bifurcação, desde que o Lumi Standalone (variante sem
+dependência de sistema externo) saiu do MVP. Repetido aqui porque é o
+primeiro filtro do funil, antes até de agendar demo (também no checklist,
+seção 0):
 
-- [ ] Usa **Simples Dental**? (bloqueante — outro sistema é projeto novo, não venda padrão)
+- [ ] **Usa Simples Dental?** → variante integrada (a original, robô
+  automatiza o sistema de verdade da clínica) — onboarding mais pesado,
+  ver `Checklist_Onboarding_Nova_Clinica.md`.
+- [ ] **Não usa nenhum sistema de agenda?** → variante **Standalone**
+  (`public.consultas` como fonte única de verdade, sem robô/Playwright
+  contra sistema nenhum) — onboarding mais leve, e vira argumento de
+  venda em vez de objeção (ver `Roteiro_Demo_Vendas.md`, objeção "preciso
+  trocar de sistema?").
 - [ ] Tem ou topa criar um WhatsApp Business dedicado?
 - [ ] Volume de mensagens/pacientes que justifique o investimento (uma clínica com poucochíssimo movimento talvez não tenha ROI claro — vale ter um piso mental, mesmo que informal)
+
+Só continua sendo bloqueio de verdade um sistema que não seja nem Simples
+Dental nem "nenhum sistema" (ex: Clinicorp, iClinic) — aí vira projeto de
+integração à parte (`clinicorp-bridge/`, hoje travado em Fase 2 por falta
+de cliente-piloto), não venda padrão.
 
 **Falta decidir**: um piso de volume/faturamento abaixo do qual não vale a pena vender (pra não gastar seu tempo de onboarding num cliente que não vai perceber valor).
 
@@ -60,16 +76,17 @@ O ativo mais forte é **mostrar a Lumi de verdade** (harness, ao vivo, prompt re
 
 **Leitura pro nosso caso**:
 - **Cobrar taxa de setup, sim** — nosso onboarding não é self-service (é o checklist inteiro: provisionar banco, clonar 3 workflows, robô com Playwright logado de verdade no Simples Dental). O comparável certo é a Secretária Odonto, não o WSeller/NEXA (que parecem ter integração mais leve).
-- **Não competir pelo preço de entrada mais baixo** — R$97 (WSeller) é claramente plano-isca, não referência de valor real. Diferenciais que nenhum concorrente pesquisado divulgou ter: integração de verdade com o sistema de gestão (não um widget de agenda à parte), funil de resgate proativo (win-back automático de quem começou a agendar e sumiu), e uma **rotina própria de monitoramento com IA** — health-check automatizado rodando 3x/dia, avisando só quando há problema real, com humano no comando das decisões. Isso é operação madura, não só um chatbot — vale mais que o topo da faixa encontrada, não o meio.
+- **Não competir pelo preço de entrada mais baixo** — R$97 (WSeller) é claramente plano-isca, não referência de valor real. Diferenciais que nenhum concorrente pesquisado divulgou ter: **um painel de gestão completo por trás da conversa** (Agenda, Mensagens com takeover, Analytics, Oportunidades, autosserviço de reconexão — não só um widget de chat), integração de verdade com o sistema de gestão, funil de resgate proativo (win-back automático de quem começou a agendar e sumiu), e uma **rotina própria de monitoramento com IA** — health-check automatizado rodando 3x/dia, avisando só quando há problema real, com humano no comando das decisões (a lógica "IA Auxilia, IN Dirige" — ver `Proposta_de_Valor_Lumi.md`). Isso é operação madura, não só um chatbot — vale mais que o topo da faixa encontrada, não o meio.
 - **Capacidade é o limite real, não o preço** — hoje é 1 pessoa fazendo onboarding técnico. Preço baixo demais + demanda alta vira gargalo de suporte antes de virar problema de vendas.
 
 **Estrutura sugerida** (proposta, não valor fechado — ajustar com custo real de hospedagem + quanto vale a hora de suporte):
 - **Basic**: R$ 400–600/mês — 1 profissional, funcionalidades centrais (agendar/cancelar/remarcar/lembrete)
 - **Pro**: R$ 900–1.200/mês — múltiplos profissionais, funil de resgate, painel completo (Analytics, Oportunidades, Mensagens)
 - **Advanced**: "Fale conosco" — multi-unidade, integrações extras
-- **Setup**: R$ 800–1.500 único, escalando com o plano (mesmo racional da Secretária Odonto)
+- **Setup — variante integrada (Simples Dental)**: R$ 800–1.500 único, escalando com o plano (mesmo racional da Secretária Odonto) — onboarding pesado (calibrar robô contra o sistema de terceiro).
+- **Setup — variante Standalone (04/09/2026)**: R$ 400–800 único — onboarding mais leve (sem sistema externo pra calibrar, só banco + instância de WhatsApp + entrevista de personalização). Vira diferencial de entrada justamente pro segmento que a qualificação antiga excluía (clínica sem sistema nenhum, historicamente mais sensível a preço de entrada).
 
-**Falta decidir**: confirmar/travar os números acima, e se existe um período de teste/trial antes do compromisso.
+**Falta decidir**: confirmar/travar os números acima (a divisão de setup por variante é uma hipótese desta rodada, não validada com nenhum cliente ainda), e se existe um período de teste/trial antes do compromisso.
 
 ## 5. Fechamento
 
@@ -101,3 +118,9 @@ Já 100% documentado — `Checklist_Onboarding_Nova_Clinica.md`, seções 2-4 (p
 4. ~~Pitch de outreach~~ pronto (etapa 1) — `Lista_Leads_e_Outreach.md`. Falta só a lista real de nomes, que só sai de você.
 
 Todos os itens da fila original estão prontos. O que resta é decisão sua (travar preço, puxar a lista de nomes) ou execução (rodar a primeira demo/venda de verdade) — a partir daqui o funil amadurece com a experiência real, não com mais documento.
+
+**Atualizado 04/09/2026**: item novo na fila — o funil inteiro estava
+escrito só pra variante Simples Dental; com o MVP do Lumi Standalone,
+seções 2 e 4 foram bifurcadas pra cobrir as duas variantes (ver histórico
+em `Plano_Comercializacao_Lumi.md`). Mensagem e proposta de valor
+centralizadas em `Proposta_de_Valor_Lumi.md`.

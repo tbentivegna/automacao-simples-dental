@@ -4,11 +4,12 @@ Use este checklist toda vez que uma clínica nova contratar. Ele assume que a ar
 
 ## 0. Qualificação (antes de vender / antes de aceitar o setup)
 
-- [ ] A clínica usa **Simples Dental** ou **Clinicorp**? Os dois têm caminho definido hoje:
+- [ ] A clínica usa **Simples Dental**, usa **Clinicorp**, ou **não usa nenhum sistema de agenda**? Três caminhos definidos hoje:
   - **Simples Dental** → robô de automação padrão (`server.js` da raiz, Playwright).
+  - **Nenhum sistema** → **Lumi Standalone** (`standalone-bridge/`, MVP fechado 04/09/2026) — `public.consultas` vira a fonte única de verdade, sem robô/Playwright contra sistema nenhum. Onboarding mais leve que a variante Simples Dental (sem integração externa pra calibrar) — ver `standalone-bridge/README.md`.
   - **Clinicorp** → integração nova via API REST (`clinicorp-bridge/`, em construção desde 2026-08-27) — sem robô de navegador, mas **ainda não testada contra uma conta real** (ver `clinicorp-bridge/README.md` pra lista exata do que falta verificar). Precisa de uma clínica-piloto ou conta de teste Clinicorp antes de vender isso como pronto pra produção.
   - Qualquer outro sistema (iClinic, Sasu etc.) continua sendo projeto de integração do zero, orçado e com prazo à parte.
-- [ ] O dono/responsável tem acesso admin ao login do sistema de gestão (usuário/senha do Simples Dental, ou "ID de acesso" + "Token API" do Clinicorp — em Gerenciar Assinatura → Acesso Externo e Integrações)?
+- [ ] (Simples Dental/Clinicorp só) O dono/responsável tem acesso admin ao login do sistema de gestão (usuário/senha do Simples Dental, ou "ID de acesso" + "Token API" do Clinicorp — em Gerenciar Assinatura → Acesso Externo e Integrações)? *(Standalone não precisa desse item — não existe sistema externo pra logar.)*
 - [ ] A clínica tem (ou vai criar) um número de WhatsApp Business dedicado para a assistente? Idealmente não é o número pessoal do dono — reduz risco de a IA responder conversas pessoais por engano.
 
 ## 1. Entrevista Estratégica e de Essência (manual, com o dono — não pule, é o coração do "IN dirige")
@@ -29,6 +30,17 @@ Roteiro completo (o que perguntar, em que ordem, e o que cada resposta alimenta)
 Preencher o `Template_Prompt_Assistente_IA.md` com essas respostas antes de seguir para a etapa 2.
 
 ## 2. Provisionamento técnico
+
+⚠️ **As seções abaixo (Robô de automação) valem só pra variante Simples
+Dental.** Pra variante Standalone, o provisionamento é mais simples e
+está documentado separadamente em `standalone-bridge/README.md` — sem
+robô/Playwright, sem credencial de sistema externo, direto contra
+`public.consultas`. As seções de Evolution API, Banco de dados, Workflows
+n8n e Painel administrativo abaixo valem pras duas variantes (só troca o
+que aponta pro robô por o que aponta pro `standalone-bridge/`). Detalhar
+esse checklist bifurcado passo a passo é trabalho da Fase 2 do
+`Plano_Comercializacao_Lumi.md` (prontidão técnica) — este aviso é só pra
+não seguir o passo a passo errado até lá.
 
 **Evolution API (WhatsApp)**
 - [ ] Criar nova instância no Evolution API com nome único (ex.: nome da clínica)

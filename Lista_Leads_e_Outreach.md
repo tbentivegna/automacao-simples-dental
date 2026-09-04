@@ -4,7 +4,7 @@ Diferente dos outros itens da fila, este eu não consigo entregar pronto sozinho
 
 ## Perfil de cliente ideal (critério de prospecção)
 
-- **Usa Simples Dental** — bloqueante, é o filtro mais importante (ver `Checklist_Onboarding_Nova_Clinica.md`, seção 0).
+- **Usa Simples Dental OU não usa nenhum sistema de agenda** — deixou de ser um filtro único desde o MVP do Lumi Standalone (04/09/2026): dois caminhos de venda padrão agora, não um só (ver `Checklist_Onboarding_Nova_Clinica.md`, seção 0). Só fica de fora quem usa outro sistema de terceiro (Clinicorp e afins, hoje travado em piloto — `clinicorp-bridge/`).
 - **Atendimento majoritariamente particular** — o produto foi calibrado pra esse modelo; convênio muda regras inteiras do prompt.
 - **1-4 profissionais** — porte pequeno/médio decide mais rápido (sem comitê interno) e é o perfil que a Dra. Aline já representa como case.
 - **Já ativa no digital** — tem Instagram da clínica, já usa WhatsApp Business pra atender. Sinaliza abertura a ferramenta nova, menos fricção de adoção.
