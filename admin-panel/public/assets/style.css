@@ -1618,6 +1618,23 @@ html, body {
   gap: 16px;
 }
 
+.painel-conexao-whatsapp {
+  margin-top: 24px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qrcode-whatsapp {
+  margin-top: 12px;
+  max-width: 260px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  padding: 8px;
+  background: var(--cor-cartao);
+}
+
 .cartao-licao {
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio);

@@ -45,7 +45,7 @@ const {
   decidirLicaoAprendida,
 } = require('./queries');
 const { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
-const { enviarMensagem } = require('./evolution');
+const { enviarMensagem, statusConexao, obterQrCode } = require('./evolution');
 
 if (!process.env.ADMIN_PASSWORD) {
   throw new Error('ADMIN_PASSWORD não configurada -- veja .env.example.');
@@ -179,6 +179,28 @@ app.post('/api/mensagens/enviar', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em POST /api/mensagens/enviar:', erro);
     res.status(502).json({ erro: 'Falha ao enviar mensagem.', detalhe: erro.message });
+  }
+});
+
+// Conexão WhatsApp (aba Configurações) -- status e QR de reconexão da
+// instância do Evolution desta instalação. Vale tanto pra produção quanto
+// pro painel_demo, sem distinção de código -- só muda qual instância cada
+// deploy tem configurada em EVOLUTION_INSTANCE_ALINE.
+app.get('/api/whatsapp/status', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await statusConexao());
+  } catch (erro) {
+    console.error('Erro em GET /api/whatsapp/status:', erro);
+    res.status(502).json({ erro: 'Falha ao consultar status do WhatsApp.', detalhe: erro.message });
+  }
+});
+
+app.get('/api/whatsapp/qrcode', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await obterQrCode());
+  } catch (erro) {
+    console.error('Erro em GET /api/whatsapp/qrcode:', erro);
+    res.status(502).json({ erro: 'Falha ao gerar QR code.', detalhe: erro.message });
   }
 });
 

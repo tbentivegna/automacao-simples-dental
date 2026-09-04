@@ -42,4 +42,56 @@ async function enviarMensagem({ telefone, texto }) {
   return dados;
 }
 
-module.exports = { enviarMensagem };
+// Status da conexão do WhatsApp desta instalação (produção ou demo, quem
+// estiver em EVOLUTION_INSTANCE_ALINE) -- usado pelo card "Conexão WhatsApp"
+// em Configurações. Ao contrário de enviarMensagem, NÃO lança erro quando a
+// configuração está ausente -- devolve configurado:false, porque isso é um
+// estado válido e esperado (ex: painel_demo antes de ter uma instância
+// própria), não uma falha a ser tratada como 502 pelo chamador.
+async function statusConexao() {
+  if (!EVOLUTION_BASE_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_ALINE) {
+    return { configurado: false };
+  }
+
+  const resposta = await fetch(`${EVOLUTION_BASE_URL}/instance/fetchInstances`, {
+    headers: { apikey: EVOLUTION_API_KEY },
+  });
+  const dados = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    throw new Error(dados.message || dados.error || 'Falha ao consultar status da Evolution API.');
+  }
+
+  const lista = Array.isArray(dados) ? dados : dados.instances || [];
+  const minha = lista.find((item) => (item.instance?.instanceName || item.name || item.instanceName) === EVOLUTION_INSTANCE_ALINE);
+  if (!minha) {
+    return { configurado: true, encontrada: false, instancia: EVOLUTION_INSTANCE_ALINE };
+  }
+
+  const status = minha.instance?.status || minha.connectionStatus || minha.status || null;
+  return { configurado: true, encontrada: true, instancia: EVOLUTION_INSTANCE_ALINE, status, conectado: status === 'open' };
+}
+
+// QR code pra (re)conectar a instância desta instalação. Chamar só quando o
+// front já sabe (via statusConexao) que está desconectada -- evita gerar QR
+// à toa numa instância já conectada.
+async function obterQrCode() {
+  if (!EVOLUTION_BASE_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_ALINE) {
+    throw new Error(
+      'Configuração da Evolution API ausente (EVOLUTION_BASE_URL/EVOLUTION_API_KEY/EVOLUTION_INSTANCE_ALINE).'
+    );
+  }
+
+  const resposta = await fetch(`${EVOLUTION_BASE_URL}/instance/connect/${EVOLUTION_INSTANCE_ALINE}`, {
+    headers: { apikey: EVOLUTION_API_KEY },
+  });
+  const dados = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    throw new Error(dados.message || dados.error || 'Falha ao gerar QR code pela Evolution API.');
+  }
+  if (!dados.base64) {
+    throw new Error('A Evolution API não devolveu um QR code -- a instância já deve estar conectada.');
+  }
+  return { base64: dados.base64 };
+}
+
+module.exports = { enviarMensagem, statusConexao, obterQrCode };

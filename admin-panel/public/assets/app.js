@@ -99,6 +99,7 @@ const secoes = {
   configuracoes: () => {
     carregarConfiguracaoHorarios();
     carregarLicoesAprendidas();
+    carregarConexaoWhatsapp();
   },
 };
 
@@ -2490,6 +2491,57 @@ document.getElementById('conteudoLicoesAprendidas').addEventListener('click', as
   } catch (erro) {
     alert(erro.message);
     cartao.querySelectorAll('button[data-decidir]').forEach((b) => (b.disabled = false));
+  }
+});
+
+// ============================================================
+// Conexão WhatsApp (Configurações) -- status + QR de reconexão da
+// instância do Evolution desta instalação (produção ou demo).
+// ============================================================
+
+async function carregarConexaoWhatsapp() {
+  const alvo = document.getElementById('conteudoConexaoWhatsapp');
+  try {
+    const status = await chamarApi('/api/whatsapp/status');
+    alvo.innerHTML = renderizarConexaoWhatsapp(status);
+  } catch (erro) {
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
+
+function renderizarConexaoWhatsapp(status) {
+  if (!status.configurado) {
+    return '<div class="estado-vazio"><span class="estado-vazio__emoji">📵</span>Nenhuma instância do WhatsApp configurada nesta instalação.</div>';
+  }
+  if (status.encontrada === false) {
+    return `<div class="estado-vazio"><span class="estado-vazio__emoji">⚠️</span>Instância "${escapar(status.instancia)}" configurada, mas não encontrada na Evolution API.</div>`;
+  }
+  const selo = status.conectado
+    ? '<span class="selo selo-sucesso">● Conectado</span>'
+    : '<span class="selo selo-urgente">● Desconectado</span>';
+  const botao = status.conectado
+    ? ''
+    : '<div><button class="botao botao-primario" id="botaoGerarQrCode">Gerar QR code pra reconectar</button></div>';
+  return `
+    <p><strong>${escapar(status.instancia)}</strong> — ${selo}</p>
+    ${botao}
+    <div id="areaQrCode"></div>`;
+}
+
+document.getElementById('conteudoConexaoWhatsapp').addEventListener('click', async (evento) => {
+  if (evento.target.id !== 'botaoGerarQrCode') return;
+  const botao = evento.target;
+  const areaQrCode = document.getElementById('areaQrCode');
+  botao.disabled = true;
+  botao.textContent = 'Gerando QR code…';
+  try {
+    const { base64 } = await chamarApi('/api/whatsapp/qrcode');
+    areaQrCode.innerHTML = `<img class="qrcode-whatsapp" src="${base64}" alt="QR code pra reconectar o WhatsApp" />`;
+  } catch (erro) {
+    areaQrCode.innerHTML = elementoErro(erro.message);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Gerar QR code pra reconectar';
   }
 });
 
