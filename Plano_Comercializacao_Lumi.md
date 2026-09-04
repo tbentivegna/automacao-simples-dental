@@ -104,15 +104,35 @@ terceiros).
   (mensagem/termo simples, não precisa ser jurídico pesado nesta fase).
 
 ### UI/UX
-- [ ] Revisão do painel com olhar de "alguém vendo pela primeira vez, não
-  é dev" — a aba Conexão WhatsApp (autosserviço de reconexão/troca de
-  número) é literal desta sessão, nunca foi vista por ninguém de fora.
-- [ ] Definir formato de manual pro **uso diário da equipe da clínica**
-  (recepcionista/dentista usando o painel) — diferente do
-  Roteiro_Demo_Vendas.md, que é pra convencer um lead a comprar, não pra
-  ensinar quem já comprou a usar Agenda/Mensagens/Configurações no
-  dia a dia.
-- [ ] Recomendação de formato por público (ver §4, Fase 3).
+- [x] Manual de uso diário escrito — [Manual_Uso_Diario_Equipe.md](Manual_Uso_Diario_Equipe.md)
+  (Agenda, Mensagens, Atendimento Humano, Pendências, Oportunidades,
+  Analytics, Configurações + FAQ curto). Fonte pro formato final (PDF ou
+  página) a decidir.
+- [x] Roteiro de vídeo curto escrito — [Roteiro_Video_Demo_Site.md](Roteiro_Video_Demo_Site.md),
+  2-3min, adaptado do roteiro de demo pra formato passivo (site + abertura
+  de call). Gravação em si depende de você (webcam/narração ou não —
+  decisão em aberto).
+- [x] Revisão rápida do login/branding com olhar de primeira vez — achado
+  real: a logo (`logo-lumi.png`) tem "CONCIERGE DIGITAL — DRA. ALINE
+  BENTIVEGNA" **desenhado dentro da imagem** (pixel, não texto). A
+  variável `NOME_CLINICA` (`admin-panel/server.js:68`,
+  `branding.js:18-22`) só atualiza o título da aba e o `alt` da imagem
+  (invisível pra quem enxerga) — o texto visível continua sendo o nome
+  real da Dra. Aline em QUALQUER instalação, inclusive o painel_demo.
+  Isso contradiz a persona fictícia já construída pro demo
+  (`scripts/variaveis-clinica-demo.json`, "Dra. Camila Duarte"), e não
+  escala pra vender pra um 2º/3º cliente (exigiria gerar uma imagem nova
+  por clínica). **Não corrigi ainda** — é asset de marca visual usado
+  também no painel de produção da Dra. Aline, prefiro seu ok antes de
+  mexer. Recomendação: trocar por uma logo genérica "Lumi" (sem nome
+  embutido) + nome da clínica como texto HTML de verdade ao lado
+  (dinâmico via `NOME_CLINICA`, mesmo padrão que título/alt já usam).
+  Revisão mais ampla do painel (Conexão WhatsApp e outras telas com olhar
+  de primeira vez) ainda não feita.
+- [ ] FAQ dentro do próprio painel (proposto no plano original) — não
+  construído ainda, é mudança de código/feature nova, não conteúdo. Fica
+  como item de backlog pra quando fizer sentido priorizar (o manual em
+  markdown já cobre a mesma necessidade por enquanto).
 
 ### Back-end / Segurança — ✅ Fase 2 escrita 04/09/2026, ver [Prontidao_Tecnica_Comercializacao.md](Prontidao_Tecnica_Comercializacao.md)
 - [x] Isolamento multi-tenant formalizado (banco+role+WhatsApp+chaves
@@ -151,19 +171,11 @@ snapshot automático no Easypanel/VPS (não achei nenhuma rotina no
 código) — não decidi isso sozinho porque é risco de dado real de
 paciente, não só rumo comercial.
 
-**Fase 3 — Manuais e formatos** (UI/UX + PM)
-Recomendação (a validar com você):
-- **Vídeo curto (2-3 min)** — pro site e pra abertura de demo, mostrando o
-  fluxo real (mesmo estilo do `demo-server.js`, mas gravado). Vídeo
-  converte melhor que texto pra "ver funcionando" — é literalmente o
-  argumento central do Roteiro_Demo_Vendas.md.
-- **PDF/página curta (1-2 páginas)** — guia rápido de uso diário pra
-  equipe da clínica (Agenda, Mensagens, pausar a Lumi, reconectar
-  WhatsApp) — referência que a recepcionista consulta sozinha, sem
-  precisar te chamar.
-- **FAQ vivo dentro do próprio painel** (ex: seção nova em Configurações)
-  — menor esforço de manutenção que PDF solto (não fica desatualizado
-  silenciosamente).
+**Fase 3 — Manuais e formatos** (UI/UX + PM) — ✅ conteúdo escrito 04/09/2026
+Manual de uso diário e roteiro de vídeo prontos (ver checklist UI/UX
+acima). Falta: revisão de UX do painel com olhar de primeira vez, decidir
+formato final de publicação do manual (PDF exportado do markdown, ou
+página no site), e a gravação do vídeo em si (depende de você).
 
 **Fase 4 — Site de comercialização** (UI/UX + Marketing, depois da Fase 1)
 Vitrine pública: proposta de valor, como funciona, case Aline (após
@@ -186,6 +198,10 @@ nomes e a decisão de pedir o post da Dra. Aline antes de outreach frio.
   `Prontidao_Tecnica_Comercializacao.md` §3). Se a resposta for "não",
   isso precisa ser resolvido antes de vender pra mais alguém — é risco
   de perda de dado real de paciente hoje, inclusive em produção.
+
+- Logo com nome da Dra. Aline embutido na imagem, aparecendo até no
+  painel_demo — trocar por logo genérica + nome dinâmico em texto? (ver
+  achado em §3, UI/UX)
 
 **Decisões de rumo comercial** (menor urgência):
 - Setup fee pro Standalone: manter igual à variante integrada, ou reduzir

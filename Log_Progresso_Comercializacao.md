@@ -6,6 +6,31 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-04 — Fase 3: manuais escritos + achado de branding no login
+
+**Entregue**: `Manual_Uso_Diario_Equipe.md` (guia de uso do painel pra
+equipe da clínica — Agenda, Mensagens, Atendimento Humano, Pendências,
+Oportunidades, Analytics, Configurações, FAQ) e
+`Roteiro_Video_Demo_Site.md` (roteiro de vídeo de 2-3min pro site,
+condensado do roteiro de demo, com a cena do painel como ponto alto).
+
+**Achado ao revisar o painel_demo com olhar de primeira vez** (login):
+a logo (`admin-panel/public/assets/logo-lumi.png`) tem "CONCIERGE DIGITAL
+— DRA. ALINE BENTIVEGNA" desenhado dentro da própria imagem — a variável
+`NOME_CLINICA` só troca o título da aba e o `alt` (invisível), então o
+texto visível continua sendo o nome real da Aline em qualquer instalação,
+inclusive o demo. Contradiz a persona fictícia já construída
+(`Dra. Camila Duarte`) e não escala pra novos clientes. Não corrigido —
+é asset visual também usado na produção real da Aline, fica registrado
+como decisão em aberto (`Plano_Comercializacao_Lumi.md` §5) em vez de
+mexido sem confirmar.
+
+**Status das fases**: 1, 2 e 3 com conteúdo entregue. Fase 4 (site)
+represada até resolver o backup (Fase 2). Fase 5 (ir a mercado) já
+documentada desde 27/08, sem novidade.
+
+---
+
 ## 2026-09-04 — Fase 2: prontidão técnica escrita, 1 pendência real levantada
 
 **Entregue**: `Prontidao_Tecnica_Comercializacao.md` — isolamento
