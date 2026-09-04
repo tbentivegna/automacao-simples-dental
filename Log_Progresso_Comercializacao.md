@@ -6,6 +6,31 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-04 — Fase 2: prontidão técnica escrita, 1 pendência real levantada
+
+**Entregue**: `Prontidao_Tecnica_Comercializacao.md` — isolamento
+multi-tenant formalizado (verificado no código: banco+role+WhatsApp+chave
+dedicados por clínica, seguro pra virar texto público), rascunho mínimo
+de LGPD (gap real: sem política de retenção/exclusão a pedido do
+titular), texto de SLA honesto (sem prometer número de uptime).
+
+**🔴 Achado que não posso decidir sozinho**: busquei em todo o repositório
+(scripts, migrations, workflows n8n) e não encontrei nenhuma rotina de
+backup do Postgres compartilhado — que hoje guarda dado real de paciente
+em produção (Dra. Aline). `DATABASE_URL` aponta pra um IP direto, não um
+provedor gerenciado com backup automático por padrão. Isso é risco
+operacional de agora, independente de comercialização — registrado como
+prioridade real em `Plano_Comercializacao_Lumi.md` §5, aguardando o
+Tiago confirmar se existe snapshot automático no Easypanel/VPS por fora
+da aplicação.
+
+**Próximo passo**: seguir pra Fase 3 (manuais/formatos) em paralelo, já
+que não depende da resposta sobre backup — mas Fase 4 (site) fica
+represada até a Fase 2 estar 100% resolvida (alegação pública de
+segurança precisa aguentar escrutínio).
+
+---
+
 ## 2026-09-04 — Fase 1 concluída: funil bifurcado + proposta de valor
 
 Tiago autorizou modo automático ("vou validando de vez em quando... pode

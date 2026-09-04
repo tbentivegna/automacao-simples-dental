@@ -114,21 +114,18 @@ terceiros).
   dia a dia.
 - [ ] Recomendação de formato por público (ver §4, Fase 3).
 
-### Back-end / Segurança
-- [ ] O roteiro de demo já promete a leads: *"Cada clínica tem banco de
-  dados próprio, isolado"* e *"monitoramento automatizado rodando várias
-  vezes por dia"* — ambos verdadeiros na prática (banco por clínica,
-  health-check 3x/dia), mas nunca formalizados como política/documento —
-  se vira um cliente pagante de verdade, vale ter isso por escrito, não
-  só de boca em call de venda.
-- [ ] LGPD: dado real de paciente (nome, telefone, conteúdo de conversa)
-  passa pelo sistema — política mínima de retenção/acesso ainda não
-  existe como documento.
-- [ ] Backup/disaster recovery do Postgres compartilhado — não localizei
-  nenhuma rotina formalizada; vale checar antes de prometer isso pra
-  cliente pagante.
-- [ ] SLA realista pra prometer (o health-check hoje é best-effort, 3x/dia,
-  com humano no loop — definir o que isso vira em texto de contrato/site).
+### Back-end / Segurança — ✅ Fase 2 escrita 04/09/2026, ver [Prontidao_Tecnica_Comercializacao.md](Prontidao_Tecnica_Comercializacao.md)
+- [x] Isolamento multi-tenant formalizado (banco+role+WhatsApp+chaves
+  dedicados por clínica) — verificado no código, seguro pra virar texto
+  público.
+- [x] LGPD — rascunho mínimo escrito; gap real identificado: sem política
+  de retenção/exclusão a pedido do titular ainda.
+- [x] SLA — texto honesto proposto (sem número de uptime prometido).
+- [ ] **Backup/disaster recovery — gap real, confirmado (não achei
+  nenhuma rotina no código), aguardando você confirmar se existe
+  snapshot automático no Easypanel/VPS por fora da aplicação.** Isso é
+  risco de produção hoje (dado real de paciente), não só item de
+  checklist de venda — não vou decidir isso sozinho.
 
 ### Gerente de Projeto (orquestração)
 - [ ] Manter [Log_Progresso_Comercializacao.md](Log_Progresso_Comercializacao.md)
@@ -146,12 +143,13 @@ Qualificação/objeção/preço atualizados pra cobrir as duas variantes,
 value proposition formal escrita com "painel > chatbot" + "IA Auxilia, IN
 Dirige" como pilar central.
 
-**Fase 2 — Prontidão técnica pra vender de verdade** (Back-end/Segurança)
-Formalizar isolamento multi-tenant, política mínima de LGPD, checar backup
-real do Postgres, e travar um texto de SLA honesto. Não bloqueia venda
-consultiva (já vem sendo afirmado em call), mas bloqueia qualquer coisa
-publicada no site (uma alegação de segurança pública precisa aguentar
-escrutínio).
+**Fase 2 — Prontidão técnica pra vender de verdade** (Back-end/Segurança) — ✅ escrita 04/09/2026, 🔴 1 pendência real
+Isolamento multi-tenant, LGPD e SLA formalizados — ver
+[Prontidao_Tecnica_Comercializacao.md](Prontidao_Tecnica_Comercializacao.md).
+Backup/disaster recovery fica **bloqueado até você confirmar** se existe
+snapshot automático no Easypanel/VPS (não achei nenhuma rotina no
+código) — não decidi isso sozinho porque é risco de dado real de
+paciente, não só rumo comercial.
 
 **Fase 3 — Manuais e formatos** (UI/UX + PM)
 Recomendação (a validar com você):
@@ -181,6 +179,15 @@ nomes e a decisão de pedir o post da Dra. Aline antes de outreach frio.
 
 ## 5. Decisões em aberto (preciso de você)
 
+**Prioridade real, não só de marketing**:
+- 🔴 **Backup/disaster recovery do Postgres compartilhado — existe
+  snapshot automático no Easypanel/VPS, por fora da aplicação?** Não
+  encontrei nenhuma rotina no código (ver
+  `Prontidao_Tecnica_Comercializacao.md` §3). Se a resposta for "não",
+  isso precisa ser resolvido antes de vender pra mais alguém — é risco
+  de perda de dado real de paciente hoje, inclusive em produção.
+
+**Decisões de rumo comercial** (menor urgência):
 - Setup fee pro Standalone: manter igual à variante integrada, ou reduzir
   como diferencial de entrada (ver §2, ponto 3)?
 - Vídeo de demo: você aparece narrando, ou só a tela (WhatsApp + painel)
