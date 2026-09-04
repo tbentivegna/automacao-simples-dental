@@ -1721,6 +1721,24 @@ html, body {
   vertical-align: middle;
 }
 
+/* Legenda cor -> rótulo embaixo da grade da Agenda (Dia/Semana/Mês) --
+   .ponto-rotulo reaproveitado, mesma bolinha da tabela/modal. */
+.agenda-legenda-rotulos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--cor-borda);
+  background: var(--cor-fundo);
+}
+
+.agenda-legenda-rotulos__item {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--cor-texto-suave);
+}
+
 #conteudoAgenda .tabela tbody tr {
   cursor: pointer;
 }

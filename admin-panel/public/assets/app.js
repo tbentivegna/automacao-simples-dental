@@ -13,17 +13,50 @@ function escapar(texto) {
 // Fallback pra quando não tem rotuloCor (ex: standalone-bridge -- achado
 // real 04/09: public.consultas não tem essa coluna, todo rótulo caía no
 // mesmo cinza fixo '#999', então rótulos diferentes ficavam visualmente
-// idênticos). Gera uma cor estável a partir do texto do rótulo (mesmo
-// texto sempre vira a mesma cor), sem precisar de uma paleta cadastrada
-// em algum lugar -- só usado quando o backend não manda uma cor real
-// (ex: Simples Dental, que expõe a cor de verdade configurada por lá).
+// idênticos). Só usado quando o backend não manda uma cor real (ex:
+// Simples Dental, que expõe a cor de verdade configurada por lá).
+//
+// Paleta fixa (não hash de matiz em 360 tons) -- achado real 04/09: a
+// primeira versão gerava a cor a partir de um hash puro do texto, e por
+// pura coincidência "INVISALIGN" e "Primeira Consulta" caíam a 6° de
+// distância no círculo de cores (ambos verde), visualmente idênticos.
+// Com uma paleta curta e bem espaçada, atribuída na ordem em que cada
+// rótulo aparece pela primeira vez na sessão, dois rótulos só repetem
+// cor se já existirem mais categorias distintas do que cores na paleta
+// (bem incomum pra uma clínica). Tons escolhidos longe dos semânticos já
+// usados em status (--cor-sucesso verde, --cor-urgente vermelho,
+// --cor-alerta/--cor-marca dourado, --cor-info azul), pra não confundir
+// "categoria da consulta" com "status da consulta".
+const PALETA_ROTULOS = ['#5951c8', '#8346b9', '#ae3dae', '#ba3b7f', '#b64f35', '#597b32', '#27867a', '#276386'];
+const coresRotulosAtribuidas = new Map();
 function corParaRotulo(texto) {
-  let hash = 0;
-  for (let i = 0; i < texto.length; i++) {
-    hash = (hash << 5) - hash + texto.charCodeAt(i);
-    hash |= 0;
+  if (!coresRotulosAtribuidas.has(texto)) {
+    coresRotulosAtribuidas.set(texto, PALETA_ROTULOS[coresRotulosAtribuidas.size % PALETA_ROTULOS.length]);
   }
-  return `hsl(${Math.abs(hash) % 360}, 60%, 45%)`;
+  return coresRotulosAtribuidas.get(texto);
+}
+
+// Legenda cor -> rótulo embaixo da grade (Dia/Semana/Mês) -- sem isso a
+// cor da bolinha é decoração sem explicação pra quem não decorou de
+// cabeça qual cor é qual categoria. Recebe a lista de compromissos já
+// visíveis na janela atual (sem bloqueios) pra legenda refletir só o que
+// está na tela, não todo o histórico.
+function renderizarLegendaRotulos(compromissos) {
+  const alvo = document.getElementById('agendaLegendaRotulos');
+  if (!alvo) return;
+  const rotulos = [...new Set(compromissos.map((c) => c.rotulo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  if (rotulos.length === 0) {
+    alvo.hidden = true;
+    alvo.innerHTML = '';
+    return;
+  }
+  alvo.hidden = false;
+  alvo.innerHTML = rotulos
+    .map(
+      (r) =>
+        `<span class="agenda-legenda-rotulos__item"><span class="ponto-rotulo" style="background:${escapar(corParaRotulo(r))}"></span>${escapar(r)}</span>`
+    )
+    .join('');
 }
 
 // Nome oficial (confirmado pela Lumi) tem prioridade; sem ele, cai pro
@@ -1336,6 +1369,8 @@ async function renderizarGradeHoraria(dias) {
       <div class="agenda-grade__eixo" style="height:${alturaTotal}px">${horasHtml}</div>
       ${colunasHtml}
     </div>`;
+
+  renderizarLegendaRotulos(doIntervalo.filter((c) => !ehBloqueioDeDia(c)));
 }
 
 function renderizarAgendaDia() {
@@ -1357,6 +1392,8 @@ function renderizarAgendaMes() {
   const { inicioSemana: inicio } = limitesSemana(0);
   const dias = Array.from({ length: 28 }, (_, i) => inicio + i * 86_400_000);
   const hoje = inicioDoDiaLocal(new Date());
+  const fimIntervalo = dias[dias.length - 1] + 86_400_000;
+  const doIntervalo = agendaCache.filter((c) => c.inicio >= dias[0] && c.inicio < fimIntervalo && !ehBloqueioDeDia(c));
 
   const celulas = dias
     .map((diaMs) => {
@@ -1396,6 +1433,8 @@ function renderizarAgendaMes() {
     .join('');
 
   alvo.innerHTML = `<div class="agenda-mes">${celulas}</div>`;
+
+  renderizarLegendaRotulos(doIntervalo);
 }
 
 // Clique num evento (Dia/Semana/Mês) -> mesmo modal que a Lista já usa.
