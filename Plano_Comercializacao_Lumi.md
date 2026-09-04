@@ -141,11 +141,15 @@ terceiros).
 - [x] LGPD — rascunho mínimo escrito; gap real identificado: sem política
   de retenção/exclusão a pedido do titular ainda.
 - [x] SLA — texto honesto proposto (sem número de uptime prometido).
-- [ ] **Backup/disaster recovery — gap real, confirmado (não achei
-  nenhuma rotina no código), aguardando você confirmar se existe
-  snapshot automático no Easypanel/VPS por fora da aplicação.** Isso é
-  risco de produção hoje (dado real de paciente), não só item de
-  checklist de venda — não vou decidir isso sozinho.
+- [x] **Backup/disaster recovery — resolvido 04/09/2026.** Confirmado com
+  você: não existia nenhuma rotina. Construído backup lógico (Node + pg,
+  sem depender de `pg_dump`) + restore, testado ponta a ponta de verdade
+  (banco novo, migrations, restaurar, comparar linha por linha — 13/13
+  tabelas bateram). Ver [Backup_Restauracao.md](Backup_Restauracao.md).
+  Falta só você registrar a tarefa agendada (comando pronto no
+  documento — ação de sistema que fico bloqueado de fazer sozinho).
+  Limitação registrada: backup só no PC local por enquanto, sem
+  redundância geográfica ainda.
 
 ### Gerente de Projeto (orquestração)
 - [ ] Manter [Log_Progresso_Comercializacao.md](Log_Progresso_Comercializacao.md)
@@ -163,13 +167,12 @@ Qualificação/objeção/preço atualizados pra cobrir as duas variantes,
 value proposition formal escrita com "painel > chatbot" + "IA Auxilia, IN
 Dirige" como pilar central.
 
-**Fase 2 — Prontidão técnica pra vender de verdade** (Back-end/Segurança) — ✅ escrita 04/09/2026, 🔴 1 pendência real
+**Fase 2 — Prontidão técnica pra vender de verdade** (Back-end/Segurança) — ✅ concluída 04/09/2026
 Isolamento multi-tenant, LGPD e SLA formalizados — ver
 [Prontidao_Tecnica_Comercializacao.md](Prontidao_Tecnica_Comercializacao.md).
-Backup/disaster recovery fica **bloqueado até você confirmar** se existe
-snapshot automático no Easypanel/VPS (não achei nenhuma rotina no
-código) — não decidi isso sozinho porque é risco de dado real de
-paciente, não só rumo comercial.
+Backup/disaster recovery resolvido e testado ponta a ponta — ver
+[Backup_Restauracao.md](Backup_Restauracao.md). Falta só o Tiago registrar
+a tarefa agendada. Com isso, Fase 4 (site) está liberada.
 
 **Fase 3 — Manuais e formatos** (UI/UX + PM) — ✅ conteúdo escrito 04/09/2026
 Manual de uso diário e roteiro de vídeo prontos (ver checklist UI/UX
@@ -191,17 +194,18 @@ nomes e a decisão de pedir o post da Dra. Aline antes de outreach frio.
 
 ## 5. Decisões em aberto (preciso de você)
 
-**Prioridade real, não só de marketing**:
-- 🔴 **Backup/disaster recovery do Postgres compartilhado — existe
-  snapshot automático no Easypanel/VPS, por fora da aplicação?** Não
-  encontrei nenhuma rotina no código (ver
-  `Prontidao_Tecnica_Comercializacao.md` §3). Se a resposta for "não",
-  isso precisa ser resolvido antes de vender pra mais alguém — é risco
-  de perda de dado real de paciente hoje, inclusive em produção.
-
-- Logo com nome da Dra. Aline embutido na imagem, aparecendo até no
-  painel_demo — trocar por logo genérica + nome dinâmico em texto? (ver
-  achado em §3, UI/UX)
+**Resolvido**:
+- [x] Backup/disaster recovery — ver [Backup_Restauracao.md](Backup_Restauracao.md).
+  Testado ponta a ponta (banco novo, migrations, restaurar, comparar
+  linha por linha). Falta só você registrar a tarefa agendada (1 comando
+  pronto no documento — ação de sistema que fico bloqueado de fazer
+  sozinho).
+- [x] Logo corrigida 04/09 (Tiago autorizou) — nome saiu da imagem, virou
+  texto dinâmico (`.marca-lumi-subtitulo`, `branding.js`). **Segue
+  pendente**: `NOME_CLINICA` do painel_demo no Easypanel está como "Lumi
+  — Demonstração" (frase completa) — com o novo prefixo fixo "Concierge
+  Digital —" agora visível, fica redundante. Trocar pra algo tipo
+  "Demonstração" no próximo redeploy.
 
 **Decisões de rumo comercial** (menor urgência):
 - Setup fee pro Standalone: manter igual à variante integrada, ou reduzir

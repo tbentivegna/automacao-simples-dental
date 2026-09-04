@@ -9,3 +9,9 @@ logs/
 
 # backfill: dados de pacientes (PII) ficam local, so o script vai pro repo
 db/backfill/*.json
+
+# backup: dumps tem dado real de paciente (PII), nunca vao pro repo. O
+# config real tambem fica de fora (nao tem senha, mas nao precisa ser
+# publico) -- so o .example.json e commitado.
+backups/
+scripts/backup-databases.json

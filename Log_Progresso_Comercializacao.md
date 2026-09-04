@@ -6,6 +6,56 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-04 — Backup/disaster recovery resolvido, testado ponta a ponta
+
+Tiago confirmou: não existia nenhuma rotina de backup mesmo. Construído
+`scripts/backup-postgres.js` (exporta todas as linhas de cada tabela em
+JSON+gzip -- schema já é recuperável via `db/migrations/`, não precisa
+de `pg_dump`, que nem está instalado nesta máquina) e
+`scripts/restore-postgres.js` (restaura numa transação única, tudo ou
+nada).
+
+**Testado de verdade, não só código**: criado um banco novo do zero,
+rodadas as 13 migrations, restaurado um backup real nele, comparada a
+contagem de linha de cada uma das 13 tabelas contra o original -- bateu
+exato em todas. Banco de teste removido depois. Rodado um backup real de
+produção na sequência: 2.959 linhas, 13 tabelas, ~163KB comprimido.
+
+`scripts/run-backup.ps1` (mesmo padrão do `run-health-check.ps1`, mas
+sem passar por Claude -- é mecânico, não precisa de julgamento) roda o
+backup e alerta por WhatsApp (mesmo canal do health-check) se falhar.
+Documentado em `Backup_Restauracao.md`, com o comando exato de
+`Register-ScheduledTask` pro Tiago rodar (registrar tarefa agendada é
+ação de sistema que fico bloqueado de fazer sozinho, mesma razão do
+health-check).
+
+**Limitação registrada, não resolvida agora**: backup fica só no PC
+local por enquanto -- protege contra o Postgres/VPS cair, não contra o
+PC do Tiago falhar no mesmo dia. Redundância geográfica de verdade
+(upload pra storage externo) fica pra quando ele quiser priorizar.
+
+Com isso, **Fase 2 está 100% concluída** e a Fase 4 (site) está
+liberada.
+
+---
+
+## 2026-09-04 — Logo corrigida (autorizado pelo Tiago)
+
+Nome da Dra. Aline removido dos pixels da logo (`logo-lumi.png`) via
+edição cirúrgica (Python/PIL, região x=[90,545] y=[378,401] apagada,
+anel dourado e palavra "Lumi" preservados intactos, verificado pixel a
+pixel antes/depois e visualmente). Nome da clínica volta como texto HTML
+de verdade (`.marca-lumi-subtitulo`), dinâmico via `NOME_CLINICA` — login
+e barra lateral (não no topo mobile compacto).
+
+**Pendência pro próximo redeploy**: `NOME_CLINICA` do painel_demo hoje é
+`"Lumi — Demonstração"` (frase completa, herdada de quando só alimentava
+título da aba/alt invisível) — com o prefixo fixo "Concierge Digital —"
+agora visível, fica redundante. Trocar essa env var no Easypanel pra algo
+tipo "Demonstração".
+
+---
+
 ## 2026-09-04 — Fase 3: manuais escritos + achado de branding no login
 
 **Entregue**: `Manual_Uso_Diario_Equipe.md` (guia de uso do painel pra

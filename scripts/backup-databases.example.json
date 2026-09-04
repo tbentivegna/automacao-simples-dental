@@ -1,0 +1,4 @@
+[
+  { "nome": "prod", "envPath": "../.env" },
+  { "nome": "standalone-teste", "envPath": "../standalone-bridge/.env" }
+]
