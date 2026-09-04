@@ -2554,7 +2554,46 @@ document.getElementById('conteudoLicoesAprendidas').addEventListener('click', as
 // instância do Evolution desta instalação (produção ou demo).
 // ============================================================
 
+let pollingConexaoWhatsapp = null;
+
+function pararPollingConexaoWhatsapp() {
+  if (pollingConexaoWhatsapp) {
+    clearInterval(pollingConexaoWhatsapp);
+    pollingConexaoWhatsapp = null;
+  }
+}
+
+// Depois de mostrar um QR code (reconectar ou trocar número), fica
+// checando o status a cada poucos segundos até detectar que conectou de
+// verdade -- achado real 04/09, testado ao vivo: sem isso o QR ficava na
+// tela pra sempre depois de escanear, o card só atualizava se o usuário
+// saísse da aba de Configurações e voltasse. Desiste depois de 3 minutos
+// (~60 tentativas) pra não ficar batendo na API pra sempre se ninguém
+// escanear -- reabrir Configurações reinicia o polling.
+function iniciarPollingConexaoWhatsapp() {
+  pararPollingConexaoWhatsapp();
+  let tentativas = 0;
+  pollingConexaoWhatsapp = setInterval(async () => {
+    tentativas++;
+    if (tentativas > 60) {
+      pararPollingConexaoWhatsapp();
+      return;
+    }
+    try {
+      const status = await chamarApi('/api/whatsapp/status');
+      if (status.conectado) {
+        pararPollingConexaoWhatsapp();
+        carregarConexaoWhatsapp();
+      }
+    } catch {
+      // Falha passageira de rede não deveria derrubar o polling -- só
+      // ignora e tenta de novo na próxima.
+    }
+  }, 3000);
+}
+
 async function carregarConexaoWhatsapp() {
+  pararPollingConexaoWhatsapp();
   const alvo = document.getElementById('conteudoConexaoWhatsapp');
   try {
     const status = await chamarApi('/api/whatsapp/status');
@@ -2572,8 +2611,8 @@ function renderizarConexaoWhatsapp(status) {
     return `<div class="estado-vazio"><span class="estado-vazio__emoji">⚠️</span>Instância "${escapar(status.instancia)}" configurada, mas não encontrada na Evolution API.</div>`;
   }
   const selo = status.conectado
-    ? '<span class="selo selo-sucesso">● Conectado</span>'
-    : '<span class="selo selo-urgente">● Desconectado</span>';
+    ? '<span class="selo selo-sucesso" id="seloConexaoWhatsapp">● Conectado</span>'
+    : '<span class="selo selo-urgente" id="seloConexaoWhatsapp">● Desconectado</span>';
   // Conectada: só oferece trocar de número (desconecta a atual antes de
   // gerar QR novo). Desconectada: só oferece reconectar -- não faz sentido
   // "trocar" um número que já não está conectado a nada.
@@ -2595,6 +2634,7 @@ document.getElementById('conteudoConexaoWhatsapp').addEventListener('click', asy
     try {
       const { base64 } = await chamarApi('/api/whatsapp/qrcode');
       areaQrCode.innerHTML = `<img class="qrcode-whatsapp" src="${base64}" alt="QR code pra reconectar o WhatsApp" />`;
+      iniciarPollingConexaoWhatsapp();
     } catch (erro) {
       areaQrCode.innerHTML = elementoErro(erro.message);
     } finally {
@@ -2620,6 +2660,16 @@ document.getElementById('conteudoConexaoWhatsapp').addEventListener('click', asy
       const { base64 } = await chamarApi('/api/whatsapp/trocar-numero', { method: 'POST' });
       areaQrCode.innerHTML = `<img class="qrcode-whatsapp" src="${base64}" alt="QR code pra conectar o número novo" />`;
       botao.textContent = 'Escaneie o QR code com o número novo';
+      // A desconexão já aconteceu de verdade nesse ponto (trocar-numero só
+      // devolve QR depois do logout) -- atualiza o selo na hora em vez de
+      // esperar o próximo carregarConexaoWhatsapp(), que ia sobrescrever o
+      // QR que acabou de aparecer.
+      const selo = document.getElementById('seloConexaoWhatsapp');
+      if (selo) {
+        selo.className = 'selo selo-urgente';
+        selo.textContent = '● Desconectado';
+      }
+      iniciarPollingConexaoWhatsapp();
     } catch (erro) {
       areaQrCode.innerHTML = elementoErro(erro.message);
       botao.disabled = false;
