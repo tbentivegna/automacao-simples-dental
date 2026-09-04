@@ -695,7 +695,7 @@ html, body {
   overflow: hidden;
   padding: 3px 6px;
   border-radius: var(--raio-pequeno);
-  border-left: 3px solid var(--cor-marca);
+  border-left: 4px solid var(--cor-marca);
   box-shadow: var(--sombra);
   font-size: 12px;
   line-height: 1.3;
@@ -720,6 +720,7 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--cor-texto);
 }
 
 .agenda-evento__ponto-rotulo {
@@ -742,34 +743,30 @@ html, body {
    outras partes do painel, reaproveitadas aqui tanto na grade (.agenda-
    evento) quanto no Mês (.agenda-mes__evento). */
 .agenda-status-agendada {
-  background: var(--cor-info-fundo);
+  background: color-mix(in srgb, var(--cor-info) 40%, white);
   border-left-color: var(--cor-info);
-  color: var(--cor-info);
 }
 
 .agenda-status-confirmada {
-  background: var(--cor-sucesso-fundo);
+  background: color-mix(in srgb, var(--cor-sucesso) 38%, white);
   border-left-color: var(--cor-sucesso);
-  color: var(--cor-sucesso);
 }
 
 .agenda-status-em-atendimento {
-  background: var(--cor-marca-clara);
+  background: color-mix(in srgb, var(--cor-marca) 42%, white);
   border-left-color: var(--cor-marca-escura);
-  color: var(--cor-marca-escura);
 }
 
 .agenda-status-falta {
-  background: var(--cor-urgente-fundo);
+  background: color-mix(in srgb, var(--cor-urgente) 40%, white);
   border-left-color: var(--cor-urgente);
-  color: var(--cor-urgente);
 }
 
 .agenda-status-cancelada {
   background: var(--cor-fundo-alt);
   border-left-color: var(--cor-texto-fraco);
   color: var(--cor-texto-fraco);
-  opacity: 0.7;
+  opacity: 0.75;
   text-decoration: line-through;
 }
 
@@ -832,12 +829,14 @@ html, body {
 .agenda-mes__evento {
   font-size: 11.5px;
   padding: 2px 5px;
+  border-left: 3px solid var(--cor-marca);
   border-radius: var(--raio-pequeno);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
 }
 
 .agenda-mes__mais {
