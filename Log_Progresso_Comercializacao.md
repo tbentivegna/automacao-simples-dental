@@ -6,6 +6,52 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-05 — Screenshots reais + correção de terminologia (aguardando redeploy)
+
+**Terminologia**: Tiago corrigiu — é sempre "concierge digital", nunca
+"assistente virtual"/"assistente de IA" genérico (já era assim no
+prompt real de produção). Corrigido em 5 pontos do site +
+`Roteiro_Demo_Vendas.md` + `Manual_Uso_Diario_Equipe.md` + os 3 pitches
+de `Lista_Leads_e_Outreach.md`.
+
+**Screenshots**: Tiago pediu screenshots reais do painel + imagens de
+conversa de WhatsApp em vez de só ícone/texto. Antes de capturar,
+achado real: o banco de demo tinha o nome/número pessoal do Tiago (de
+teste anterior) — renomeado pra "Ricardo Mendes Alves" antes de
+screenshotar, e seedado funil de resgate fresco (3 casos: em andamento,
+resgate enviado, convertido) pra Oportunidades contar uma história
+completa.
+
+2 screenshots reais do painel (Agenda mês, Oportunidades) capturados
+com Playwright contra `admin-panel` local + banco de demo. Mensagens e
+Analytics descartados: Mensagens tinha o mesmo tipo de vazamento (texto
+de resposta real mencionando "Tiago" por nome, não só o campo de nome
+do cliente) e Analytics tinha dado fraco demais pra ilustrar bem.
+
+3 imagens de "momento-chave" de WhatsApp (saudação, agendamento,
+urgência) — **não geradas por LLM ao vivo**. Tentei os 4 provedores
+configurados: Mistral rate-limited (tráfego real de produção
+compartilhando a mesma chave, já documentado), Groq com modelo
+indisponível, Gemini sobrecarregado (503), e OpenAI respondeu mas
+**inventou um passo de cadastro que não existe de verdade** (pediu
+CPF/CEP/data de nascimento no meio do agendamento) — confirma ao vivo o
+problema já registrado em `project_lumi_openai_tool_selection_failure`.
+Em vez de arriscar publicar algo incorreto num asset público permanente,
+escrevi o diálogo à mão (mesma UI/CSS do `lumi-harness/demo-server.js`),
+verificado contra o comportamento real da Lumi estabelecido ao longo de
+todo o projeto.
+
+Efeito colateral útil: `lumi-harness/run.js` ganhou
+`LUMI_SYSTEM_PROMPT_PATH` (override opcional, retrocompatível) — permite
+rodar o harness contra a persona fictícia do demo em vez do prompt real
+da Dra. Aline, sem tocar em nenhum arquivo de produção. Reutilizável
+pra próxima vez que precisar gerar material com a persona genérica.
+
+**Pendente**: redeploy no Easypanel pra essas mudanças (+ a correção de
+terminologia) chegarem no site ao vivo.
+
+---
+
 ## 2026-09-05 — Site no ar em produção: lumi.tbentivegna.com.br
 
 Tiago criou o subdomínio e pediu ajuda pra publicar. Criado
