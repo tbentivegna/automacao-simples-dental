@@ -1,8 +1,10 @@
 # Site de comercialização — Lumi
 
-Fase 4 do `Plano_Comercializacao_Lumi.md`. Protótipo, não deployado ainda
-— domínio/hospedagem final é decisão em aberto (ver `Plano_Comercializacao_Lumi.md`
-§5). Publicado como Artifact pra revisão em 04/09/2026.
+Fase 4 do `Plano_Comercializacao_Lumi.md`. **No ar em produção desde
+05/09/2026**: https://lumi.tbentivegna.com.br (Easypanel, build path
+`site/`, `server.js` estático mínimo, sem variável de ambiente
+nenhuma). Protótipo original publicado como Artifact em 04/09/2026 pra
+revisão antes do deploy real.
 
 Página única, estático, sem backend — CTA principal é WhatsApp direto
 (`wa.me`, número 5511981174657, mensagem pré-preenchida), consistente com
@@ -27,8 +29,3 @@ dela ainda não confirmada (ver `Plano_Comercializacao_Lumi.md`). Site usa
 só "em uso real, em produção, numa clínica odontológica", sem nome nem
 depoimento fabricado. Trocar quando ela autorizar.
 
-## Pra publicar de verdade
-
-`index.html` + `assets/logo-lumi.png` são um site estático simples --
-qualquer hospedagem serve (Easypanel como app estática, Vercel/Netlify,
-etc.), assim que o domínio for decidido.

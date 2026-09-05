@@ -6,6 +6,32 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-05 — Site no ar em produção: lumi.tbentivegna.com.br
+
+Tiago criou o subdomínio e pediu ajuda pra publicar. Criado
+`site/server.js`+`package.json`+`Dockerfile` (Express estático mínimo,
+mesmo padrão Easypanel do resto do monorepo -- build path `site/`, PORT
+via env do Easypanel, sem variável nenhuma necessária já que não tem
+backend). Testado localmente antes de orientar o deploy: HTML bem
+formado, grids de 6 recursos e 3 planos com colunas simétricas
+(verificado via `getBoundingClientRect`, não só screenshot -- o preview
+deste ambiente teve problema de captura visual com o header sticky
+borrado, mas a medição real do layout confirmou que não era bug de
+verdade).
+
+Tiago fez o deploy no Easypanel. Verificado ao vivo via curl: primeira
+tentativa deu `HTTP 000` (conexão falhou -- provavelmente propagação de
+DNS/cold start logo após o deploy), tentativas seguintes todas `200`,
+título/HTML/logo/CTA todos corretos (`lumi-tbentivegna.com.br/assets/logo-lumi.png`
+retorna o PNG certo, 187133 bytes, batendo exato com o arquivo local).
+
+Site de comercialização está **no ar de verdade**, não é mais só
+protótipo. Restam as decisões menores já registradas (número de WhatsApp
+do CTA, formalizar case da Dra. Aline) antes de divulgar o link
+amplamente.
+
+---
+
 ## 2026-09-04 — Fase 4: protótipo do site publicado
 
 Tiago autorizou seguir ("Pode seguir") depois de Fase 2 fechada. Construí

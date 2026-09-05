@@ -188,8 +188,10 @@ planos sem preço travado, FAQ (adaptado do roteiro de demo), CTA
 WhatsApp direto (modelo híbrido, sem formulário — um artifact público
 não pode usar a capability `db`, que restringe a página à organização).
 Case da Dra. Aline propositalmente sem nome ainda (autorização formal
-pendente). Fonte em `site/index.html` (repo) + protótipo publicado como
-Artifact pra revisão. Domínio/hospedagem final seguem em aberto.
+pendente). **No ar em produção**: https://lumi.tbentivegna.com.br
+(deploy 05/09/2026, Easypanel, mesmo padrão dos outros serviços do
+monorepo — `site/` como build path, sem env vars). Verificado via curl:
+200, título/HTML/logo corretos.
 
 **Fase 5 — Ir a mercado** (Marketing + você)
 Já documentado em `Lista_Leads_e_Outreach.md` — falta a lista real de
@@ -217,8 +219,8 @@ nomes e a decisão de pedir o post da Dra. Aline antes de outreach frio.
   como diferencial de entrada (ver §2, ponto 3)?
 - Vídeo de demo: você aparece narrando, ou só a tela (WhatsApp + painel)
   com legenda/voz gerada?
-- Domínio do site comercial: novo domínio próprio, ou subdomínio de
-  `tbentivegna.com.br`?
+- [x] Domínio do site comercial — resolvido 05/09/2026: subdomínio
+  `lumi.tbentivegna.com.br`, no ar.
 - CTA do site usa o número pessoal do Tiago (5511981174657, já
   estabelecido como canal de contato ao longo do projeto) — confirmar se
   é esse mesmo o número certo pra receber lead de venda antes de
