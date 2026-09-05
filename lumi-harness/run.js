@@ -22,7 +22,15 @@ const { criarClienteLLM, corTerminal } = require('./llm-client');
 
 const { chamarLLM } = criarClienteLLM(tools);
 
-const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'system-prompt.txt'), 'utf8');
+// LUMI_SYSTEM_PROMPT_PATH: override opcional, pra rodar o harness contra
+// outro prompt sem tocar no de produção (ex: gerar screenshot de venda
+// com a persona fictícia do demo, scripts/variaveis-clinica-demo.compilado.txt,
+// em vez do prompt real e afinado da Dra. Aline). Sem a variável, comportamento
+// idêntico ao de sempre.
+const SYSTEM_PROMPT = fs.readFileSync(
+  process.env.LUMI_SYSTEM_PROMPT_PATH || path.join(__dirname, 'system-prompt.txt'),
+  'utf8'
+);
 
 // Espelha o que o node "Divide Mensagem em Blocos" faz em produção: o
 // histórico contém mensagens da equipe humana marcadas com "[Equipe da

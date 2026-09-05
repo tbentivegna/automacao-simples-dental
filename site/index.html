@@ -190,9 +190,34 @@
   .anel-divisor { display: flex; justify-content: center; padding: 6px 0 0; }
   .anel-divisor svg { width: 34px; height: 34px; opacity: 0.55; }
 
+  /* ---------- conversa (screenshots reais de WhatsApp) ---------- */
+  .conversas-whatsapp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .conversa-item { display: flex; flex-direction: column; gap: 14px; }
+  .conversa-item img {
+    width: 100%; height: auto; display: block; border-radius: 14px;
+    border: 1px solid var(--line); box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+  }
+  .conversa-item p { font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.55; }
+  .conversa-item p strong { color: var(--gold-bright); font-weight: 600; }
+
+  /* ---------- screenshots reais do painel ---------- */
+  .painel-screenshots { display: flex; flex-direction: column; gap: 40px; margin-top: 48px; }
+  .painel-screenshot { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: center; }
+  .painel-screenshot:nth-child(even) { grid-template-columns: 1fr 1.3fr; }
+  .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 2; }
+  .painel-screenshot img {
+    width: 100%; height: auto; display: block; border-radius: 6px;
+    border: 1px solid var(--line); box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  }
+  .painel-screenshot__texto .rotulo { font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .painel-screenshot__texto h3 { font-size: 22px; margin-top: 10px; }
+  .painel-screenshot__texto p { color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65; }
+
   @media (max-width: 860px) {
-    .caminhos, .grade-recursos, .confianca-lista, .planos { grid-template-columns: 1fr; }
+    .caminhos, .grade-recursos, .confianca-lista, .planos, .conversas-whatsapp { grid-template-columns: 1fr; }
     .grade-recursos { background: var(--line-soft); }
+    .painel-screenshot, .painel-screenshot:nth-child(even) { grid-template-columns: 1fr; }
+    .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 0; }
     header .botao span.rotulo-longo { display: none; }
     section { padding: 64px 0; }
     .hero { padding: 72px 0 56px; }
@@ -224,7 +249,31 @@
     </div>
   </section>
 
-  <section id="caminhos" style="border-top:none;">
+  <section id="conversa" style="border-top:none;">
+    <div class="envelope">
+      <div class="cabecalho-secao">
+        <p class="eyebrow">Como soa na prática</p>
+        <h2>Uma conversa de verdade, do jeito que o paciente vive</h2>
+        <p>Ilustração de uma conversa típica — sem menu, sem robô engessado.</p>
+      </div>
+      <div class="conversas-whatsapp">
+        <div class="conversa-item">
+          <img src="assets/whatsapp-saudacao.png" alt="Conversa mostrando a Lumi cumprimentando e explicando um tratamento">
+          <p><strong>Acolhe e informa</strong> — pergunta o nome, tira dúvida sobre tratamento, sem empurrar agendamento na mesma mensagem.</p>
+        </div>
+        <div class="conversa-item">
+          <img src="assets/whatsapp-agendamento.png" alt="Conversa mostrando a Lumi oferecendo horários e confirmando a consulta">
+          <p><strong>Agenda de verdade</strong> — oferece horário real, confirma sem ambiguidade. Nunca inventa, nunca chuta.</p>
+        </div>
+        <div class="conversa-item">
+          <img src="assets/whatsapp-urgencia.png" alt="Conversa mostrando a Lumi encaminhando uma urgência para um humano, sem recomendar remédio">
+          <p><strong>Sabe o limite dela</strong> — urgência vira aviso pra um humano na hora, nunca uma recomendação de remédio.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="caminhos">
     <div class="envelope">
       <div class="cabecalho-secao">
         <p class="eyebrow">Como ela entra na sua clínica</p>
@@ -290,6 +339,25 @@
             <h4>Configurações</h4>
             <p>Horários, pausar a Lumi pra todo mundo, e reconectar o WhatsApp sozinho — sem depender de suporte técnico.</p>
           </div>
+        </div>
+      </div>
+
+      <div class="painel-screenshots">
+        <div class="painel-screenshot">
+          <div class="painel-screenshot__texto">
+            <p class="rotulo">Agenda</p>
+            <h3>A mesma agenda, em tempo real</h3>
+            <p>Visualização por dia, semana, mês ou lista — cada cor é uma categoria de consulta, feriados aparecem sozinhos, e qualquer compromisso pode ser criado ou ajustado direto pelo painel.</p>
+          </div>
+          <img src="assets/painel-agenda.png" alt="Tela de Agenda do painel Lumi, visualização em mês, com consultas coloridas por categoria">
+        </div>
+        <div class="painel-screenshot">
+          <div class="painel-screenshot__texto">
+            <p class="rotulo">Oportunidades</p>
+            <h3>O funil de resgate, visível etapa a etapa</h3>
+            <p>Cada paciente que sumiu no meio do agendamento aparece aqui — com o que a Lumi já tentou, e o que falta. Quando funciona, mostra "já agendou 🎉" — quando não, dá pra reativar com um clique.</p>
+          </div>
+          <img src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
         </div>
       </div>
     </div>
