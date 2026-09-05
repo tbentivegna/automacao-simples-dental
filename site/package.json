@@ -1,0 +1,13 @@
+{
+  "name": "site-lumi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site de comercializacao da Lumi -- estatico, sem backend.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

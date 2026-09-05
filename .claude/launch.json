@@ -12,6 +12,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["lumi-harness/demo-server.js"],
       "port": 3200
+    },
+    {
+      "name": "site-lumi",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["site/server.js"],
+      "port": 3300
     }
   ]
 }
