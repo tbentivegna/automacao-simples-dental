@@ -107,7 +107,7 @@ humano decidir — não tem "ela inventou".
 
 **Um paciente reclamou que é robô, o que eu faço?**
 Assumir a conversa em Mensagens resolve na hora — a Lumi nunca tenta
-esconder que é assistente virtual, mas nada impede a equipe de assumir
+esconder que é uma concierge digital, mas nada impede a equipe de assumir
 quando fizer sentido.
 
 **Preciso mexer em alguma coisa quando muda o horário de atendimento?**

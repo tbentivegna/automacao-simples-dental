@@ -65,7 +65,7 @@ você já tenha visto."*
 | Objeção | Resposta |
 |---|---|
 | "E se ela errar e prejudicar a clínica?" | "Ela nunca confirma nada sem checar o sistema de verdade primeiro — não existe 'ela inventou um horário'. E qualquer coisa fora do que ela sabe resolver vira aviso pra um humano, na hora." |
-| "Meus pacientes vão perceber que é robô e não gostar?" | Mostrar o tom da demo — "o objetivo nunca foi esconder que é assistente virtual, é ser útil e rápida. Se quiser, ela pode se apresentar como assistente logo de cara." |
+| "Meus pacientes vão perceber que é robô e não gostar?" | Mostrar o tom da demo — "o objetivo nunca foi esconder que é uma concierge digital, é ser útil e rápida. Se quiser, ela pode se apresentar assim logo de cara." |
 | "Preciso trocar de sistema de agenda?" | Se já usa Simples Dental: "Não — ela opera dentro do que você já usa, é um robô que mexe no mesmo sistema que sua recepção mexe." Se não usa nenhum sistema: "Não precisa ter nada — a gente monta a agenda pra você desde o início, sem sistema de terceiro no meio." *(As duas são venda padrão hoje, não projeto especial — ver `Funil_Vendas_Lumi.md` §2.)* |
 | "E se cair o WhatsApp ou o sistema?" | "Existe monitoramento automatizado rodando várias vezes por dia, avisando quando algo sai do esperado — não é 'sobe e esquece'." |
 | "Meus dados ficam seguros?" | "Cada clínica tem banco de dados próprio, isolado — não é uma base compartilhada entre clientes." |
