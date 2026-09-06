@@ -190,6 +190,19 @@
   .anel-divisor { display: flex; justify-content: center; padding: 6px 0 0; }
   .anel-divisor svg { width: 34px; height: 34px; opacity: 0.55; }
 
+  /* ---------- problema (gatilho de dor) ---------- */
+  .cenarios-dor { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 8px; }
+  .cenario-dor { padding: 28px 24px; border-left: 2px solid var(--gold); background: var(--bg-elevated); border-radius: 4px; }
+  .cenario-dor__quando {
+    display: block; font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase;
+    color: var(--gold-bright); font-weight: 600; margin-bottom: 12px;
+  }
+  .cenario-dor p { font-size: 14.5px; color: var(--text-dim); line-height: 1.65; }
+  .problema-ponte {
+    text-align: center; max-width: 640px; margin: 44px auto 0; font-size: 18px;
+    font-family: var(--font-display); font-style: italic; color: var(--gold-bright); line-height: 1.5;
+  }
+
   /* ---------- conversa (screenshots reais de WhatsApp) ---------- */
   .conversas-whatsapp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
   .conversa-item { display: flex; flex-direction: column; gap: 14px; }
@@ -214,13 +227,14 @@
   .painel-screenshot__texto p { color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65; }
 
   @media (max-width: 860px) {
-    .caminhos, .grade-recursos, .confianca-lista, .planos, .conversas-whatsapp { grid-template-columns: 1fr; }
+    .caminhos, .grade-recursos, .confianca-lista, .planos, .conversas-whatsapp, .cenarios-dor { grid-template-columns: 1fr; }
     .grade-recursos { background: var(--line-soft); }
     .painel-screenshot, .painel-screenshot:nth-child(even) { grid-template-columns: 1fr; }
     .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 0; }
     header .botao span.rotulo-longo { display: none; }
     section { padding: 64px 0; }
     .hero { padding: 72px 0 56px; }
+    .hero h1 { font-size: clamp(28px, 8vw, 58px); }
   }
 </style>
 
@@ -249,7 +263,31 @@
     </div>
   </section>
 
-  <section id="conversa" style="border-top:none;">
+  <section id="problema" style="border-top:none;">
+    <div class="envelope">
+      <div class="cabecalho-secao">
+        <p class="eyebrow">Isso já aconteceu na sua clínica</p>
+        <h2>Enquanto ninguém responde, o paciente já marcou em outro lugar</h2>
+      </div>
+      <div class="cenarios-dor">
+        <div class="cenario-dor">
+          <span class="cenario-dor__quando">20h de sexta-feira</span>
+          <p>Um paciente novo pergunta o preço da primeira consulta. Ninguém vê a mensagem até segunda de manhã — ele já resolveu em outra clínica.</p>
+        </div>
+        <div class="cenario-dor">
+          <span class="cenario-dor__quando">Meio da correria</span>
+          <p>Alguém pergunta um horário, recebe uma resposta corrida, some no meio da conversa. Ninguém percebe — até ser tarde demais pra trazer de volta.</p>
+        </div>
+        <div class="cenario-dor">
+          <span class="cenario-dor__quando">Fim de semana, feriado</span>
+          <p>Fora do horário de atendimento, pra quem manda mensagem a clínica simplesmente não existe até o próximo dia útil.</p>
+        </div>
+      </div>
+      <p class="problema-ponte">Cada uma dessas situações é um paciente perdido sem que a clínica sequer perceba. É exatamente esse buraco que a Lumi fecha.</p>
+    </div>
+  </section>
+
+  <section id="conversa">
     <div class="envelope">
       <div class="cabecalho-secao">
         <p class="eyebrow">Como soa na prática</p>
@@ -354,8 +392,8 @@
         <div class="painel-screenshot">
           <div class="painel-screenshot__texto">
             <p class="rotulo">Oportunidades</p>
-            <h3>O funil de resgate, visível etapa a etapa</h3>
-            <p>Cada paciente que sumiu no meio do agendamento aparece aqui — com o que a Lumi já tentou, e o que falta. Quando funciona, mostra "já agendou 🎉" — quando não, dá pra reativar com um clique.</p>
+            <h3>O paciente que sumiu não fica esquecido</h3>
+            <p>Lembra do paciente que perguntou um horário e desapareceu? A Lumi vai atrás sozinha. Cada caso aparece aqui, com o que ela já tentou e o que falta — quando funciona, mostra "já agendou 🎉"; quando não, dá pra reativar com um clique.</p>
           </div>
           <img src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
         </div>
@@ -477,8 +515,8 @@
       <div class="anel-divisor">
         <svg viewBox="0 0 40 40" fill="none" stroke="var(--gold)" stroke-width="1.2"><circle cx="20" cy="20" r="15" stroke-dasharray="86 8"></circle></svg>
       </div>
-      <h2>Vamos ver a Lumi funcionando na sua clínica?</h2>
-      <p class="sub">Uma conversa de 15 minutos, sem compromisso — você vê a Lumi respondendo de verdade, não um slide.</p>
+      <h2>Pare de perder paciente por falta de resposta</h2>
+      <p class="sub">Uma conversa de 15 minutos, sem compromisso — você vê a Lumi respondendo de verdade, na sua própria clínica, não um slide.</p>
       <div class="acoes">
         <a class="botao botao-ouro" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Vi%20o%20site%20da%20Lumi%20e%20queria%20saber%20mais." target="_blank" rel="noopener">Falar no WhatsApp agora</a>
       </div>
