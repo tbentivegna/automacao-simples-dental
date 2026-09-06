@@ -15,3 +15,7 @@ db/backfill/*.json
 # publico) -- so o .example.json e commitado.
 backups/
 scripts/backup-databases.json
+
+# deploy-hook-*.sh: URL do webhook de deploy do Easypanel tem o token
+# embutido (mesmo padrao do painel-financeiro, outro projeto)
+deploy-hook-*.sh

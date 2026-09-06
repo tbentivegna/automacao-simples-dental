@@ -35,6 +35,9 @@
   a { color: inherit; }
   ::selection { background: var(--gold); color: #14110c; }
   @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  section[id] { scroll-margin-top: 84px; }
 
   .envelope { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
 
@@ -45,10 +48,16 @@
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--line-soft);
   }
-  header .envelope { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
-  .marca-topo { display: flex; align-items: center; gap: 10px; }
+  header .envelope { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 14px; padding-bottom: 14px; }
+  .marca-topo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .marca-topo img { height: 34px; width: auto; display: block; }
   .marca-topo span { font-family: var(--font-display); font-size: 20px; letter-spacing: 0.5px; }
+  .nav-header { display: flex; gap: 26px; flex: 1; justify-content: center; }
+  .nav-header a {
+    font-size: 13.5px; color: var(--text-dim); text-decoration: none; white-space: nowrap;
+    transition: color 0.15s ease;
+  }
+  .nav-header a:hover { color: var(--gold-bright); }
 
   .botao {
     display: inline-flex; align-items: center; gap: 8px;
@@ -226,11 +235,27 @@
   .painel-screenshot__texto h3 { font-size: 22px; margin-top: 10px; }
   .painel-screenshot__texto p { color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65; }
 
+  /* ---------- galeria compacta de mais telas do painel ---------- */
+  .painel-galeria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 40px; }
+  .painel-galeria figure { margin: 0; }
+  .painel-galeria img {
+    width: 100%; height: auto; display: block; border-radius: 6px;
+    border: 1px solid var(--line); box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  }
+  .painel-galeria figcaption { margin-top: 12px; font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.5; }
+
+  /* ---------- imagem dentro de uma resposta do FAQ ---------- */
+  .faq-img {
+    margin-top: 16px; width: 100%; max-width: 480px; display: block; border-radius: 6px;
+    border: 1px solid var(--line); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  }
+
   @media (max-width: 860px) {
-    .caminhos, .grade-recursos, .confianca-lista, .planos, .conversas-whatsapp, .cenarios-dor { grid-template-columns: 1fr; }
+    .caminhos, .grade-recursos, .confianca-lista, .planos, .conversas-whatsapp, .cenarios-dor, .painel-galeria { grid-template-columns: 1fr; }
     .grade-recursos { background: var(--line-soft); }
     .painel-screenshot, .painel-screenshot:nth-child(even) { grid-template-columns: 1fr; }
     .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 0; }
+    .nav-header { display: none; }
     header .botao span.rotulo-longo { display: none; }
     section { padding: 64px 0; }
     .hero { padding: 72px 0 56px; }
@@ -244,6 +269,13 @@
       <img src="assets/logo-lumi.png" alt="Lumi">
       <span>Lumi</span>
     </div>
+    <nav class="nav-header">
+      <a href="#problema">O problema</a>
+      <a href="#conversa">Como funciona</a>
+      <a href="#painel">Painel</a>
+      <a href="#planos">Preços</a>
+      <a href="#faq">Perguntas</a>
+    </nav>
     <a class="botao botao-ouro botao-pequeno" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Vi%20o%20site%20da%20Lumi%20e%20queria%20saber%20mais." target="_blank" rel="noopener">Falar no WhatsApp</a>
   </div>
 </header>
@@ -399,6 +431,21 @@
           <img src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
         </div>
       </div>
+
+      <div class="painel-galeria">
+        <figure>
+          <img src="assets/painel-pendencias.png" alt="Tela de Pendências mostrando uma urgência e um encaminhamento pra equipe, cada um com paciente e horário">
+          <figcaption>Pendências — urgência sempre em primeiro lugar</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/painel-mensagens.png" alt="Tela de Mensagens mostrando uma conversa completa de agendamento entre a Lumi e uma paciente">
+          <figcaption>Mensagens — histórico completo, equipe assume quando quiser</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/painel-analytics.png" alt="Tela de Analytics mostrando o volume de mensagens trocadas crescendo dia a dia">
+          <figcaption>Analytics — volume de conversa crescendo dia a dia, número real</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 
@@ -506,6 +553,7 @@
         <details>
           <summary>E se o WhatsApp cair?</summary>
           <p>O painel mostra o status da conexão em tempo real, e a própria equipe consegue reconectar sozinha, gerando um QR code novo — sem depender de suporte técnico.</p>
+          <img class="faq-img" src="assets/painel-conexao-whatsapp.png" alt="Card de Conexão WhatsApp no painel, mostrando o status conectado em verde">
         </details>
       </div>
     </div>
