@@ -113,6 +113,17 @@
   .caminho h3 { font-size: 21px; margin-top: 10px; }
   .caminho p { color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65; }
 
+  .personalizacao {
+    margin-top: 22px; padding: 30px 32px; background: var(--bg-elevated-2);
+    border: 1px solid var(--gold); border-radius: 4px; text-align: center;
+  }
+  .personalizacao .rotulo { font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .personalizacao h3 { font-size: 21px; margin-top: 10px; }
+  .personalizacao p:last-child {
+    color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65;
+    max-width: 640px; margin-left: auto; margin-right: auto;
+  }
+
   /* ---------- painel: feature grid ---------- */
   .painel-vitrine {
     background: var(--bg-elevated); border: 1px solid var(--line); border-radius: 4px;
@@ -162,6 +173,9 @@
   }
   .plano .nome { font-family: var(--font-display); font-size: 22px; }
   .plano .quem { font-size: 13px; color: var(--text-dim); }
+  .plano .preco { font-family: var(--font-display); font-size: 26px; color: var(--gold-bright); margin-top: 10px; }
+  .plano .preco span { font-family: var(--font-body); font-size: 14px; color: var(--text-dim); }
+  .planos-nota { margin-top: 22px; font-size: 12.5px; color: var(--text-faint); text-align: center; max-width: 640px; margin-left: auto; margin-right: auto; }
   .plano ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
   .plano li { font-size: 13.5px; color: var(--text-dim); padding-left: 18px; position: relative; line-height: 1.55; }
   .plano li::before { content: "—"; position: absolute; left: 0; color: var(--gold); }
@@ -212,15 +226,29 @@
     font-family: var(--font-display); font-style: italic; color: var(--gold-bright); line-height: 1.5;
   }
 
-  /* ---------- conversa (screenshots reais de WhatsApp) ---------- */
-  .conversas-whatsapp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-  .conversa-item { display: flex; flex-direction: column; gap: 14px; }
-  .conversa-item img {
-    width: 100%; height: auto; display: block; border-radius: 14px;
-    border: 1px solid var(--line); box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+  /* ---------- carrossel reutilizavel (conversa de WhatsApp + galeria do painel) ---------- */
+  .carrossel { position: relative; }
+  .carrossel-trilho {
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+    gap: 24px; scroll-behavior: smooth; padding-bottom: 4px;
+    scrollbar-width: none; -ms-overflow-style: none;
   }
-  .conversa-item p { font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.55; }
-  .conversa-item p strong { color: var(--gold-bright); font-weight: 600; }
+  .carrossel-trilho::-webkit-scrollbar { display: none; }
+  .carrossel-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; flex-direction: column; gap: 16px; }
+  .carrossel-slide img {
+    display: block; border-radius: 8px; border: 1px solid var(--line);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  }
+  .carrossel-slide p { font-size: 14px; color: var(--text-dim); text-align: center; line-height: 1.6; max-width: 520px; margin: 0 auto; }
+  .carrossel-slide p strong { color: var(--gold-bright); font-weight: 600; }
+  .carrossel--vertical .carrossel-slide img { width: 100%; max-width: 380px; margin: 0 auto; }
+  .carrossel--paisagem .carrossel-slide img { width: 100%; max-width: 760px; margin: 0 auto; }
+  .carrossel-pontos { display: flex; justify-content: center; gap: 9px; margin-top: 22px; }
+  .carrossel-ponto {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--line);
+    border: none; padding: 0; cursor: pointer; transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .carrossel-ponto.ativo { background: var(--gold); transform: scale(1.35); }
 
   /* ---------- screenshots reais do painel ---------- */
   .painel-screenshots { display: flex; flex-direction: column; gap: 40px; margin-top: 48px; }
@@ -235,15 +263,6 @@
   .painel-screenshot__texto h3 { font-size: 22px; margin-top: 10px; }
   .painel-screenshot__texto p { color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65; }
 
-  /* ---------- galeria compacta de mais telas do painel ---------- */
-  .painel-galeria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 40px; }
-  .painel-galeria figure { margin: 0; }
-  .painel-galeria img {
-    width: 100%; height: auto; display: block; border-radius: 6px;
-    border: 1px solid var(--line); box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-  }
-  .painel-galeria figcaption { margin-top: 12px; font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.5; }
-
   /* ---------- imagem dentro de uma resposta do FAQ ---------- */
   .faq-img {
     margin-top: 16px; width: 100%; max-width: 480px; display: block; border-radius: 6px;
@@ -251,7 +270,7 @@
   }
 
   @media (max-width: 860px) {
-    .caminhos, .grade-recursos, .confianca-lista, .planos, .conversas-whatsapp, .cenarios-dor, .painel-galeria { grid-template-columns: 1fr; }
+    .caminhos, .grade-recursos, .confianca-lista, .planos, .cenarios-dor { grid-template-columns: 1fr; }
     .grade-recursos { background: var(--line-soft); }
     .painel-screenshot, .painel-screenshot:nth-child(even) { grid-template-columns: 1fr; }
     .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 0; }
@@ -299,7 +318,7 @@
     <div class="envelope">
       <div class="cabecalho-secao">
         <p class="eyebrow">A dor por trás da agenda cheia</p>
-        <h2>Você não abriu uma clínica pra virar recepcionista de WhatsApp</h2>
+        <h2>Responder pacientes e leads no WhatsApp está consumindo mais tempo do que você gostaria?</h2>
         <p>Não dá tempo de fazer tudo sozinho — atender paciente, cuidar da equipe, tocar o consultório inteiro. O WhatsApp vira a última prioridade do dia, e é exatamente aí que as oportunidades escapam.</p>
       </div>
       <div class="cenarios-dor">
@@ -327,19 +346,22 @@
         <h2>Uma conversa de verdade, do jeito que o paciente vive</h2>
         <p>Ilustração de uma conversa típica — sem menu, sem robô engessado.</p>
       </div>
-      <div class="conversas-whatsapp">
-        <div class="conversa-item">
-          <img src="assets/whatsapp-saudacao.png" alt="Conversa mostrando a Lumi cumprimentando e explicando um tratamento">
-          <p><strong>Acolhe e informa</strong> — pergunta o nome, tira dúvida sobre tratamento, sem empurrar agendamento na mesma mensagem.</p>
+      <div class="carrossel carrossel--vertical" data-carrossel>
+        <div class="carrossel-trilho">
+          <div class="carrossel-slide">
+            <img src="assets/whatsapp-saudacao.png" alt="Conversa mostrando a Lumi cumprimentando e explicando um tratamento">
+            <p><strong>Acolhe e informa</strong> — pergunta o nome, tira dúvida sobre tratamento, sem empurrar agendamento na mesma mensagem.</p>
+          </div>
+          <div class="carrossel-slide">
+            <img src="assets/whatsapp-agendamento.png" alt="Conversa mostrando a Lumi oferecendo horários e confirmando a consulta">
+            <p><strong>Agenda de verdade</strong> — oferece horário real, confirma sem ambiguidade. Nunca inventa, nunca chuta.</p>
+          </div>
+          <div class="carrossel-slide">
+            <img src="assets/whatsapp-urgencia.png" alt="Conversa mostrando a Lumi encaminhando uma urgência para um humano, sem recomendar remédio">
+            <p><strong>Sabe o limite dela</strong> — urgência vira aviso pra um humano na hora, nunca uma recomendação de remédio.</p>
+          </div>
         </div>
-        <div class="conversa-item">
-          <img src="assets/whatsapp-agendamento.png" alt="Conversa mostrando a Lumi oferecendo horários e confirmando a consulta">
-          <p><strong>Agenda de verdade</strong> — oferece horário real, confirma sem ambiguidade. Nunca inventa, nunca chuta.</p>
-        </div>
-        <div class="conversa-item">
-          <img src="assets/whatsapp-urgencia.png" alt="Conversa mostrando a Lumi encaminhando uma urgência para um humano, sem recomendar remédio">
-          <p><strong>Sabe o limite dela</strong> — urgência vira aviso pra um humano na hora, nunca uma recomendação de remédio.</p>
-        </div>
+        <div class="carrossel-pontos"></div>
       </div>
     </div>
   </section>
@@ -362,6 +384,12 @@
           <h3>Lumi Standalone</h3>
           <p>Construímos a agenda do zero, junto com a concierge digital. Não precisa ter nada pronto hoje — o onboarding é mais leve justamente por não depender de integrar com terceiro nenhum.</p>
         </div>
+      </div>
+
+      <div class="personalizacao">
+        <p class="rotulo">Antes de tudo</p>
+        <h3>Uma conversa de verdade, não um formulário</h3>
+        <p>Nos dois caminhos, tudo começa com uma call de 45-60 minutos com você — nome, tom de voz, o que a clínica atende (e o que não atende), preço, regras específicas do seu jeito de atender. A Lumi passa a soar como a sua clínica, não como um bot genérico com respostas prontas.</p>
       </div>
     </div>
   </section>
@@ -432,19 +460,22 @@
         </div>
       </div>
 
-      <div class="painel-galeria">
-        <figure>
-          <img src="assets/painel-pendencias.png" alt="Tela de Pendências mostrando uma urgência e um encaminhamento pra equipe, cada um com paciente e horário">
-          <figcaption>Pendências — urgência sempre em primeiro lugar</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/painel-mensagens.png" alt="Tela de Mensagens mostrando uma conversa completa de agendamento entre a Lumi e uma paciente">
-          <figcaption>Mensagens — histórico completo, equipe assume quando quiser</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/painel-analytics.png" alt="Tela de Analytics mostrando o volume de mensagens trocadas crescendo dia a dia">
-          <figcaption>Analytics — volume de conversa crescendo dia a dia, número real</figcaption>
-        </figure>
+      <div class="carrossel carrossel--paisagem" data-carrossel style="margin-top: 40px;">
+        <div class="carrossel-trilho">
+          <div class="carrossel-slide">
+            <img src="assets/painel-pendencias.png" alt="Tela de Pendências mostrando uma urgência e um encaminhamento pra equipe, cada um com paciente e horário">
+            <p>Pendências — urgência sempre em primeiro lugar</p>
+          </div>
+          <div class="carrossel-slide">
+            <img src="assets/painel-mensagens.png" alt="Tela de Mensagens mostrando uma conversa completa de agendamento entre a Lumi e uma paciente">
+            <p>Mensagens — histórico completo, equipe assume quando quiser</p>
+          </div>
+          <div class="carrossel-slide">
+            <img src="assets/painel-analytics.png" alt="Tela de Analytics mostrando o volume de mensagens trocadas crescendo dia a dia">
+            <p>Analytics — volume de conversa crescendo dia a dia, número real</p>
+          </div>
+        </div>
+        <div class="carrossel-pontos"></div>
       </div>
     </div>
   </section>
@@ -484,13 +515,14 @@
       <div class="cabecalho-secao">
         <p class="eyebrow">Investimento</p>
         <h2>Um plano pra cada tamanho de clínica</h2>
-        <p>Valor combinado em conversa, conforme o porte e o que sua clínica precisa.</p>
+        <p>Mensalidade a partir de, conforme o porte — valor final combinado em conversa.</p>
       </div>
       <div class="planos">
         <div class="plano">
           <div>
             <p class="nome">Basic</p>
             <p class="quem">Um profissional</p>
+            <p class="preco">a partir de R$400<span>/mês*</span></p>
           </div>
           <ul>
             <li>Agendar, confirmar, cancelar e remarcar via WhatsApp</li>
@@ -503,6 +535,7 @@
           <div>
             <p class="nome">Pro</p>
             <p class="quem">Múltiplos profissionais</p>
+            <p class="preco">a partir de R$900<span>/mês*</span></p>
           </div>
           <ul>
             <li>Tudo do Basic</li>
@@ -515,6 +548,7 @@
           <div>
             <p class="nome">Advanced</p>
             <p class="quem">Multi-unidade</p>
+            <p class="preco">Sob consulta</p>
           </div>
           <ul>
             <li>Tudo do Pro</li>
@@ -524,6 +558,7 @@
           <a class="botao botao-fantasma" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Vi%20o%20site%20da%20Lumi%20e%20queria%20saber%20mais." target="_blank" rel="noopener">Fale conosco</a>
         </div>
       </div>
+      <p class="planos-nota">* + taxa de setup única, a partir de R$400 — o valor final depende de critérios como integração com sistema já existente, personalização e porte da clínica.</p>
     </div>
   </section>
 
@@ -582,3 +617,40 @@
     <p class="direitos">Concierge digital para clínicas odontológicas.</p>
   </div>
 </footer>
+
+<script>
+  document.querySelectorAll('[data-carrossel]').forEach(function (carrossel) {
+    var trilho = carrossel.querySelector('.carrossel-trilho');
+    var pontosContainer = carrossel.querySelector('.carrossel-pontos');
+    var slides = trilho.children;
+    var pontos = [];
+    for (var i = 0; i < slides.length; i++) {
+      (function (indice) {
+        var ponto = document.createElement('button');
+        ponto.type = 'button';
+        ponto.className = 'carrossel-ponto' + (indice === 0 ? ' ativo' : '');
+        ponto.setAttribute('aria-label', 'Ir pro slide ' + (indice + 1));
+        ponto.addEventListener('click', function () {
+          slides[indice].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        });
+        pontosContainer.appendChild(ponto);
+        pontos.push(ponto);
+      })(i);
+    }
+    var timeoutId;
+    trilho.addEventListener('scroll', function () {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(function () {
+        var centro = trilho.scrollLeft + trilho.clientWidth / 2;
+        var ativoIdx = 0;
+        var menorDist = Infinity;
+        for (var i = 0; i < slides.length; i++) {
+          var meio = slides[i].offsetLeft + slides[i].offsetWidth / 2;
+          var dist = Math.abs(meio - centro);
+          if (dist < menorDist) { menorDist = dist; ativoIdx = i; }
+        }
+        pontos.forEach(function (p, i) { p.classList.toggle('ativo', i === ativoIdx); });
+      }, 100);
+    });
+  });
+</script>
