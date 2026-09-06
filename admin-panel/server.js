@@ -67,8 +67,21 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 // variável de ambiente (ver plano "Painel demo do Standalone").
 const NOME_CLINICA = process.env.NOME_CLINICA || 'Dra. Aline Bentivegna';
 const MOSTRAR_SINCRONIZAR_ESPELHO = process.env.MOSTRAR_SINCRONIZAR_ESPELHO !== 'false';
+// Marca própria (plano Advanced, 2026-09-06) -- quando configurada, troca a
+// logo Lumi (o wordmark "Lumi" vem desenhado na própria imagem, não dá pra
+// esconder só com CSS) pela logo do cliente, e tira "Lumi" do título da aba.
+// Cobre só a identidade VISUAL do painel (logo + título) -- "Lumi" continua
+// sendo o nome do assistente em todo o resto (linguagem do painel, o próprio
+// bot se apresentando ao paciente, comando ##lumi) -- isso é um projeto bem
+// maior, não escopo desta variável. Sem ela configurada, comportamento
+// idêntico ao de sempre -- não quebra nenhuma implantação existente.
+const LOGO_CLIENTE_URL = process.env.LOGO_CLIENTE_URL || null;
 app.get('/api/config', (req, res) => {
-  res.json({ nomeClinica: NOME_CLINICA, mostrarSincronizarEspelho: MOSTRAR_SINCRONIZAR_ESPELHO });
+  res.json({
+    nomeClinica: NOME_CLINICA,
+    mostrarSincronizarEspelho: MOSTRAR_SINCRONIZAR_ESPELHO,
+    logoUrl: LOGO_CLIENTE_URL,
+  });
 });
 
 // ============================================================

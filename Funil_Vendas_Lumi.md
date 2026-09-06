@@ -79,14 +79,14 @@ O ativo mais forte é **mostrar a Lumi de verdade** (harness, ao vivo, prompt re
 - **Não competir pelo preço de entrada mais baixo** — R$97 (WSeller) é claramente plano-isca, não referência de valor real. Diferenciais que nenhum concorrente pesquisado divulgou ter: **um painel de gestão completo por trás da conversa** (Agenda, Mensagens com takeover, Analytics, Oportunidades, autosserviço de reconexão — não só um widget de chat), integração de verdade com o sistema de gestão, funil de resgate proativo (win-back automático de quem começou a agendar e sumiu), e uma **rotina própria de monitoramento com IA** — health-check automatizado rodando 3x/dia, avisando só quando há problema real, com humano no comando das decisões (a lógica "IA Auxilia, IN Dirige" — ver `Proposta_de_Valor_Lumi.md`). Isso é operação madura, não só um chatbot — vale mais que o topo da faixa encontrada, não o meio.
 - **Capacidade é o limite real, não o preço** — hoje é 1 pessoa fazendo onboarding técnico. Preço baixo demais + demanda alta vira gargalo de suporte antes de virar problema de vendas.
 
-**Estrutura sugerida** (proposta, não valor fechado — ajustar com custo real de hospedagem + quanto vale a hora de suporte):
-- **Basic**: R$ 400–600/mês — 1 profissional, funcionalidades centrais (agendar/cancelar/remarcar/lembrete)
-- **Pro**: R$ 900–1.200/mês — múltiplos profissionais, funil de resgate, painel completo (Analytics, Oportunidades, Mensagens)
-- **Advanced**: "Fale conosco" — multi-unidade, integrações extras
+**Travado (06/09/2026)** — números confirmados e já publicados no site:
+- **Basic**: R$ 400/mês — 1 profissional, funcionalidades centrais (agendar/cancelar/remarcar/lembrete)
+- **Pro**: R$ 700/mês — múltiplos profissionais, funil de resgate, painel completo (Analytics, Oportunidades, Mensagens). Baixado de uma proposta inicial de R$900 porque o dono achou o salto (2,25x sobre o Basic) alto demais pro plano que deveria ser o mais vendido; R$700 mantém a faixa "meio" real do mercado pesquisado (§ acima) só que na parte de baixo dela, com um salto de 1,75x que vende melhor o Pro como upgrade natural.
+- **Advanced**: "Sob consulta" — tudo do Pro + mais de uma unidade (contrato único, desconto por volume — hoje isso significa implantação separada por unidade, não um painel único multi-localização, que não existe na arquitetura) + marca própria no painel (logo do cliente, sem "Lumi" visível — construído 06/09/2026, ver `admin-panel/.env.example` `LOGO_CLIENTE_URL`; cobre só a identidade visual do login/cabeçalho, "Lumi" continua sendo o nome do assistente em toda a linguagem do painel e na conversa com o paciente) + atendimento dedicado.
 - **Setup — variante integrada (Simples Dental)**: R$ 800–1.500 único, escalando com o plano (mesmo racional da Secretária Odonto) — onboarding pesado (calibrar robô contra o sistema de terceiro).
 - **Setup — variante Standalone (04/09/2026)**: R$ 400–800 único — onboarding mais leve (sem sistema externo pra calibrar, só banco + instância de WhatsApp + entrevista de personalização). Vira diferencial de entrada justamente pro segmento que a qualificação antiga excluía (clínica sem sistema nenhum, historicamente mais sensível a preço de entrada).
 
-**Falta decidir**: confirmar/travar os números acima (a divisão de setup por variante é uma hipótese desta rodada, não validada com nenhum cliente ainda), e se existe um período de teste/trial antes do compromisso.
+**Ainda em aberto**: a divisão de setup por variante segue como hipótese, não validada com nenhum cliente ainda; e se existe um período de teste/trial antes do compromisso.
 
 ## 5. Fechamento
 
