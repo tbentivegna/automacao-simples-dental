@@ -6,6 +6,62 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-06 — Simulação de personas, carrossel, bug de viewport, revisão de preços
+
+**Simulação de 3 personas** navegando o site (pedido do Tiago) apontou:
+carrossel de screenshots em vez de grid estático (mobile e desktop),
+headline de abertura agressiva demais com quem trabalha na recepção,
+falta de menção à entrevista de personalização, e preço sem nenhuma
+referência numérica. Todos os 4 pontos corrigidos e verificados via
+Playwright antes de publicar (commit `9c59301`):
+- Componente de carrossel reutilizável (`.carrossel`, dots, scroll-snap)
+  aplicado nas duas galerias (conversa de WhatsApp + telas do painel).
+- Headline trocada por sugestão quase literal do Tiago: "Responder
+  pacientes e leads no WhatsApp está consumindo mais tempo do que você
+  gostaria?"
+- Bloco novo sobre a entrevista de personalização em `#caminhos`.
+- Preços "a partir de" adicionados aos 3 cards, com nota de setup.
+
+**Bug crítico de viewport mobile** (achado pelo próprio Tiago no
+celular real — "ficou tudo pequeno demais, não dá pra ler"):
+`site/index.html` nunca teve `<!DOCTYPE html>`/`<html>`/`<head>` nem a
+meta tag de viewport — era servido cru pelo Express, sem o wrapper que
+o Artifact tool injeta automaticamente na publicação. Sem viewport
+meta, Safari mobile assumia uma tela virtual de ~980px e encolhia a
+página inteira, então o `@media (max-width: 860px)` que esconde o menu
+nunca disparava. Corrigido (commit `3b6d33f`), confirmado ao vivo.
+
+**Reorganização + ajuste de tom**: seção `#caminhos` (integração direta
+vs. Standalone) movida pra antes de `#conversa` — recomendação da
+simulação de personas, serve mais cedo quem já usa um sistema. Tirada a
+menção de "call de 45-60 minutos" da entrevista de personalização (o
+Tiago achou que duração específica assusta antes da hora) — mantido só
+o conceito de "entrevista de personalização" (commit `8d08bec`).
+
+**Revisão de preços** (Tiago achou o Pro caro demais pro plano mais
+vendido — salto de 2,25x sobre o Basic): Pro baixado de R$900 pra
+R$700/mês, mantendo a faixa "meio" real da pesquisa de mercado (ver
+`Funil_Vendas_Lumi.md` §4), mas com salto de 1,75x, mais fácil de
+vender como upgrade natural. Basic mantido em R$400.
+
+**Achado mais sério que preço**: o plano Advanced prometia "múltiplas
+unidades e integrações extras" como se fosse um recurso técnico único —
+a arquitetura não tem isso (cada clínica é uma implantação isolada).
+Reformulado pra descrição honesta (implantação separada por unidade,
+contrato único, desconto por volume). No lugar, construído um
+diferencial real pro Advanced: marca própria no painel — `LOGO_CLIENTE_URL`
+troca a logo Lumi (login + cabeçalho) e o título da aba quando
+configurada, sem quebrar nenhuma implantação existente. Importante:
+cobre só a identidade visual — "Lumi" continua sendo o nome do
+assistente em toda a linguagem do painel e no comando `##lumi`
+(hardcoded em `queries.js` e no workflow n8n); renomear isso de verdade
+por cliente é um projeto maior, fora de escopo agora. Tudo commitado
+(`c53e21e`), site deployado; **admin-panel ainda precisa de redeploy
+manual** (entra na fila junto com as pendências já registradas de
+lições-aprendidas e "consulta já ocorreu").
+
+---
+
 ## 2026-09-05 — Screenshots reais + correção de terminologia (aguardando redeploy)
 
 **Terminologia**: Tiago corrigiu — é sempre "concierge digital", nunca
