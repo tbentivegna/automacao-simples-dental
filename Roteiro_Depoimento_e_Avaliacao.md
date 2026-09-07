@@ -12,6 +12,16 @@ vaga que os 3 perfis de compra (`Log_Progresso_Comercializacao.md`,
 **Isso é ação do Tiago, não automatizável** — é uma conversa pessoal
 com uma cliente real. O que segue é o material pronto pra usar.
 
+**Atualização (08/09/2026)**: Aline já autorizou verbalmente divulgar
+depoimento e resultados — falta ela preencher as respostas (roteiro
+abaixo). Quando isso acontecer, aproveitar pra puxar números reais do
+Analytics dela em produção (contagem agregada — consultas
+criadas/confirmadas/canceladas, volume de mensagens por dia — nunca
+conteúdo de conversa de paciente, LGPD) e trocar o gráfico seedado do
+site por um com dado real dela. Resolve de vez a legenda "número real"
+que precisou ser corrigida duas vezes (09/06 e 08/09) por descrever
+dado fictício.
+
 ## 1. Mensagem pra puxar a conversa (WhatsApp, ajustar o tom antes de mandar)
 
 > Aline, posso te pedir uma coisa rapidinha? Tô trabalhando em divulgar
