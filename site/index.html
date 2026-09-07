@@ -338,18 +338,19 @@
   }
   .carrossel-ponto.ativo { background: var(--gold); transform: scale(1.35); }
 
-  /* ---------- screenshots reais do painel ---------- */
-  .painel-screenshots { display: flex; flex-direction: column; gap: 40px; margin-top: 48px; }
-  .painel-screenshot { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: center; }
-  .painel-screenshot:nth-child(even) { grid-template-columns: 1fr 1.3fr; }
-  .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 2; }
-  .painel-screenshot img {
-    width: 100%; height: auto; display: block; border-radius: 6px;
-    border: 1px solid var(--line); box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  /* abas: alternativa aos pontinhos p/ carrossel com poucos slides e
+     nomeados (painel) -- deixa saltar direto pro tópico em vez de
+     precisar passar por cada slide até achar o que quer. */
+  .carrossel-abas { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 22px; max-width: 620px; }
+  .carrossel-aba {
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--text-dim);
+    background: transparent; border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   }
-  .painel-screenshot__texto .rotulo { font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold); font-weight: 600; }
-  .painel-screenshot__texto h3 { font-size: 22px; margin-top: 10px; }
-  .painel-screenshot__texto p { color: var(--text-dim); font-size: 14.5px; margin-top: 12px; line-height: 1.65; }
+  .carrossel-aba:hover { color: var(--gold-bright); border-color: var(--gold); }
+  .carrossel-aba.ativo {
+    color: #14110c; background: linear-gradient(180deg, var(--gold-bright), var(--gold)); border-color: transparent;
+  }
 
   /* ---------- imagem dentro de uma resposta do FAQ ---------- */
   .faq-img {
@@ -360,8 +361,6 @@
   @media (max-width: 860px) {
     .caminhos, .grade-recursos, .confianca-lista, .planos, .cenarios-dor { grid-template-columns: 1fr; }
     .grade-recursos { background: var(--line-soft); }
-    .painel-screenshot, .painel-screenshot:nth-child(even) { grid-template-columns: 1fr; }
-    .painel-screenshot:nth-child(even) .painel-screenshot__texto { order: 0; }
     .nav-header { display: none; }
     header .botao span.rotulo-longo { display: none; }
     section { padding: 64px 0; }
@@ -425,7 +424,7 @@
           <p>Fora do horário de atendimento, pra quem manda mensagem a clínica simplesmente não existe até o próximo dia útil.</p>
         </div>
       </div>
-      <p class="problema-ponte">O custo não é só o paciente que sumiu — é o tempo que sobra pra fazer o que realmente importa: um atendimento tão bom que ele sempre volte.</p>
+      <p class="problema-ponte">O custo não é só em oportunidade de pacientes — é o tempo que sobra pra fazer o que realmente importa: o seu atendimento tão bom que faz com que eles sempre voltem.</p>
     </div>
   </section>
 
@@ -531,41 +530,30 @@
         </div>
       </div>
 
-      <div class="painel-screenshots">
-        <div class="painel-screenshot">
-          <div class="painel-screenshot__texto">
-            <p class="rotulo">Agenda</p>
-            <h3>A mesma agenda, em tempo real</h3>
-            <p>Visualização por dia, semana, mês ou lista — cada cor é uma categoria de consulta, feriados aparecem sozinhos, e qualquer compromisso pode ser criado ou ajustado direto pelo painel.</p>
-          </div>
-          <img loading="lazy" src="assets/painel-agenda.png" alt="Tela de Agenda do painel Lumi, visualização em mês, com consultas coloridas por categoria">
-        </div>
-        <div class="painel-screenshot">
-          <div class="painel-screenshot__texto">
-            <p class="rotulo">Oportunidades</p>
-            <h3>O paciente que sumiu não fica esquecido</h3>
-            <p>Lembra do paciente que perguntou um horário e desapareceu? A Lumi vai atrás sozinha. Cada caso aparece aqui, com o que ela já tentou e o que falta — quando funciona, mostra "já agendou 🎉"; quando não, dá pra reativar com um clique.</p>
-          </div>
-          <img loading="lazy" src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
-        </div>
-      </div>
-
       <div class="carrossel carrossel--paisagem" data-carrossel style="margin-top: 40px;">
+        <div class="carrossel-abas"></div>
         <div class="carrossel-trilho">
-          <div class="carrossel-slide">
+          <div class="carrossel-slide" data-rotulo="Agenda">
+            <img loading="lazy" src="assets/painel-agenda.png" alt="Tela de Agenda do painel Lumi, visualização em mês, com consultas coloridas por categoria">
+            <p><strong>Agenda</strong> — visualização por dia, semana, mês ou lista; cada cor é uma categoria, feriados aparecem sozinhos, e qualquer compromisso pode ser criado ou ajustado direto pelo painel.</p>
+          </div>
+          <div class="carrossel-slide" data-rotulo="Oportunidades">
+            <img loading="lazy" src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
+            <p><strong>Oportunidades</strong> — recupera sozinha quem começou a marcar consulta e sumiu; quando funciona, mostra "já agendou 🎉", quando não, reativa com um clique.</p>
+          </div>
+          <div class="carrossel-slide" data-rotulo="Pendências">
             <img loading="lazy" src="assets/painel-pendencias.png" alt="Tela de Pendências mostrando uma urgência e um encaminhamento pra equipe, cada um com paciente e horário">
-            <p>Pendências — urgência sempre em primeiro lugar</p>
+            <p><strong>Pendências</strong> — tudo que a Lumi encaminhou pra um humano decidir, urgência sempre em primeiro lugar.</p>
           </div>
-          <div class="carrossel-slide">
+          <div class="carrossel-slide" data-rotulo="Mensagens">
             <img loading="lazy" src="assets/painel-mensagens.png" alt="Tela de Mensagens mostrando uma conversa completa de agendamento entre a Lumi e uma paciente">
-            <p>Mensagens — histórico completo, equipe assume quando quiser</p>
+            <p><strong>Mensagens</strong> — histórico completo de cada conversa, com a equipe podendo assumir quando quiser.</p>
           </div>
-          <div class="carrossel-slide">
+          <div class="carrossel-slide" data-rotulo="Analytics">
             <img loading="lazy" src="assets/painel-analytics.png" alt="Tela de Analytics mostrando o volume de mensagens trocadas crescendo dia a dia">
-            <p>Analytics — volume de conversa crescendo dia a dia</p>
+            <p><strong>Analytics</strong> — volume de conversa crescendo dia a dia, números reais.</p>
           </div>
         </div>
-        <div class="carrossel-pontos"></div>
       </div>
     </div>
   </section>
@@ -713,21 +701,45 @@
   document.querySelectorAll('[data-carrossel]').forEach(function (carrossel) {
     var trilho = carrossel.querySelector('.carrossel-trilho');
     var pontosContainer = carrossel.querySelector('.carrossel-pontos');
+    var abasContainer = carrossel.querySelector('.carrossel-abas');
     var slides = trilho.children;
-    var pontos = [];
-    for (var i = 0; i < slides.length; i++) {
-      (function (indice) {
-        var ponto = document.createElement('button');
-        ponto.type = 'button';
-        ponto.className = 'carrossel-ponto' + (indice === 0 ? ' ativo' : '');
-        ponto.setAttribute('aria-label', 'Ir pro slide ' + (indice + 1));
-        ponto.addEventListener('click', function () {
-          slides[indice].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        });
-        pontosContainer.appendChild(ponto);
-        pontos.push(ponto);
-      })(i);
+    var indicadores = [];
+
+    function irPraSlide(indice) {
+      slides[indice].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
+
+    if (pontosContainer) {
+      for (var i = 0; i < slides.length; i++) {
+        (function (indice) {
+          var ponto = document.createElement('button');
+          ponto.type = 'button';
+          ponto.className = 'carrossel-ponto' + (indice === 0 ? ' ativo' : '');
+          ponto.setAttribute('aria-label', 'Ir pro slide ' + (indice + 1));
+          ponto.addEventListener('click', function () { irPraSlide(indice); });
+          pontosContainer.appendChild(ponto);
+          indicadores.push(ponto);
+        })(i);
+      }
+    }
+
+    // abas: mesma ideia dos pontinhos, mas nomeadas -- deixa saltar
+    // direto pro tópico (ex.: "Analytics") em vez de ter que passar
+    // por cada slide até achar o que quer.
+    if (abasContainer) {
+      for (var j = 0; j < slides.length; j++) {
+        (function (indice) {
+          var aba = document.createElement('button');
+          aba.type = 'button';
+          aba.className = 'carrossel-aba' + (indice === 0 ? ' ativo' : '');
+          aba.textContent = slides[indice].dataset.rotulo || ('Slide ' + (indice + 1));
+          aba.addEventListener('click', function () { irPraSlide(indice); });
+          abasContainer.appendChild(aba);
+          indicadores.push(aba);
+        })(j);
+      }
+    }
+
     var timeoutId;
     trilho.addEventListener('scroll', function () {
       clearTimeout(timeoutId);
@@ -740,7 +752,7 @@
           var dist = Math.abs(meio - centro);
           if (dist < menorDist) { menorDist = dist; ativoIdx = i; }
         }
-        pontos.forEach(function (p, i) { p.classList.toggle('ativo', i === ativoIdx); });
+        indicadores.forEach(function (el, i) { el.classList.toggle('ativo', i === ativoIdx); });
       }, 100);
     });
   });
