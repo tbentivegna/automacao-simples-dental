@@ -59,15 +59,18 @@ async function abrirOuAtualizarFunil({ telefone, instancia, etapa = 'horario_ofe
   }
 }
 
-// Fecha a tentativa em_andamento pro telefone (agendamento confirmado --
-// não faz mais sentido mandar resgate pra essa tentativa).
+// Fecha a tentativa pro telefone (agendamento confirmado -- não faz mais
+// sentido mandar resgate pra essa tentativa). Cobre 'em_andamento' E
+// 'resgate_enviado' -- mesmo bug real corrigido em server.js/raiz e
+// standalone-bridge/db.js 08/09/2026 (cópia idêntica aqui, nunca usada em
+// cliente real ainda -- corrigido por consistência antes que entre em uso).
 async function fecharFunil({ telefone, status }) {
   if (!pool || !telefone) return;
   try {
     await pool.query(
       `UPDATE public.funil_agendamento
        SET status = $2, concluido_em = now()
-       WHERE telefone = $1 AND status = 'em_andamento'`,
+       WHERE telefone = $1 AND status IN ('em_andamento', 'resgate_enviado')`,
       [telefone, status]
     );
   } catch (erro) {

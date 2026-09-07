@@ -92,15 +92,23 @@ async function abrirOuAtualizarFunil({ telefone, instancia, etapa = 'horario_ofe
 }
 
 // Nunca deve derrubar o fluxo principal: uma falha aqui só é logada.
-// Fecha a tentativa em_andamento pro telefone (agendamento confirmado --
-// não faz mais sentido mandar resgate pra essa tentativa).
+// Fecha a tentativa pro telefone (agendamento confirmado -- não faz mais
+// sentido mandar resgate pra essa tentativa). Cobre 'em_andamento' E
+// 'resgate_enviado' -- bug real achado 08/09/2026 (pedido do Tiago pra
+// revisar o número de "recuperados" no site): o WHERE só cobria
+// 'em_andamento', então assim que o resgate já tinha sido mandado (status
+// avança pra 'resgate_enviado'), esta função parava de bater em QUALQUER
+// telefone -- inclusive quando é a própria Lumi fechando o agendamento
+// dela mesma logo depois de mandar o resgate, não só quando a equipe
+// fecha na mão. UPDATE virava no-op silencioso, funil ficava "zumbi" até
+// expirar sem nunca contar como recuperado.
 async function fecharFunil({ telefone, status }) {
   if (!pool || !telefone) return;
   try {
     await pool.query(
       `UPDATE public.funil_agendamento
        SET status = $2, concluido_em = now()
-       WHERE telefone = $1 AND status = 'em_andamento'`,
+       WHERE telefone = $1 AND status IN ('em_andamento', 'resgate_enviado')`,
       [telefone, status]
     );
   } catch (erro) {
