@@ -3,11 +3,94 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lumi</title>
-<meta name="description" content="A concierge digital que atende o WhatsApp da sua clínica odontológica — e o painel de gestão que garante que você continua no controle.">
+<title>Lumi — Concierge Digital para Clínicas Odontológicas</title>
+<meta name="description" content="Atendimento por IA no WhatsApp para clínicas odontológicas: agenda, confirma e cancela consultas sozinha — painel de gestão completo, você no controle.">
+<link rel="canonical" href="https://lumi.tbentivegna.com.br/">
+<link rel="icon" type="image/png" href="assets/logo-lumi.png">
+
+<!-- Open Graph / preview de link -- o CTA de venda é literalmente mandar
+     este link pelo WhatsApp, então esse preview é parte do funil, não só
+     SEO abstrato. -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lumi.tbentivegna.com.br/">
+<meta property="og:site_name" content="Lumi">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="Lumi — Concierge Digital para Clínicas Odontológicas">
+<meta property="og:description" content="Atendimento por IA no WhatsApp para clínicas odontológicas: agenda, confirma e cancela consultas sozinha — painel de gestão completo, você no controle.">
+<meta property="og:image" content="https://lumi.tbentivegna.com.br/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Lumi — Concierge digital para clínicas odontológicas">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lumi — Concierge Digital para Clínicas Odontológicas">
+<meta name="twitter:description" content="Atendimento por IA no WhatsApp para clínicas odontológicas: agenda, confirma e cancela consultas sozinha — painel de gestão completo, você no controle.">
+<meta name="twitter:image" content="https://lumi.tbentivegna.com.br/assets/og-image.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Lumi",
+  "url": "https://lumi.tbentivegna.com.br/",
+  "logo": "https://lumi.tbentivegna.com.br/assets/logo-lumi.png",
+  "description": "Concierge digital com IA que atende o WhatsApp de clínicas odontológicas — agenda, confirma, cancela e recupera pacientes — com um painel de gestão completo.",
+  "areaServed": "BR"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Preciso trocar de sistema de agenda?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Não, se você já usa um sistema — a Lumi passa a operar dentro dele. E se você não usa nenhum, também não precisa: a gente monta a agenda do zero, junto com a concierge digital."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Meus pacientes vão perceber que é um robô?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A Lumi nunca esconde que é uma concierge digital — mas o objetivo nunca foi parecer humana, é ser útil e rápida. E a qualquer momento a equipe pode assumir a conversa direto pelo painel."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "E se ela errar e prejudicar a clínica?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ela nunca confirma nada sem checar a agenda de verdade primeiro — não existe \"ela inventou um horário\". Qualquer coisa fora do que ela sabe resolver vira uma pendência pra um humano decidir."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Meus dados ficam seguros?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Cada clínica tem banco de dados e número de WhatsApp próprios, isolados — nunca uma base compartilhada entre clientes."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "E se o WhatsApp cair?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "O painel mostra o status da conexão em tempo real, e a própria equipe consegue reconectar sozinha, gerando um QR code novo — sem depender de suporte técnico."
+      }
+    }
+  ]
+}
+</script>
+
 <style>
   :root {
     --bg: #0b0a08;
@@ -384,15 +467,15 @@
       <div class="carrossel carrossel--vertical" data-carrossel>
         <div class="carrossel-trilho">
           <div class="carrossel-slide">
-            <img src="assets/whatsapp-saudacao.png" alt="Conversa mostrando a Lumi cumprimentando e explicando um tratamento">
+            <img loading="lazy" src="assets/whatsapp-saudacao.png" alt="Conversa mostrando a Lumi cumprimentando e explicando um tratamento">
             <p><strong>Acolhe e informa</strong> — pergunta o nome, tira dúvida sobre tratamento, sem empurrar agendamento na mesma mensagem.</p>
           </div>
           <div class="carrossel-slide">
-            <img src="assets/whatsapp-agendamento.png" alt="Conversa mostrando a Lumi oferecendo horários e confirmando a consulta">
+            <img loading="lazy" src="assets/whatsapp-agendamento.png" alt="Conversa mostrando a Lumi oferecendo horários e confirmando a consulta">
             <p><strong>Agenda de verdade</strong> — oferece horário real, confirma sem ambiguidade. Nunca inventa, nunca chuta.</p>
           </div>
           <div class="carrossel-slide">
-            <img src="assets/whatsapp-urgencia.png" alt="Conversa mostrando a Lumi encaminhando uma urgência para um humano, sem recomendar remédio">
+            <img loading="lazy" src="assets/whatsapp-urgencia.png" alt="Conversa mostrando a Lumi encaminhando uma urgência para um humano, sem recomendar remédio">
             <p><strong>Sabe o limite dela</strong> — urgência vira aviso pra um humano na hora, nunca uma recomendação de remédio.</p>
           </div>
         </div>
@@ -455,7 +538,7 @@
             <h3>A mesma agenda, em tempo real</h3>
             <p>Visualização por dia, semana, mês ou lista — cada cor é uma categoria de consulta, feriados aparecem sozinhos, e qualquer compromisso pode ser criado ou ajustado direto pelo painel.</p>
           </div>
-          <img src="assets/painel-agenda.png" alt="Tela de Agenda do painel Lumi, visualização em mês, com consultas coloridas por categoria">
+          <img loading="lazy" src="assets/painel-agenda.png" alt="Tela de Agenda do painel Lumi, visualização em mês, com consultas coloridas por categoria">
         </div>
         <div class="painel-screenshot">
           <div class="painel-screenshot__texto">
@@ -463,22 +546,22 @@
             <h3>O paciente que sumiu não fica esquecido</h3>
             <p>Lembra do paciente que perguntou um horário e desapareceu? A Lumi vai atrás sozinha. Cada caso aparece aqui, com o que ela já tentou e o que falta — quando funciona, mostra "já agendou 🎉"; quando não, dá pra reativar com um clique.</p>
           </div>
-          <img src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
+          <img loading="lazy" src="assets/painel-oportunidades.png" alt="Tela de Oportunidades do painel Lumi, mostrando o funil de resgate com pacientes em diferentes etapas">
         </div>
       </div>
 
       <div class="carrossel carrossel--paisagem" data-carrossel style="margin-top: 40px;">
         <div class="carrossel-trilho">
           <div class="carrossel-slide">
-            <img src="assets/painel-pendencias.png" alt="Tela de Pendências mostrando uma urgência e um encaminhamento pra equipe, cada um com paciente e horário">
+            <img loading="lazy" src="assets/painel-pendencias.png" alt="Tela de Pendências mostrando uma urgência e um encaminhamento pra equipe, cada um com paciente e horário">
             <p>Pendências — urgência sempre em primeiro lugar</p>
           </div>
           <div class="carrossel-slide">
-            <img src="assets/painel-mensagens.png" alt="Tela de Mensagens mostrando uma conversa completa de agendamento entre a Lumi e uma paciente">
+            <img loading="lazy" src="assets/painel-mensagens.png" alt="Tela de Mensagens mostrando uma conversa completa de agendamento entre a Lumi e uma paciente">
             <p>Mensagens — histórico completo, equipe assume quando quiser</p>
           </div>
           <div class="carrossel-slide">
-            <img src="assets/painel-analytics.png" alt="Tela de Analytics mostrando o volume de mensagens trocadas crescendo dia a dia">
+            <img loading="lazy" src="assets/painel-analytics.png" alt="Tela de Analytics mostrando o volume de mensagens trocadas crescendo dia a dia">
             <p>Analytics — volume de conversa crescendo dia a dia</p>
           </div>
         </div>
@@ -596,7 +679,7 @@
         <details>
           <summary>E se o WhatsApp cair?</summary>
           <p>O painel mostra o status da conexão em tempo real, e a própria equipe consegue reconectar sozinha, gerando um QR code novo — sem depender de suporte técnico.</p>
-          <img class="faq-img" src="assets/painel-conexao-whatsapp.png" alt="Card de Conexão WhatsApp no painel, mostrando o status conectado em verde">
+          <img loading="lazy" class="faq-img" src="assets/painel-conexao-whatsapp.png" alt="Card de Conexão WhatsApp no painel, mostrando o status conectado em verde">
         </details>
       </div>
     </div>
@@ -619,7 +702,7 @@
 <footer>
   <div class="envelope">
     <div class="marca-topo">
-      <img src="assets/logo-lumi.png" alt="Lumi">
+      <img loading="lazy" src="assets/logo-lumi.png" alt="Lumi">
       <span>Lumi</span>
     </div>
     <p class="direitos">Concierge digital para clínicas odontológicas.</p>
