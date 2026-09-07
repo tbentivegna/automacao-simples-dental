@@ -197,6 +197,26 @@ monorepo — `site/` como build path, sem env vars). Verificado via curl:
 Já documentado em `Lista_Leads_e_Outreach.md` — falta a lista real de
 nomes e a decisão de pedir o post da Dra. Aline antes de outreach frio.
 
+**Fase 6 — SEO técnico + tráfego orgânico** (Marketing) — técnico ✅
+concluído 07/09/2026, conteúdo bloqueado em você
+Base técnica publicada: title/description com as palavras-chave reais
+da pesquisa de concorrentes, Open Graph + Twitter card (imagem própria
+`site/assets/og-image.png` — prioridade alta porque o link é
+compartilhado direto no WhatsApp, é o próprio CTA de venda), JSON-LD
+`Organization` + `FAQPage` (dados reais, nada fabricado), favicon,
+canonical, `robots.txt`, `sitemap.xml`. Tráfego orgânico de verdade
+exige conteúdo além da landing — plano: 3 artigos pilares num
+`/blog` estático (mesmo esquema do site atual, sem infra nova):
+1. "Como parar de perder pacientes que somem no WhatsApp" (maior
+   volume de busca).
+2. "O que considerar antes de contratar um assistente de IA pra
+   clínica" (comparação, sem citar concorrente por nome).
+3. Case study com a Dra. Aline.
+**Decisão (06/09/2026)**: os 3 saem juntos, só depois da resposta dela
+— ver `Roteiro_Depoimento_e_Avaliacao.md`, que também resolve a prova
+social vaga (Analytics "número real" removido, ver commit `81ba133`) e
+a pendência antiga do nome da clínica.
+
 ---
 
 ## 5. Decisões em aberto (preciso de você)

@@ -6,6 +6,37 @@ geral em [Plano_Comercializacao_Lumi.md](Plano_Comercializacao_Lumi.md).
 
 ---
 
+## 2026-09-07 — SEO técnico + plano de tráfego orgânico + roteiro pra fechar prova social
+
+**SEO técnico** (commit `3a27413`): title/description reescritos com as
+palavras-chave da pesquisa de concorrentes, Open Graph + Twitter card
+com imagem própria (`site/assets/og-image.png`, 1200x630 — prioridade
+alta porque o link é mandado direto no WhatsApp, o próprio CTA de
+venda), JSON-LD `Organization` + `FAQPage` (as mesmas 5 perguntas já
+visíveis no site, texto idêntico), favicon, canonical, `robots.txt`,
+`sitemap.xml`, `loading=lazy` nas imagens abaixo da dobra. Decisão
+explícita: nada de `AggregateRating` fabricado — sem review real, não
+entra.
+
+**Tráfego orgânico**: Tiago pediu estratégia de conteúdo. Proposta:
+`/blog` estático com 3 artigos pilares (maior volume de busca, guia de
+comparação antes de contratar, case da Dra. Aline). **Decisão do
+Tiago**: esperar a resposta dela antes de escrever qualquer um dos 3 —
+saem juntos depois.
+
+**Achado ao revisar avaliação**: eu tinha sugerido Google Meu Negócio
+como canal de review; reconsiderei — esse perfil exige endereço físico
+ou atendimento presencial, a Lumi é 100% remota, não se qualifica de
+verdade (risco de suspensão). Substituído por depoimento direto no
+site + LinkedIn + diretórios de SaaS (Capterra/G2, quando houver 2-3
+clientes). Documentado em `Roteiro_Depoimento_e_Avaliacao.md`: mensagem
+pronta pra mandar pra Dra. Aline, roteiro de 4 perguntas, e onde o
+resultado entra (depoimento no site, `Review` real no schema, base do
+case study). Resolve de uma vez a prova social vaga que os 3 perfis
+apontaram e a pendência antiga de nomear a clínica.
+
+---
+
 ## 2026-09-06 — Simulação de personas, carrossel, bug de viewport, revisão de preços
 
 **Simulação de 3 personas** navegando o site (pedido do Tiago) apontou:
