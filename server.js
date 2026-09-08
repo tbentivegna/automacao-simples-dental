@@ -1019,6 +1019,18 @@ async function preencherCadastroCompleto(dialogo, dados) {
 // paciente já existia. Achado testando a Agenda do painel em 25/08 --
 // o node do n8n que a Lumi usa já mandava o telefone sem o "55" hoje em
 // dia, então esse bug nunca afetou o fluxo da Lumi, só o painel.
+// Bug real achado 08/09/2026 (caso Renan Jefferson da Silva): a checagem de
+// nome só rodava quando havia MAIS DE UMA opção (total > 1). Quando o
+// Simples Dental devolvia uma única opção pro telefone buscado, o código
+// aceitava ela sem checar se batia com nomeBuscado -- e um telefone
+// família (pai + filha, ambos pacientes da clínica) pode ter só UM dos
+// dois aparecendo na busca por telefone, dependendo de como cada
+// cadastro foi feito. Resultado real: a Lumi pediu "Renan Jefferson da
+// Silva" certinho, o Simples Dental só mostrou uma opção pro telefone, e
+// essa opção era da filha (Luiza) -- devolvido como se fosse o Renan,
+// sem nenhum aviso. Agora a checagem de nome roda sempre que nomeBuscado
+// existir, não importa quantas opções apareceram; se não bater com
+// nenhuma, devolve "não encontrado" em vez de chutar a única disponível.
 async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
   await campoBusca.fill(telefoneLocal(telefone));
   const opcoes = page.locator('.sd-pacientes-autocomplete__option');
@@ -1027,7 +1039,7 @@ async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
 
   const total = await opcoes.count();
 
-  if (nomeBuscado && total > 1) {
+  if (nomeBuscado) {
     const alvo = nomeBuscado.trim().toLowerCase();
     for (let i = 0; i < total; i++) {
       const opcao = opcoes.nth(i);
