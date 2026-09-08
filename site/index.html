@@ -367,7 +367,54 @@
     .hero { padding: 72px 0 56px; }
     .hero h1 { font-size: clamp(28px, 8vw, 58px); }
   }
+
+  /* ---------- hover: cards e blocos ganham profundidade ao passar o mouse ---------- */
+  .caminho, .cenario-dor, .plano {
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .caminho:hover, .plano:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+    border-color: var(--gold);
+  }
+  .cenario-dor:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+    border-left-color: var(--gold-bright);
+  }
+  .plano.destaque:hover { border-color: var(--gold-bright); }
+  /* .recurso mora numa grade sem espaçamento (as bordas de 1px são as
+     linhas da própria grade) -- levantar com transform quebraria o
+     alinhamento, então o hover aqui é só clareza de fundo/ícone. */
+  .recurso { transition: background 0.25s ease; }
+  .recurso:hover { background: var(--bg-elevated-2); }
+  .recurso:hover svg, .recurso:hover h4 { color: var(--gold-bright); }
+  .confianca-item { transition: border-color 0.25s ease; }
+  .confianca-item:hover { border-left-color: var(--gold-bright); }
+  .personalizacao { transition: box-shadow 0.3s ease; }
+  .personalizacao:hover { box-shadow: 0 22px 52px rgba(184, 154, 104, 0.14); }
+  .botao-fantasma:hover { transform: translateY(-1px); }
+  details summary { transition: color 0.15s ease; }
+  details summary:hover { color: var(--gold-bright); }
+
+  /* ---------- carrossel: slide em foco fica nítido, os demais esmaecem ---------- */
+  .carrossel-slide { opacity: 0.4; transition: opacity 0.5s ease; }
+  .carrossel-slide.ativo { opacity: 1; }
+  .carrossel-slide img { transition: transform 0.35s ease, box-shadow 0.35s ease; }
+  .carrossel-slide img:hover { transform: scale(1.015); box-shadow: 0 26px 56px rgba(0, 0, 0, 0.55); }
+
+  /* ---------- revelação sutil ao rolar: mesmo padrão em toda a página ---------- */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.7s cubic-bezier(0.16, 0.8, 0.24, 1), transform 0.7s cubic-bezier(0.16, 0.8, 0.24, 1);
+  }
+  [data-reveal].revelado { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] { opacity: 1; transform: none; transition: none; }
+  }
 </style>
+<noscript><style>[data-reveal] { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
 <body>
 
@@ -405,12 +452,12 @@
 
   <section id="problema" style="border-top:none;">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">A dor por trás da agenda cheia</p>
         <h2>Responder pacientes e leads no WhatsApp está consumindo mais tempo do que você gostaria?</h2>
         <p>Não dá tempo de fazer tudo sozinho — atender paciente, cuidar da equipe, tocar o consultório inteiro. O WhatsApp vira a última prioridade do dia, e é exatamente aí que as oportunidades escapam.</p>
       </div>
-      <div class="cenarios-dor">
+      <div class="cenarios-dor" data-reveal>
         <div class="cenario-dor">
           <span class="cenario-dor__quando">20h de sexta-feira</span>
           <p>Um paciente novo pergunta o preço da primeira consulta. Ninguém vê a mensagem até segunda de manhã — ele já resolveu em outra clínica.</p>
@@ -424,18 +471,18 @@
           <p>Fora do horário de atendimento, pra quem manda mensagem a clínica simplesmente não existe até o próximo dia útil.</p>
         </div>
       </div>
-      <p class="problema-ponte">O custo não é só em oportunidade de pacientes — é o tempo que sobra pra fazer o que realmente importa: o seu atendimento tão bom que faz com que eles sempre voltem.</p>
+      <p class="problema-ponte" data-reveal>O custo não é só em oportunidade de pacientes — é o tempo que sobra pra fazer o que realmente importa: o seu atendimento tão bom que faz com que eles sempre voltem.</p>
     </div>
   </section>
 
   <section id="caminhos">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">Como ela entra na sua clínica</p>
         <h2>Funciona do jeito que a sua agenda já funciona</h2>
         <p>Sem trocar de sistema, e sem precisar ter nenhum sistema hoje.</p>
       </div>
-      <div class="caminhos">
+      <div class="caminhos" data-reveal>
         <div class="caminho">
           <p class="rotulo">Já usa um sistema de agenda</p>
           <h3>Integração direta</h3>
@@ -448,7 +495,7 @@
         </div>
       </div>
 
-      <div class="personalizacao">
+      <div class="personalizacao" data-reveal>
         <p class="rotulo">Antes de tudo</p>
         <h3>Uma conversa de verdade, não um formulário</h3>
         <p>Nos dois caminhos, tudo começa com uma entrevista de personalização com você — como quer ser apresentada aos pacientes, seu tom de voz, o que a clínica atende (e o que não atende), preço, regras específicas do seu jeito de atender. A Lumi vira uma extensão do seu atendimento: fala como você fala, cuida como você cuida, se importa como você se importa.</p>
@@ -458,14 +505,14 @@
 
   <section id="conversa">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">Como soa na prática</p>
         <h2>Uma conversa de verdade, do jeito que o paciente vive</h2>
         <p>Ilustração de uma conversa típica — sem menu, sem robô engessado.</p>
       </div>
-      <div class="carrossel carrossel--vertical" data-carrossel>
+      <div class="carrossel carrossel--vertical" data-carrossel data-reveal>
         <div class="carrossel-trilho">
-          <div class="carrossel-slide">
+          <div class="carrossel-slide ativo">
             <img loading="lazy" src="assets/whatsapp-saudacao.png" alt="Conversa mostrando a Lumi cumprimentando e explicando um tratamento">
             <p><strong>Acolhe e informa</strong> — pergunta o nome, tira dúvida sobre tratamento, sem empurrar agendamento na mesma mensagem.</p>
           </div>
@@ -485,13 +532,13 @@
 
   <section id="painel">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">O que nenhum chatbot tem</p>
         <h2>Por trás da conversa, um painel de gestão completo</h2>
         <p>A maioria das assistentes de IA é só a conversa. A Lumi vem com o painel que garante que você nunca perde a visão — nem o controle.</p>
       </div>
 
-      <div class="painel-vitrine">
+      <div class="painel-vitrine" data-reveal>
         <div class="painel-vitrine-topo">
           <span></span><span></span><span></span>
           <small>PAINEL ADMINISTRATIVO — LUMI</small>
@@ -530,10 +577,10 @@
         </div>
       </div>
 
-      <div class="carrossel carrossel--paisagem" data-carrossel style="margin-top: 40px;">
+      <div class="carrossel carrossel--paisagem" data-carrossel data-reveal style="margin-top: 40px;">
         <div class="carrossel-abas"></div>
         <div class="carrossel-trilho">
-          <div class="carrossel-slide" data-rotulo="Agenda">
+          <div class="carrossel-slide ativo" data-rotulo="Agenda">
             <img loading="lazy" src="assets/painel-agenda.png" alt="Tela de Agenda do painel Lumi, visualização em mês, com consultas coloridas por categoria">
             <p><strong>Agenda</strong> — visualização por dia, semana, mês ou lista; cada cor é uma categoria, feriados aparecem sozinhos, e qualquer compromisso pode ser criado ou ajustado direto pelo painel.</p>
           </div>
@@ -559,7 +606,7 @@
   </section>
 
   <div class="maxima">
-    <div class="envelope">
+    <div class="envelope" data-reveal>
       <blockquote>“A inteligência artificial cuida do repetitivo. Quem decide continua sendo você.”</blockquote>
       <cite>A lógica por trás de cada regra da Lumi</cite>
     </div>
@@ -567,11 +614,11 @@
 
   <section id="confianca">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">Confiança</p>
         <h2>Feita pra clínica de saúde, não adaptada de um bot genérico</h2>
       </div>
-      <div class="confianca-lista">
+      <div class="confianca-lista" data-reveal>
         <div class="confianca-item">
           <h4>Não substitui o que você já usa</h4>
           <p>Entra por cima do sistema que a clínica já tem, ou funciona sozinha se não tiver nenhum. Nunca pede pra trocar de sistema de gestão.</p>
@@ -594,12 +641,12 @@
 
   <section id="planos">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">Investimento</p>
         <h2>Um plano pra cada tamanho de clínica</h2>
         <p>Mensalidade a partir de, conforme o porte — valor final combinado em conversa.</p>
       </div>
-      <div class="planos">
+      <div class="planos" data-reveal>
         <div class="plano">
           <div>
             <p class="nome">Basic</p>
@@ -647,11 +694,11 @@
 
   <section id="faq">
     <div class="envelope">
-      <div class="cabecalho-secao">
+      <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">Perguntas</p>
         <h2>O que toda clínica pergunta antes de decidir</h2>
       </div>
-      <div class="faq">
+      <div class="faq" data-reveal>
         <details open>
           <summary>Preciso trocar de sistema de agenda?</summary>
           <p>Não, se você já usa um sistema — a Lumi passa a operar dentro dele. E se você não usa nenhum, também não precisa: a gente monta a agenda do zero, junto com a concierge digital.</p>
@@ -678,7 +725,7 @@
   </section>
 
   <section class="cta-final">
-    <div class="envelope">
+    <div class="envelope" data-reveal>
       <div class="anel-divisor">
         <svg viewBox="0 0 40 40" fill="none" stroke="var(--gold)" stroke-width="1.2"><circle cx="20" cy="20" r="15" stroke-dasharray="86 8"></circle></svg>
       </div>
@@ -757,9 +804,38 @@
           if (dist < menorDist) { menorDist = dist; ativoIdx = i; }
         }
         indicadores.forEach(function (el, i) { el.classList.toggle('ativo', i === ativoIdx); });
+        // mesmo indice tambem controla o esmaecimento do slide (ver
+        // .carrossel-slide.ativo no CSS) -- o slide em foco fica nitido,
+        // os outros esmaecem, dando um efeito de crossfade junto do
+        // deslizar nativo do scroll-snap.
+        for (var k = 0; k < slides.length; k++) { slides[k].classList.toggle('ativo', k === ativoIdx); }
       }, 100);
     });
   });
+
+  // ---------- revelação sutil ao rolar (mesmo padrão em toda a página) ----------
+  (function () {
+    var elementos = document.querySelectorAll('[data-reveal]');
+    if (!elementos.length) return;
+    if (!('IntersectionObserver' in window)) {
+      elementos.forEach(function (el) { el.classList.add('revelado'); });
+      return;
+    }
+    var observador = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (entrada) {
+        if (entrada.isIntersecting) {
+          entrada.target.classList.add('revelado');
+          observador.unobserve(entrada.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    elementos.forEach(function (el) { observador.observe(el); });
+    // rede de segurança: garante que nada fique invisível pra sempre,
+    // mesmo se algum elemento nunca cruzar o threshold do observer.
+    setTimeout(function () {
+      elementos.forEach(function (el) { el.classList.add('revelado'); });
+    }, 4000);
+  })();
 </script>
 </body>
 </html>
