@@ -283,8 +283,11 @@ app.post('/api/status-global/pausar', exigirAutenticacaoApi, async (req, res) =>
 
 app.post('/api/status-global/retomar', exigirAutenticacaoApi, async (req, res) => {
   try {
-    await retomarGlobal('painel administrativo');
-    res.json({ ok: true });
+    // Enquanto pausada, a Lumi só registra as mensagens (não responde nada)
+    // -- retomarGlobal já devolve quem escreveu nesse intervalo, pro painel
+    // avisar a equipe.
+    const { semResposta } = await retomarGlobal('painel administrativo');
+    res.json({ ok: true, semResposta });
   } catch (erro) {
     console.error('Erro em POST /api/status-global/retomar:', erro);
     res.status(500).json({ erro: 'Falha ao retomar a Lumi.', detalhe: erro.message });

@@ -666,13 +666,45 @@ async function pausarGlobal(por) {
   );
 }
 
+// Enquanto pausada globalmente, a Lumi não responde mais nada pro
+// paciente (ver fix 08/09 -- antes mandava a mesma mensagem "atendimento
+// pausado" a cada mensagem nova, sem cooldown, e nem gravava isso no
+// histórico) -- só registra a mensagem recebida. Por isso, ao retomar, é
+// importante mostrar pra equipe quem escreveu nesse intervalo e não teve
+// resposta nenhuma, pra alguém dar uma olhada.
+async function buscarPacientesSemRespostaNaPausa(pausadoEm, retomadoEm) {
+  if (!pausadoEm) return [];
+  const { rows } = await pool.query(
+    `SELECT
+       h.session_id AS telefone,
+       c.nome,
+       c.apelido_whatsapp,
+       COUNT(*)::int AS mensagens,
+       MIN(h.created_at) AS primeira_mensagem,
+       MAX(h.created_at) AS ultima_mensagem
+     FROM public.n8n_chat_histories h
+     LEFT JOIN public.cliente c ON c.telefone = h.session_id
+     WHERE h.message->>'type' = 'human'
+       AND h.created_at >= $1
+       AND h.created_at <= $2
+     GROUP BY h.session_id, c.nome, c.apelido_whatsapp
+     ORDER BY ultima_mensagem DESC;`,
+    [pausadoEm, retomadoEm]
+  );
+  return rows;
+}
+
 async function retomarGlobal(por) {
-  await pool.query(
+  const { rows } = await pool.query(
     `UPDATE public.controle_sistema
      SET bot_pausado = false, retomado_por = $1, retomado_em = now()
-     WHERE id = 1;`,
+     WHERE id = 1
+     RETURNING pausado_em, retomado_em;`,
     [por || 'painel administrativo']
   );
+  const { pausado_em: pausadoEm, retomado_em: retomadoEm } = rows[0] || {};
+  const semResposta = await buscarPacientesSemRespostaNaPausa(pausadoEm, retomadoEm);
+  return { pausadoEm, retomadoEm, semResposta };
 }
 
 // Devolve UM paciente específico pra Lumi (equivalente ao "##lumi" digitado

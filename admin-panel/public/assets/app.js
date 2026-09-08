@@ -2379,7 +2379,8 @@ function renderizarStatusGlobal(status) {
 
 async function alterarStatusGlobal(acao) {
   const confirmacoes = {
-    pausar: 'Pausar a Lumi para TODOS os pacientes agora? Ninguém vai receber resposta automática até você retomar.',
+    pausar:
+      'Pausar a Lumi para TODOS os pacientes agora? Enquanto pausada, ninguém recebe resposta nenhuma (nem aviso automático) -- as mensagens só ficam registradas, até você retomar.',
     retomar: 'Retomar a Lumi para todos os pacientes agora?',
   };
   if (!confirm(confirmacoes[acao])) return;
@@ -2387,8 +2388,9 @@ async function alterarStatusGlobal(acao) {
   const botoes = [document.getElementById('botaoStatusBot'), document.getElementById('botaoRetomarBanner')];
   botoes.forEach((b) => (b.disabled = true));
   try {
-    await chamarApi(`/api/status-global/${acao}`, { method: 'POST' });
+    const resultado = await chamarApi(`/api/status-global/${acao}`, { method: 'POST' });
     await carregarStatusGlobal();
+    if (acao === 'retomar') renderizarResumoPausa(resultado.semResposta || []);
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -2400,6 +2402,50 @@ document.getElementById('botaoStatusBot').addEventListener('click', (evento) => 
   alterarStatusGlobal(evento.target.dataset.acao);
 });
 document.getElementById('botaoRetomarBanner').addEventListener('click', () => alterarStatusGlobal('retomar'));
+
+// ============================================================
+// Aviso pós-retomada: quem escreveu durante a pausa sem resposta nenhuma
+// ============================================================
+
+function renderizarResumoPausa(lista) {
+  const banner = document.getElementById('bannerResumoPausa');
+  if (!lista.length) {
+    banner.hidden = true;
+    return;
+  }
+  document.getElementById('bannerResumoPausaTexto').innerHTML =
+    lista.length === 1
+      ? '<strong>1 paciente</strong> escreveu enquanto a Lumi estava pausada e não teve resposta nenhuma:'
+      : `<strong>${lista.length} pacientes</strong> escreveram enquanto a Lumi estava pausada e não tiveram resposta nenhuma:`;
+
+  document.getElementById('bannerResumoPausaLista').innerHTML = lista
+    .map((p) => {
+      const rotuloMsgs = p.mensagens === 1 ? '1 mensagem' : `${p.mensagens} mensagens`;
+      // data-nome-* precisa ser texto puro (vira o "nome" passado pra
+      // abrirConversa) -- nomeExibicao() devolve HTML pronto pra exibir,
+      // não serve aqui.
+      const nomePuro = p.nome || p.apelido_whatsapp || p.telefone || '';
+      return `
+        <button type="button" class="banner-resumo-pausa__item" data-telefone-resumo-pausa="${escapar(p.telefone)}" data-nome-resumo-pausa="${escapar(nomePuro)}">
+          <span>${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}</span>
+          <span class="texto-fraco">${escapar(p.telefone || '')} · ${rotuloMsgs}</span>
+        </button>`;
+    })
+    .join('');
+  banner.hidden = false;
+}
+
+document.getElementById('bannerResumoPausaLista').addEventListener('click', (evento) => {
+  const item = evento.target.closest('[data-telefone-resumo-pausa]');
+  if (!item) return;
+  document.getElementById('bannerResumoPausa').hidden = true;
+  irParaSecao('mensagens');
+  abrirConversa(item.dataset.telefoneResumoPausa, item.dataset.nomeResumoPausa);
+});
+
+document.getElementById('botaoFecharResumoPausa').addEventListener('click', () => {
+  document.getElementById('bannerResumoPausa').hidden = true;
+});
 
 // ============================================================
 // Configurações (horários de atendimento)

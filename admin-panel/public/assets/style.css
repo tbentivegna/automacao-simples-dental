@@ -366,6 +366,78 @@ html, body {
   margin-left: auto;
 }
 
+/* Aviso pós-retomada: quem escreveu enquanto a Lumi estava pausada e não
+   teve resposta nenhuma (fix 08/09/2026 -- antes a Lumi respondia um
+   aviso repetido, agora só registra) -- mesma estrutura do
+   banner-pausado, mas tom informativo (não é uma urgência, é um FYI). */
+.banner-resumo-pausa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--cor-info-fundo);
+  color: var(--cor-info);
+  border: 1px solid rgba(74, 123, 166, 0.3);
+  border-radius: var(--raio);
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+
+.banner-resumo-pausa[hidden] {
+  display: none;
+}
+
+.banner-resumo-pausa__topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.banner-resumo-pausa__topo strong {
+  font-weight: 700;
+}
+
+.banner-resumo-pausa__topo button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.banner-resumo-pausa__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-resumo-pausa__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: var(--raio-pequeno);
+  padding: 6px 8px;
+  color: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.banner-resumo-pausa__item:hover {
+  background: rgba(74, 123, 166, 0.12);
+}
+
+.banner-resumo-pausa__item .texto-fraco {
+  color: inherit;
+  opacity: 0.75;
+}
+
 .botao-sair {
   flex-shrink: 0;
   margin-top: clamp(4px, 1.8vh, 16px);

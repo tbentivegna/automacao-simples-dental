@@ -60,6 +60,17 @@
         <button class="botao botao-primario" id="botaoRetomarBanner">Retomar agora</button>
       </div>
 
+      <!-- Aparece só depois de "Retomar" -- lista quem escreveu durante a
+           pausa e não teve nenhuma resposta (a Lumi fica muda enquanto
+           pausada, só registra). Some ao clicar em "OK" ou navegar. -->
+      <div class="banner-resumo-pausa" id="bannerResumoPausa" hidden>
+        <div class="banner-resumo-pausa__topo">
+          💬 <span id="bannerResumoPausaTexto"></span>
+          <button type="button" id="botaoFecharResumoPausa" aria-label="Fechar aviso">✕</button>
+        </div>
+        <div class="banner-resumo-pausa__lista" id="bannerResumoPausaLista"></div>
+      </div>
+
       <!-- ============ VISÃO GERAL ============ -->
       <section class="secao ativa" id="secao-visao-geral">
         <div class="cabecalho-secao">
