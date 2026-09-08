@@ -1,4 +1,8 @@
-require('dotenv').config();
+// Caminho explícito -- ver o mesmo fix e o motivo real em
+// admin-panel/server.js (08/09/2026): .config() sem path carrega o .env
+// de process.cwd(), não de __dirname, então rodar a partir da raiz do
+// repo carregava o .env de produção por engano.
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const tempo = require('./tempo');
 const db = require('./db');

@@ -120,7 +120,13 @@ async function chamarApi(caminho, opcoes) {
   }
   const dados = await resposta.json().catch(() => ({}));
   if (!resposta.ok) {
-    throw new Error(dados.erro || `Falha em ${caminho}`);
+    // "detalhe" (quando existe) é a razão específica do erro -- ex: rotas
+    // de automação de agendamento/mensagem devolvem { erro: "Falha ao
+    // enviar mensagem.", detalhe: "Texto não pode conter [Lumi]..." }.
+    // "erro" sozinho é genérico demais pra equipe entender o que fazer
+    // diferente -- achado real revisando por que um envio falhou e a
+    // mensagem mostrada não explicava nada (08/09/2026).
+    throw new Error(dados.detalhe || dados.erro || `Falha em ${caminho}`);
   }
   return dados;
 }

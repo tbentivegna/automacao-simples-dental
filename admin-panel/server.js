@@ -1,6 +1,13 @@
 'use strict';
 
-require('dotenv').config();
+// Caminho explícito, nunca relativo ao cwd de onde o processo foi iniciado
+// -- .config() sem path carrega o .env de process.cwd(), então rodar
+// "node admin-panel/server.js" a partir da raiz do repo (uso comum pra
+// teste rápido) carregava o .env de PRODUÇÃO por engano, credenciais reais
+// da Evolution API incluídas. Bug real, achado 08/09/2026: mandou uma
+// mensagem de teste de verdade pro WhatsApp de uma paciente real durante
+// um teste local -- teve que ser apagada via API depois.
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const path = require('path');
 const {

@@ -1,4 +1,8 @@
-require('dotenv').config();
+// Caminho explícito (mesmo padrão aplicado em admin-panel/standalone-bridge/
+// clinicorp-bridge 08/09/2026) -- este arquivo já vive na raiz, então na
+// prática já carregava o .env certo, mas deixa explícito por consistência
+// e pra nunca depender de qual diretório o processo foi iniciado.
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const { chromium } = require('playwright');
 const { Pool } = require('pg');
