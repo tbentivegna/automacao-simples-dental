@@ -275,6 +275,44 @@ async function buscarConversas(termo = '', limite = 50) {
   return rows;
 }
 
+// Texto fixo (hardcoded no node "Grava Apresentação" do workflow n8n --
+// nunca varia) da mensagem automática de primeiro contato. Usado só pra
+// reconhecer essa mensagem no ajuste de ordem abaixo -- ver
+// reordenarApresentacaoAutomatica.
+const MARCADOR_APRESENTACAO_AUTOMATICA = 'Sou a Lumi✨, concierge digital da Dra.';
+
+// Bug real achado 08/09/2026 (caso Edjane Macedo): a mensagem automática de
+// apresentação ("Olá! Sou a Lumi...") é GRAVADA no n8n_chat_histories por um
+// node que roda antes do node que salva a mensagem da própria paciente (só
+// grava quando o AI Agent processa a resposta, mais tarde no fluxo) --
+// mesmo a paciente tendo mandado a mensagem dela primeiro de verdade. O
+// created_at reflete fielmente a ordem de INSERÇÃO no banco, não a ordem
+// real dos acontecimentos, então corrigir isso no fluxo de produção exigia
+// mexer na estrutura do grafo do n8n (mais arriscado). Em vez disso,
+// corrige só a EXIBIÇÃO: se a apresentação aparecer antes da primeira
+// mensagem da paciente na janela buscada, reposiciona ela pra logo depois
+// -- não mexe em nada além da ordem de exibição, e só age quando esse
+// padrão específico realmente ocorre (uma mensagem de resgate, por
+// exemplo, pode legitimamente ser a primeira da conversa -- não tem esse
+// texto fixo, então não é afetada).
+function reordenarApresentacaoAutomatica(linhasDesc) {
+  const asc = [...linhasDesc].reverse();
+
+  const introIdx = asc.findIndex(
+    (m) => m.tipo === 'ai' && (m.conteudo || '').includes(MARCADOR_APRESENTACAO_AUTOMATICA)
+  );
+  const primeiroHumanoIdx = asc.findIndex((m) => m.tipo === 'human');
+
+  if (introIdx === -1 || primeiroHumanoIdx === -1 || introIdx >= primeiroHumanoIdx) {
+    return linhasDesc; // já está na ordem certa (ou não achou os dois marcos) -- não mexe.
+  }
+
+  const [apresentacao] = asc.splice(introIdx, 1);
+  asc.splice(primeiroHumanoIdx, 0, apresentacao); // primeiroHumanoIdx já desceu 1 posição com a remoção acima
+
+  return asc.reverse();
+}
+
 // Preview da conversa de UM paciente (últimas N mensagens, mais antiga
 // primeiro pra ler de cima pra baixo como um chat). session_id na tabela de
 // memória do n8n é sempre o telefone -- ver n8n/lumi-workflow.json.
@@ -300,7 +338,7 @@ async function buscarMensagensPaciente(telefone, limite = 20) {
     LIMIT $2;`,
     [telefoneSeguro, limiteSeguro]
   );
-  return rows;
+  return reordenarApresentacaoAutomatica(rows);
 }
 
 // Pacientes com a Lumi desativada (atendimento humano assumido). Ordenado
