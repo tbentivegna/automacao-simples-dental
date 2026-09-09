@@ -1503,11 +1503,7 @@ async function criarAgendamento({
 // evento (sem criar nada) para descobrir o NOME exato cadastrado, fecha o
 // diálogo, e então varre os compromissos das próximas semanas (mesma
 // função usada em /verificar-disponibilidade) filtrando pelo nome.
-async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente: nomeBuscado }) {
-  if (!telefone) {
-    throw new Error('Campo obrigatório faltando: telefone.');
-  }
-
+async function buscarAgendamentosPacientePorTelefone({ telefone, semanas, nomeBuscado }) {
   const { context, page } = await abrirPaginaLogada();
   const totalSemanas = Number(semanas || process.env.SEMANAS_A_VERIFICAR || 4);
 
@@ -1549,6 +1545,85 @@ async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente: nom
   } finally {
     await context.close();
   }
+}
+
+// Telefones PRÓPRIOS (cadastro diferente do responsável) dos dependentes
+// vinculados a esse telefone -- ex: filha adolescente que já tem WhatsApp
+// e cadastro próprios no Simples Dental, mas a mãe às vezes escreve por
+// ela do telefone dela. Caso real 09/09 (Thaynna): a busca pelo telefone
+// da mãe nunca acharia a consulta da filha, porque no Simples Dental ela
+// está cadastrada sob o telefone dela mesma, não o da mãe.
+async function buscarTelefonesDependentes(telefoneJid) {
+  if (!pool) return [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT c.telefone, c.nome
+       FROM public.paciente_dependente d
+       JOIN public.cliente c ON lower(trim(c.nome)) = lower(trim(d.dependente_nome))
+       WHERE d.responsavel_telefone = $1 AND c.telefone IS NOT NULL AND c.telefone <> $1`,
+      [telefoneJid]
+    );
+    return rows;
+  } catch (erro) {
+    console.error('[buscarAgendamentosPaciente] falha ao buscar telefones de dependentes:', erro.message);
+    return [];
+  }
+}
+
+// Registra uma pendência determinística (sem depender do prompt) quando a
+// busca falha de verdade -- só quando um nomePaciente foi informado
+// explicitamente (sinal de que é uma busca de desambiguação de família,
+// não a checagem genérica "eu tenho algo marcado?" de um paciente comum,
+// que legitimamente pode vir vazia sem ser um problema). Caso real 09/09
+// (Thaynna): mãe com filha internada tentou cancelar a consulta de hoje,
+// a busca falhou duas vezes (nome errado, depois telefone errado) e
+// NENHUMA pendência foi gerada -- ninguém da equipe soube.
+async function registrarPendenciaBuscaFalhou({ telefone, nomeBuscado }) {
+  if (!pool || !nomeBuscado) return;
+  try {
+    await pool.query(
+      `INSERT INTO public.agent_actions (from_phone, action, domain, detail)
+       VALUES ($1, 'OUTROS', 'Agenda', $2)`,
+      [
+        telefone,
+        `[Auto-detectado] Busca de agendamento por "${nomeBuscado}" não encontrou nada (nem pelo telefone de quem escreveu, nem por telefones de dependentes vinculados) -- conferir com o paciente se a consulta existe de verdade e sob qual cadastro.`,
+      ]
+    );
+  } catch (erro) {
+    console.error('[buscarAgendamentosPaciente] falha ao registrar pendência automática:', erro.message);
+  }
+}
+
+async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente: nomeBuscado }) {
+  if (!telefone) {
+    throw new Error('Campo obrigatório faltando: telefone.');
+  }
+
+  const resultado = await buscarAgendamentosPacientePorTelefone({ telefone, semanas, nomeBuscado });
+  if (resultado.encontrado) return resultado;
+
+  // Não achou pelo telefone de quem escreveu -- tenta os telefones
+  // próprios dos dependentes vinculados a esse telefone (só os que
+  // batem com o nome buscado, quando um nome foi informado, pra não
+  // vasculhar a agenda de todos os filhos numa busca já específica).
+  const telefoneJid = jidDeLocal(telefone);
+  const dependentes = telefoneJid ? await buscarTelefonesDependentes(telefoneJid) : [];
+  for (const dep of dependentes) {
+    if (nomeBuscado) {
+      const a = nomeBuscado.trim().toLowerCase();
+      const b = dep.nome.trim().toLowerCase();
+      if (!a.includes(b) && !b.includes(a)) continue;
+    }
+    const resultadoDependente = await buscarAgendamentosPacientePorTelefone({
+      telefone: dep.telefone,
+      semanas,
+      nomeBuscado,
+    });
+    if (resultadoDependente.encontrado) return resultadoDependente;
+  }
+
+  await registrarPendenciaBuscaFalhou({ telefone: telefoneJid || telefone, nomeBuscado });
+  return { encontrado: false, agendamentos: [] };
 }
 
 // Lista as consultas de hoje e amanhã, resolvendo o telefone de cada uma via

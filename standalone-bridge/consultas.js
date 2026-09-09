@@ -192,10 +192,7 @@ async function criarAgendamento({
   };
 }
 
-async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente } = {}) {
-  if (!telefone) {
-    throw new Error('Campo obrigatório faltando: telefone.');
-  }
+async function buscarAgendamentosPacientePorTelefone({ telefone, semanas, nomePaciente } = {}) {
   const jid = jidDeLocal(telefone);
   const totalSemanas = Number(semanas || SEMANAS_A_VERIFICAR);
 
@@ -257,6 +254,76 @@ async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente } = 
     agendamentos,
     semanasVerificadas: totalSemanas,
   };
+}
+
+// Telefones PRÓPRIOS (cadastro diferente do responsável) dos dependentes
+// vinculados a esse telefone -- mesmo racional do server.js/raiz (caso
+// real 09/09, Thaynna): dependente com WhatsApp/cadastro próprio, mas a
+// mãe às vezes escreve por ela do telefone dela -- sem isso, a consulta
+// da dependente nunca é encontrada buscando pelo telefone da mãe.
+async function buscarTelefonesDependentes(telefoneJid) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT c.telefone, c.nome
+       FROM public.paciente_dependente d
+       JOIN public.cliente c ON lower(trim(c.nome)) = lower(trim(d.dependente_nome))
+       WHERE d.responsavel_telefone = $1 AND c.telefone IS NOT NULL AND c.telefone <> $1`,
+      [telefoneJid]
+    );
+    return rows;
+  } catch (erro) {
+    console.error('[buscarAgendamentosPaciente] falha ao buscar telefones de dependentes:', erro.message);
+    return [];
+  }
+}
+
+// Pendência determinística quando a busca falha de verdade -- só quando
+// um nomePaciente foi informado explicitamente (sinal de busca de
+// desambiguação de família, não a checagem genérica "tenho algo
+// marcado?" que legitimamente pode vir vazia sem ser um problema). Mesmo
+// racional do server.js/raiz (caso real 09/09, Thaynna).
+async function registrarPendenciaBuscaFalhou({ telefone, nomeBuscado }) {
+  if (!nomeBuscado) return;
+  try {
+    await pool.query(
+      `INSERT INTO public.agent_actions (from_phone, action, domain, detail)
+       VALUES ($1, 'OUTROS', 'Agenda', $2)`,
+      [
+        telefone,
+        `[Auto-detectado] Busca de agendamento por "${nomeBuscado}" não encontrou nada (nem pelo telefone de quem escreveu, nem por telefones de dependentes vinculados) -- conferir com o paciente se a consulta existe de verdade e sob qual cadastro.`,
+      ]
+    );
+  } catch (erro) {
+    console.error('[buscarAgendamentosPaciente] falha ao registrar pendência automática:', erro.message);
+  }
+}
+
+async function buscarAgendamentosPaciente({ telefone, semanas, nomePaciente: nomeBuscado } = {}) {
+  if (!telefone) {
+    throw new Error('Campo obrigatório faltando: telefone.');
+  }
+
+  const resultado = await buscarAgendamentosPacientePorTelefone({ telefone, semanas, nomePaciente: nomeBuscado });
+  if (resultado.encontrado) return resultado;
+
+  const telefoneJid = jidDeLocal(telefone);
+  const dependentes = telefoneJid ? await buscarTelefonesDependentes(telefoneJid) : [];
+  for (const dep of dependentes) {
+    if (nomeBuscado) {
+      const a = nomeBuscado.trim().toLowerCase();
+      const b = dep.nome.trim().toLowerCase();
+      if (!a.includes(b) && !b.includes(a)) continue;
+    }
+    const resultadoDependente = await buscarAgendamentosPacientePorTelefone({
+      telefone: dep.telefone,
+      semanas,
+      nomePaciente: nomeBuscado,
+    });
+    if (resultadoDependente.encontrado) return resultadoDependente;
+  }
+
+  await registrarPendenciaBuscaFalhou({ telefone: telefoneJid || telefone, nomeBuscado });
+  return { encontrado: false, agendamentos: [] };
 }
 
 async function mudarStatusAgendamento({ id, status, telefone } = {}) {
