@@ -251,7 +251,7 @@
   .planos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch; }
   .plano {
     background: var(--bg-elevated); border: 1px solid var(--line); border-radius: 4px; padding: 34px 28px;
-    display: flex; flex-direction: column; gap: 18px;
+    display: flex; flex-direction: column; gap: 18px; cursor: pointer;
   }
   .plano.destaque { border-color: var(--gold); background: var(--bg-elevated-2); position: relative; }
   .plano.destaque::before {
@@ -259,10 +259,21 @@
     font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #14110c; background: var(--gold-bright);
     padding: 4px 12px; border-radius: 999px; font-weight: 700;
   }
+  /* estado "eu escolhi este" -- distinto do selo "Mais escolhido" (que é
+     recomendação, não seleção). Um anel dourado + leve elevação. */
+  .plano.selecionado {
+    border-color: var(--gold-bright);
+    box-shadow: 0 0 0 2px var(--gold-bright), 0 22px 50px rgba(184, 154, 104, 0.28);
+    transform: translateY(-4px);
+  }
   .plano .nome { font-family: var(--font-display); font-size: 22px; }
   .plano .quem { font-size: 13px; color: var(--text-dim); }
   .plano .preco { font-family: var(--font-display); font-size: 26px; color: var(--gold-bright); margin-top: 10px; }
   .plano .preco span { font-family: var(--font-body); font-size: 14px; color: var(--text-dim); }
+  .plano .preco .preco-de {
+    font-size: 16px; color: var(--text-faint); text-decoration: line-through;
+    margin-right: 8px; font-weight: 400;
+  }
   .plano .preco-detalhe { font-size: 12.5px; color: var(--text-faint); margin-top: 4px; line-height: 1.5; }
   .planos-nota { margin-top: 22px; font-size: 12.5px; color: var(--text-faint); text-align: center; max-width: 640px; margin-left: auto; margin-right: auto; }
   .plano ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
@@ -685,8 +696,8 @@
 
       <div class="planos-toggle" data-reveal>
         <div class="grupo" role="tablist" aria-label="Período de cobrança">
-          <button type="button" data-periodo="mensal" class="ativo" aria-selected="true">Mensal</button>
-          <button type="button" data-periodo="anual" aria-selected="false">Anual</button>
+          <button type="button" data-periodo="mensal" aria-selected="false">Mensal</button>
+          <button type="button" data-periodo="anual" class="ativo" aria-selected="true">Anual</button>
         </div>
         <span class="economize">economize 20% no anual</span>
       </div>
@@ -696,15 +707,15 @@
            checkout, trocar o href de cada .botao-contratar pelo link do
            provedor (um por plano × período) e manter o "Tirar uma dúvida
            antes" apontando pro WhatsApp. -->
-      <div class="planos" data-reveal data-periodo="mensal">
+      <div class="planos" data-reveal data-periodo="anual">
         <div class="plano">
           <div>
             <p class="nome">Basic</p>
             <p class="quem">Um profissional</p>
             <p class="preco preco-mensal">R$400<span>/mês</span></p>
             <p class="preco-detalhe preco-mensal">Cobrado mês a mês. Cancela quando quiser.</p>
-            <p class="preco preco-anual">R$320<span>/mês</span></p>
-            <p class="preco-detalhe preco-anual">Cobrado R$3.840/ano · economia de R$960 · pode parcelar no cartão.</p>
+            <p class="preco preco-anual"><s class="preco-de">R$400</s>R$320<span>/mês</span></p>
+            <p class="preco-detalhe preco-anual">Cobrado R$3.840/ano · economia de R$960 · em até 12x sem juros.</p>
           </div>
           <ul>
             <li>Agendar, confirmar, cancelar e remarcar via WhatsApp</li>
@@ -722,8 +733,8 @@
             <p class="quem">Múltiplos profissionais</p>
             <p class="preco preco-mensal">R$700<span>/mês</span></p>
             <p class="preco-detalhe preco-mensal">Cobrado mês a mês. Cancela quando quiser.</p>
-            <p class="preco preco-anual">R$560<span>/mês</span></p>
-            <p class="preco-detalhe preco-anual">Cobrado R$6.720/ano · economia de R$1.680 · pode parcelar no cartão.</p>
+            <p class="preco preco-anual"><s class="preco-de">R$700</s>R$560<span>/mês</span></p>
+            <p class="preco-detalhe preco-anual">Cobrado R$6.720/ano · economia de R$1.680 · em até 12x sem juros.</p>
           </div>
           <ul>
             <li>Tudo do Basic</li>
@@ -753,7 +764,7 @@
           </div>
         </div>
       </div>
-      <p class="planos-nota">Setup único de R$400 na implantação — inclui a entrevista de personalização e a configuração inicial. O plano anual pode ser parcelado no cartão de crédito.</p>
+      <p class="planos-nota">Setup único de R$400 na implantação — inclui a entrevista de personalização e a configuração inicial. O plano anual pode ser parcelado em até 12x sem juros no cartão de crédito.</p>
 
       <p class="aviso-ia" data-reveal>
         A Lumi usa inteligência artificial e pode errar — por isso todo caso fora do previsto vira uma pendência pra decisão de um humano. Ela nunca dá diagnóstico nem substitui o atendimento.
@@ -939,7 +950,20 @@
     botoes.forEach(function (b) {
       b.addEventListener('click', function () { aplicar(b.dataset.periodo); });
     });
-    aplicar('mensal');
+    aplicar('anual'); // abre no anual por padrão (melhor preço em destaque)
+  })();
+
+  // ---------- clicar num card de plano destaca ele (seleção visual) ----------
+  (function () {
+    var cards = document.querySelectorAll('#planos .plano');
+    cards.forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('a')) return; // não engole o clique nos botões/links
+        var jaSelecionado = card.classList.contains('selecionado');
+        cards.forEach(function (c) { c.classList.remove('selecionado'); });
+        if (!jaSelecionado) card.classList.add('selecionado');
+      });
+    });
   })();
 </script>
 </body>

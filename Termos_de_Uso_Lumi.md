@@ -106,8 +106,8 @@ e o serviço permanece ativo até o fim do período já pago. Não há
 reembolso proporcional do mês em curso.
 
 4.4. **Plano anual.** Cobrança do valor total da anuidade, com opção de
-parcelamento no cartão de crédito em até **[N]x**. **[DECIDIR: com ou sem
-juros; número máximo de parcelas.]** O plano anual **[DECIDIR: não tem
+parcelamento no cartão de crédito em **até 12x sem juros** (juros das
+parcelas absorvidos pelo Fornecedor). O plano anual **[DECIDIR: não tem
 reembolso proporcional em caso de cancelamento antecipado / tem reembolso
 proporcional descontada multa de X%].**
 
@@ -242,7 +242,7 @@ CNPJ). Esse registro é a prova do consentimento.
 
 - [ ] Razão social / CNPJ do Fornecedor, cidade/UF do foro
 - [ ] Valor fixo da taxa de setup e como é cobrada
-- [ ] Parcelamento do anual: nº de parcelas, com ou sem juros
+- [x] Parcelamento do anual: até 12x sem juros (juros absorvidos pelo Fornecedor) — decidido 10/09
 - [ ] Política de reembolso do plano anual em cancelamento antecipado
 - [ ] Renovação do anual: automática ou nova contratação
 - [ ] Prazos de suspensão/rescisão por falta de pagamento
