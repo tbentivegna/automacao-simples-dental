@@ -142,11 +142,22 @@ async function main() {
     console.log('  sticky adicionada');
   }
 
+  const eraAtivo = wf.active === true;
   const payload = { name: wf.name, nodes: wf.nodes, connections: wf.connections, settings: wf.settings };
   const put = await fetch(`${BASE_URL}/api/v1/workflows/${workflowId}`, { method: 'PUT', headers: H, body: JSON.stringify(payload) });
   const pb = await put.json();
   if (!put.ok) throw new Error(`PUT falhou: ${put.status} ${JSON.stringify(pb).slice(0, 400)}`);
   console.log(`\nPUT ${put.status} | nós agora: ${pb.nodes.length} | active=${pb.active}`);
+
+  // n8n: PUT != publish. Num workflow ativo, é preciso POST /activate e
+  // conferir que o draft virou a versão ativa (ver feedback_n8n_draft_publish).
+  if (eraAtivo) {
+    const act = await fetch(`${BASE_URL}/api/v1/workflows/${workflowId}/activate`, { method: 'POST', headers: H });
+    const ab = await act.json();
+    const ok = ab.versionId && ab.versionId === ab.activeVersionId;
+    console.log(`activate ${act.status} | active=${ab.active} | draft==ativo=${ok}`);
+    if (!ok) throw new Error(`draft != ativo depois do activate (versionId=${ab.versionId} activeVersionId=${ab.activeVersionId})`);
+  }
 }
 
 main().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });
