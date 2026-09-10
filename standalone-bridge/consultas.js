@@ -13,6 +13,8 @@ const {
   registrarEventoAgenda,
   fecharFunil,
   buscarConfiguracaoHorarios,
+  listarProfissionais,
+  resolverProfissionalParaAgenda,
 } = require('./db');
 const {
   paraDataISO,
@@ -48,20 +50,39 @@ const STATUS_VALIDOS = [
   'Cancelada pelo profissional',
 ];
 
-async function verificarDisponibilidade({ diaSemana, periodo } = {}) {
-  const configuracaoHorarios = await buscarConfiguracaoHorarios();
+// Fragmento de WHERE que escopa a busca de conflito a um profissional.
+//  - prof null  => sem escopo (agenda única, comportamento de sempre)
+//  - prof padrão => também "herda" consultas sem profissional_id (linhas
+//    antigas, antes do backfill do seed) -- não liberar um horário que na
+//    real está ocupado.
+function filtroConflitoProfissional(prof, params) {
+  if (!prof) return '';
+  params.push(prof.id);
+  const idx = `$${params.length}`;
+  return prof.padrao
+    ? `AND (profissional_id = ${idx} OR profissional_id IS NULL)`
+    : `AND profissional_id = ${idx}`;
+}
+
+async function verificarDisponibilidade({ diaSemana, periodo, profissionalId, especialidade } = {}) {
+  const prof = await resolverProfissionalParaAgenda({ profissionalId, especialidade });
+  const configuracaoHorarios = await buscarConfiguracaoHorarios(prof?.id);
   const semanas = SEMANAS_A_VERIFICAR;
 
   const fimJanela = new Date();
   fimJanela.setDate(fimJanela.getDate() + semanas * 7 + 1);
+
+  const params = [fimJanela.toISOString(), STATUS_QUE_NAO_OCUPAM];
+  const filtroProf = filtroConflitoProfissional(prof, params);
 
   const { rows } = await pool.query(
     `SELECT extract(epoch from inicio) * 1000 AS inicio, extract(epoch from fim) * 1000 AS fim
      FROM public.consultas
      WHERE inicio < $1
        AND fim > now()
-       AND NOT (status = ANY ($2::text[]))`,
-    [fimJanela.toISOString(), STATUS_QUE_NAO_OCUPAM]
+       AND NOT (status = ANY ($2::text[]))
+       ${filtroProf}`,
+    params
   );
   const compromissos = rows.map((r) => ({ inicio: Number(r.inicio), fim: Number(r.fim) }));
 
@@ -85,6 +106,7 @@ async function verificarDisponibilidade({ diaSemana, periodo } = {}) {
     resumoPorDiaSemana: agruparPorDiaSemana(horarios),
     diasBloqueados: Array.from(diasBloqueados),
     semanasVerificadas: semanas,
+    profissional: prof ? { id: prof.id, nome: prof.nome, especialidadePrincipal: prof.especialidadePrincipal } : null,
   };
 }
 
@@ -110,6 +132,8 @@ async function criarAgendamento({
   dataNascimentoPaciente,
   cpfPaciente,
   nomeResponsavel,
+  profissionalId,
+  especialidade,
 } = {}) {
   if (!telefone || !data || !hora) {
     throw new Error('Campos obrigatórios faltando: telefone, data e hora são necessários.');
@@ -123,7 +147,8 @@ async function criarAgendamento({
   }
 
   const jid = jidDeLocal(telefone);
-  const config = await buscarConfiguracaoHorarios();
+  const prof = await resolverProfissionalParaAgenda({ profissionalId, especialidade });
+  const config = await buscarConfiguracaoHorarios(prof?.id);
   const duracao = Number(duracaoMinutos || config.duracaoConsultaMinutos);
 
   const dataISO = paraDataISO(data);
@@ -134,13 +159,18 @@ async function criarAgendamento({
 
   // Checa conflito de verdade na hora de criar (não só confiar no que
   // Verifica Disponibilidade retornou segundos antes) -- outra chamada
-  // pode ter ocupado o horário no meio do caminho.
+  // pode ter ocupado o horário no meio do caminho. Escopado ao
+  // profissional quando há um (dois dentistas podem ter consulta no
+  // mesmo horário sem conflito).
+  const paramsConflito = [fim.toISOString(), inicio.toISOString(), STATUS_QUE_NAO_OCUPAM];
+  const filtroProf = filtroConflitoProfissional(prof, paramsConflito);
   const conflito = await pool.query(
     `SELECT 1 FROM public.consultas
      WHERE inicio < $1 AND fim > $2
        AND NOT (status = ANY ($3::text[]))
+       ${filtroProf}
      LIMIT 1`,
-    [fim.toISOString(), inicio.toISOString(), STATUS_QUE_NAO_OCUPAM]
+    paramsConflito
   );
   if (conflito.rowCount > 0) {
     throw new Error('CONFLITO_HORARIO: esse horário já foi ocupado.');
@@ -149,9 +179,9 @@ async function criarAgendamento({
   const agendamentoId = crypto.randomUUID();
   await pool.query(
     `INSERT INTO public.consultas
-       (agendamento_id, paciente_nome, inicio, fim, status, telefone, rotulo, origem)
-     VALUES ($1, $2, $3, $4, 'Agendada', $5, $6, 'bot')`,
-    [agendamentoId, nomePaciente.trim(), inicio.toISOString(), fim.toISOString(), jid, rotulo || null]
+       (agendamento_id, paciente_nome, inicio, fim, status, telefone, rotulo, origem, profissional_id)
+     VALUES ($1, $2, $3, $4, 'Agendada', $5, $6, 'bot', $7)`,
+    [agendamentoId, nomePaciente.trim(), inicio.toISOString(), fim.toISOString(), jid, rotulo || null, prof?.id || null]
   );
 
   await registrarEventoAgenda({ tipo: 'criado', telefone: jid, categoria, data, hora });
@@ -189,6 +219,7 @@ async function criarAgendamento({
     data,
     hora,
     duracaoMinutos: duracao,
+    profissional: prof ? { id: prof.id, nome: prof.nome } : null,
   };
 }
 
@@ -207,16 +238,18 @@ async function buscarAgendamentosPacientePorTelefone({ telefone, semanas, nomePa
   const params = [jid, inicioJanela.toISOString(), fimJanela.toISOString()];
   let filtroNome = '';
   if (nomePaciente) {
-    filtroNome = 'AND paciente_nome ILIKE $4';
+    filtroNome = 'AND c.paciente_nome ILIKE $4';
     params.push(`%${nomePaciente.trim()}%`);
   }
 
   const { rows } = await pool.query(
-    `SELECT agendamento_id AS id, paciente_nome AS paciente, status,
-            extract(epoch from inicio) * 1000 AS inicio, extract(epoch from fim) * 1000 AS fim
-     FROM public.consultas
-     WHERE telefone = $1 AND inicio >= $2 AND inicio < $3 ${filtroNome}
-     ORDER BY inicio ASC
+    `SELECT c.agendamento_id AS id, c.paciente_nome AS paciente, c.status,
+            p.nome AS profissional_nome,
+            extract(epoch from c.inicio) * 1000 AS inicio, extract(epoch from c.fim) * 1000 AS fim
+     FROM public.consultas c
+     LEFT JOIN public.profissionais p ON p.id = c.profissional_id
+     WHERE c.telefone = $1 AND c.inicio >= $2 AND c.inicio < $3 ${filtroNome}
+     ORDER BY c.inicio ASC
      LIMIT 20`,
     params
   );
@@ -230,6 +263,10 @@ async function buscarAgendamentosPacientePorTelefone({ telefone, semanas, nomePa
     id: r.id,
     status: r.status,
     paciente: r.paciente,
+    // profissionalNome: null quando a consulta não tem profissional_id
+    // (clínica de agenda única, ou linha antiga sem backfill) -- o prompt
+    // só cita o nome quando vem preenchido.
+    profissionalNome: r.profissional_nome || null,
     // jaOcorreu: mesmo campo/racional do server.js/raiz (caso Thalita) --
     // calculado aqui, não deixado pro modelo comparar data sozinho.
     jaOcorreu: Number(r.fim) < agora,
@@ -354,23 +391,34 @@ async function mudarStatusAgendamento({ id, status, telefone } = {}) {
   return { sucesso: true, id, status };
 }
 
-async function remarcarAgendamento({ id, data, hora, duracaoMinutos, observacao, telefone } = {}) {
+async function remarcarAgendamento({ id, data, hora, duracaoMinutos, observacao, telefone, profissionalId } = {}) {
   if (!id || !data || !hora) {
     throw new Error('Campos obrigatórios faltando: id, data e hora são necessários.');
   }
 
-  const config = await buscarConfiguracaoHorarios();
+  // Profissional-alvo: o que veio explícito, senão o que a consulta já tem.
+  const atual = await pool.query('SELECT profissional_id FROM public.consultas WHERE agendamento_id = $1', [id]);
+  if (atual.rowCount === 0) {
+    throw new Error(`Não foi encontrado nenhum agendamento com id ${id}.`);
+  }
+  const alvoId = profissionalId || atual.rows[0].profissional_id || null;
+  const prof = alvoId ? await resolverProfissionalParaAgenda({ profissionalId: alvoId }) : null;
+
+  const config = await buscarConfiguracaoHorarios(prof?.id);
   const duracao = Number(duracaoMinutos || config.duracaoConsultaMinutos);
   const dataISO = paraDataISO(data);
   const inicio = new Date(`${dataISO}T${hora}:00${OFFSET_BRASILIA}`);
   const fim = new Date(inicio.getTime() + duracao * 60 * 1000);
 
+  const paramsConflito = [id, fim.toISOString(), inicio.toISOString(), STATUS_QUE_NAO_OCUPAM];
+  const filtroProf = filtroConflitoProfissional(prof, paramsConflito);
   const conflito = await pool.query(
     `SELECT 1 FROM public.consultas
      WHERE agendamento_id <> $1 AND inicio < $2 AND fim > $3
        AND NOT (status = ANY ($4::text[]))
+       ${filtroProf}
      LIMIT 1`,
-    [id, fim.toISOString(), inicio.toISOString(), STATUS_QUE_NAO_OCUPAM]
+    paramsConflito
   );
   if (conflito.rowCount > 0) {
     throw new Error('CONFLITO_HORARIO: esse horário já foi ocupado.');
@@ -380,12 +428,19 @@ async function remarcarAgendamento({ id, data, hora, duracaoMinutos, observacao,
   // mantém o status anterior), aqui é uma decisão deliberada: o novo
   // horário ainda não foi confirmado pelo paciente, mesmo que o antigo
   // já tivesse sido. Reavaliar se isso incomodar na prática.
-  const r = await pool.query(
-    `UPDATE public.consultas SET inicio = $2, fim = $3, status = 'Agendada', atualizado_em = now()
-     WHERE agendamento_id = $1
-     RETURNING agendamento_id`,
-    [id, inicio.toISOString(), fim.toISOString()]
-  );
+  // Também grava profissional_id só quando veio explícito (não mexe no
+  // que já estava se ninguém pediu troca).
+  const r = profissionalId
+    ? await pool.query(
+        `UPDATE public.consultas SET inicio = $2, fim = $3, status = 'Agendada', profissional_id = $4, atualizado_em = now()
+         WHERE agendamento_id = $1 RETURNING agendamento_id`,
+        [id, inicio.toISOString(), fim.toISOString(), alvoId]
+      )
+    : await pool.query(
+        `UPDATE public.consultas SET inicio = $2, fim = $3, status = 'Agendada', atualizado_em = now()
+         WHERE agendamento_id = $1 RETURNING agendamento_id`,
+        [id, inicio.toISOString(), fim.toISOString()]
+      );
   if (r.rowCount === 0) {
     throw new Error(`Não foi encontrado nenhum agendamento com id ${id}.`);
   }
@@ -394,7 +449,7 @@ async function remarcarAgendamento({ id, data, hora, duracaoMinutos, observacao,
   await registrarEventoAgenda({ tipo: 'remarcado', telefone: jid, data, hora });
   if (jid) await fecharFunil({ telefone: jid, status: 'concluido' });
 
-  return { sucesso: true, id, data, hora, duracaoMinutos: duracao };
+  return { sucesso: true, id, data, hora, duracaoMinutos: duracao, profissional: prof ? { id: prof.id, nome: prof.nome } : null };
 }
 
 // Usada pela página Agenda do painel administrativo (não é ferramenta da
@@ -403,20 +458,29 @@ async function remarcarAgendamento({ id, data, hora, duracaoMinutos, observacao,
 // é o front, mesmo critério do listarAgendaSemana da raiz). Sem
 // rotuloCor -- essa coluna não existe em public.consultas (ver
 // 011_consultas.sql); o painel já trata isso como opcional.
-async function listarAgendaSemana({ semanas } = {}) {
+async function listarAgendaSemana({ semanas, profissionalId } = {}) {
   const totalSemanas = Math.min(4, Math.max(1, Number(semanas) || SEMANAS_A_VERIFICAR));
 
   const inicioJanela = new Date(`${formatadorDiaISO.format(new Date())}T00:00:00${OFFSET_BRASILIA}`);
   const fimJanela = new Date(inicioJanela);
   fimJanela.setDate(fimJanela.getDate() + totalSemanas * 7 + 1);
 
+  const params = [inicioJanela.toISOString(), fimJanela.toISOString()];
+  let filtroProf = '';
+  if (profissionalId) {
+    params.push(profissionalId);
+    filtroProf = `AND c.profissional_id = $${params.length}`;
+  }
+
   const { rows } = await pool.query(
-    `SELECT agendamento_id AS id, paciente_nome AS paciente, status, rotulo,
-            extract(epoch from inicio) * 1000 AS inicio, extract(epoch from fim) * 1000 AS fim
-     FROM public.consultas
-     WHERE inicio >= $1 AND inicio < $2
-     ORDER BY inicio ASC`,
-    [inicioJanela.toISOString(), fimJanela.toISOString()]
+    `SELECT c.agendamento_id AS id, c.paciente_nome AS paciente, c.status, c.rotulo,
+            c.profissional_id AS profissional_id, p.nome AS profissional_nome,
+            extract(epoch from c.inicio) * 1000 AS inicio, extract(epoch from c.fim) * 1000 AS fim
+     FROM public.consultas c
+     LEFT JOIN public.profissionais p ON p.id = c.profissional_id
+     WHERE c.inicio >= $1 AND c.inicio < $2 ${filtroProf}
+     ORDER BY c.inicio ASC`,
+    params
   );
 
   const compromissos = rows.map((r) => ({
@@ -426,6 +490,8 @@ async function listarAgendaSemana({ semanas } = {}) {
     status: r.status,
     paciente: r.paciente,
     rotulo: r.rotulo,
+    profissionalId: r.profissional_id || null,
+    profissionalNome: r.profissional_nome || null,
   }));
 
   return { semanasVerificadas: totalSemanas, compromissos: formatarCompromissos(compromissos) };
@@ -460,4 +526,5 @@ module.exports = {
   remarcarAgendamento,
   listarAgendaSemana,
   mudarRotuloAgendamento,
+  listarProfissionais,
 };

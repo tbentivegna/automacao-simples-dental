@@ -23,6 +23,7 @@ const {
   remarcarAgendamento,
   listarAgendaSemana,
   mudarRotuloAgendamento,
+  listarProfissionais,
 } = require('./consultas');
 
 const app = express();
@@ -83,6 +84,19 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
   } catch (erro) {
     console.error('Erro ao buscar agendamentos do paciente:', erro);
     res.status(500).json({ erro: 'Falha ao buscar agendamentos do paciente', detalhe: erro.message });
+  }
+});
+
+// Lista os profissionais ativos da clínica (id, nome, especialidades...).
+// Usada pela tool "Lista Profissionais" da Lumi e pelo seletor do painel.
+// Vazio => clínica de agenda única (nenhum profissional cadastrado ou
+// migration 014 não rodou) -- o resto do sistema opera como antes.
+app.get('/profissionais', async (req, res) => {
+  try {
+    res.json({ profissionais: await listarProfissionais() });
+  } catch (erro) {
+    console.error('Erro ao listar profissionais:', erro);
+    res.status(500).json({ erro: 'Falha ao listar profissionais', detalhe: erro.message });
   }
 });
 
@@ -147,7 +161,7 @@ app.post('/remarcar-agendamento', async (req, res) => {
 // Query param opcional "semanas" (1-4, padrão SEMANAS_A_VERIFICAR).
 app.get('/agenda-semana', async (req, res) => {
   try {
-    const resultado = await listarAgendaSemana({ semanas: req.query.semanas });
+    const resultado = await listarAgendaSemana({ semanas: req.query.semanas, profissionalId: req.query.profissionalId });
     res.json(resultado);
   } catch (erro) {
     console.error('Erro ao listar agenda da semana:', erro);

@@ -120,8 +120,10 @@ async function deveBloquearCancelamentoPorRemarcacao(telefoneLocalTexto) {
 }
 
 // Cache de 60s (mesmo padrão de server.js/raiz) -- evita bater no Postgres
-// em toda chamada de disponibilidade/agendamento.
-let cacheConfiguracaoHorarios = { expiraEm: 0, dados: null };
+// em toda chamada de disponibilidade/agendamento. Chaveado por
+// profissional (ou 'clinica' pro expediente singleton).
+const cacheConfiguracaoHorarios = new Map(); // chave -> { expiraEm, dados }
+let cacheProfissionais = { expiraEm: 0, dados: null };
 
 const MODELO_HORARIOS_PADRAO = {
   segunda: ['08:30', '09:30', '10:30', '13:30', '14:30', '15:30', '16:30'],
@@ -139,10 +141,16 @@ const SABADO_DATA_REFERENCIA_PADRAO = process.env.SABADO_DATA_REFERENCIA || null
 // no painel admin, mesma tabela que server.js/raiz usa -- singleton
 // compartilhado entre clínicas seria errado em multi-tenant real, mas cada
 // clínica standalone tem seu PRÓPRIO banco isolado, então não há conflito).
-async function buscarConfiguracaoHorarios() {
-  if (cacheConfiguracaoHorarios.dados && cacheConfiguracaoHorarios.expiraEm > Date.now()) {
-    return cacheConfiguracaoHorarios.dados;
-  }
+//
+// Multi-profissional: se `profissionalId` for passado E houver uma linha
+// em public.profissional_horarios pra ele, essa linha vence, campo a
+// campo, sobre o singleton (NULL na linha do profissional => herda o
+// singleton). Sem profissionalId, ou sem linha própria => só o singleton,
+// exatamente como antes.
+async function buscarConfiguracaoHorarios(profissionalId) {
+  const chave = profissionalId || 'clinica';
+  const emCache = cacheConfiguracaoHorarios.get(chave);
+  if (emCache && emCache.expiraEm > Date.now()) return emCache.dados;
 
   const padrao = {
     modeloHorarios: MODELO_HORARIOS_PADRAO,
@@ -154,21 +162,99 @@ async function buscarConfiguracaoHorarios() {
 
   try {
     const { rows } = await pool.query(
-      "SELECT horarios, duracao_consulta_minutos, sabado_data_referencia::text FROM public.configuracao_horarios WHERE id = 1"
+      'SELECT horarios, duracao_consulta_minutos, sabado_data_referencia::text FROM public.configuracao_horarios WHERE id = 1'
     );
-    if (rows.length === 0) return padrao;
+    const base = rows.length
+      ? {
+          modeloHorarios: rows[0].horarios,
+          duracaoConsultaMinutos: rows[0].duracao_consulta_minutos,
+          sabadoDataReferencia: rows[0].sabado_data_referencia || null,
+        }
+      : { ...padrao };
 
-    const dados = {
-      modeloHorarios: rows[0].horarios,
-      duracaoConsultaMinutos: rows[0].duracao_consulta_minutos,
-      sabadoDataReferencia: rows[0].sabado_data_referencia || null,
-    };
-    cacheConfiguracaoHorarios = { expiraEm: Date.now() + 60_000, dados };
+    let dados = base;
+    if (profissionalId) {
+      try {
+        const ph = await pool.query(
+          'SELECT horarios, duracao_consulta_minutos, sabado_data_referencia::text FROM public.profissional_horarios WHERE profissional_id = $1',
+          [profissionalId]
+        );
+        if (ph.rows.length) {
+          dados = {
+            modeloHorarios: ph.rows[0].horarios || base.modeloHorarios,
+            duracaoConsultaMinutos: ph.rows[0].duracao_consulta_minutos ?? base.duracaoConsultaMinutos,
+            sabadoDataReferencia: ph.rows[0].sabado_data_referencia || base.sabadoDataReferencia,
+          };
+        }
+      } catch (erro) {
+        // tabela ainda não existe (migration 014 não rodou) -> só o singleton
+        if (!/relation .*profissional_horarios.* does not exist/i.test(erro.message)) {
+          console.error('[configuracaoHorarios] falha ao ler expediente do profissional:', erro.message);
+        }
+      }
+    }
+
+    cacheConfiguracaoHorarios.set(chave, { expiraEm: Date.now() + 60_000, dados });
     return dados;
   } catch (erro) {
     console.error('[configuracaoHorarios] falha ao ler configuração do banco, usando valores padrão:', erro.message);
     return padrao;
   }
+}
+
+// Lista os profissionais ativos. Vazio quando: a tabela não existe
+// (migration 014 não rodou) OU nenhum foi cadastrado -- nos dois casos o
+// resto do sistema opera em "agenda única", exatamente como antes.
+async function listarProfissionais() {
+  if (cacheProfissionais.dados && cacheProfissionais.expiraEm > Date.now()) return cacheProfissionais.dados;
+  if (!pool) return [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, nome, especialidades, especialidade_principal, aceita_primeira_consulta, padrao, cor, ordem
+       FROM public.profissionais
+       WHERE ativo
+       ORDER BY ordem, nome`
+    );
+    const dados = rows.map((r) => ({
+      id: r.id,
+      nome: r.nome,
+      especialidades: r.especialidades || [],
+      especialidadePrincipal: r.especialidade_principal || null,
+      aceitaPrimeiraConsulta: r.aceita_primeira_consulta,
+      padrao: r.padrao,
+      cor: r.cor || null,
+      ordem: r.ordem,
+    }));
+    cacheProfissionais = { expiraEm: Date.now() + 60_000, dados };
+    return dados;
+  } catch (erro) {
+    if (!/relation .*profissionais.* does not exist/i.test(erro.message)) {
+      console.error('[profissionais] falha ao listar, tratando como agenda única:', erro.message);
+    }
+    return [];
+  }
+}
+
+// Resolve qual profissional escopar numa operação de agenda.
+//  - profissionalId explícito -> valida contra a lista de ativos
+//  - senão especialidade -> se casar com EXATAMENTE um ativo, usa ele
+//  - senão -> o padrão
+//  - retorna null quando não há profissionais cadastrados (agenda única)
+async function resolverProfissionalParaAgenda({ profissionalId, especialidade } = {}) {
+  const lista = await listarProfissionais();
+  if (!lista.length) return null;
+
+  if (profissionalId) {
+    return lista.find((p) => p.id === profissionalId) || null;
+  }
+  if (especialidade) {
+    const alvo = String(especialidade).trim().toLowerCase();
+    const casam = lista.filter((p) =>
+      (p.especialidades || []).some((e) => String(e).toLowerCase().includes(alvo) || alvo.includes(String(e).toLowerCase()))
+    );
+    if (casam.length === 1) return casam[0];
+  }
+  return lista.find((p) => p.padrao) || null;
 }
 
 module.exports = {
@@ -178,4 +264,6 @@ module.exports = {
   fecharFunil,
   deveBloquearCancelamentoPorRemarcacao,
   buscarConfiguracaoHorarios,
+  listarProfissionais,
+  resolverProfissionalParaAgenda,
 };
