@@ -1,6 +1,6 @@
 # Plano — Suporte a múltiplos profissionais
 
-**Status:** Fase 1 (fundação) **NO AR em produção** desde 2026-09-10 — commits `b761f93`, `05127bc`, `2939bf7`. Migration 014 + seed aplicados no banco de produção da Lumi (`whatsapp-teste`, 1 profissional: Dra. Aline) e no banco do demo standalone (3 profissionais fictícios); standalone-bridge e admin-panel redeployados; seletor confirmado aparecendo no painel do demo. **Fase 1.5** (CRUD de profissionais no painel) e **Fases 2–5** não começaram.
+**Status:** Fase 1 (fundação) **NO AR em produção** desde 2026-09-10 — commits `b761f93`, `05127bc`, `2939bf7`. Migration 014 + seed aplicados no banco de produção da Lumi (`whatsapp-teste`, 1 profissional: Dra. Aline) e no banco do demo standalone (3 profissionais fictícios); standalone-bridge e admin-panel redeployados; seletor confirmado aparecendo no painel do demo. **Fase 1.5** (CRUD no painel) codada e testada local (commit `eacfa9c`) — **falta redeploy** do standalone-bridge + admin-panel. **Fases 2–5** não começaram.
 
 ## Feito na Fase 1
 
@@ -10,8 +10,11 @@
 - `admin-panel`: `GET /api/profissionais` (via bridge, tolerante a 404); `<select>` de filtro no topo da Agenda + campo de profissional na Nova consulta, ambos só aparecem com 2+ profissionais ativos; filtro client-side sobre `agendaCache`.
 - **Retrocompatível:** 0 profissionais cadastrados (ou migration não rodada) => tudo opera como hoje. Testado contra `whatsapp-teste` (Aline) e `lumi_standalone_teste` (3 demo).
 
+## Fase 1.5 — CRUD de profissionais no painel ✅ (código pronto, falta redeploy)
+
+Commit `eacfa9c`. `standalone-bridge/profissionais.js` (criar/atualizar/listarTodos, invariantes: nome único, 1 padrão, padrão não desativável, expediente próprio junto no payload) + rotas `GET /profissionais?todos=1`, `POST /profissionais`, `PUT /profissionais/:id`. Painel: card **Profissionais** em Configurações (lista com selos + Editar + Ativar/Desativar + form de add/edit com expediente próprio opcional). Testado local ponta a ponta. **Falta:** redeploy do `standalone-bridge` e do `admin-panel` no Easypanel.
+
 ### Ainda aberto dentro do escopo "fundação"
-- **CRUD de profissionais no painel** (adicionar/editar/desativar sem re-rodar o seed) — não feito. Por enquanto: editar o JSON e re-rodar `db/seed-profissionais.js`. É a "Fase 1.5".
 - Colorir a agenda por profissional quando "Todos" (usar `profissionais.cor`) — não feito, polimento.
 
 ---
