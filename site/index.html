@@ -468,31 +468,6 @@
   @media (prefers-reduced-motion: reduce) {
     [data-reveal] { opacity: 1; transform: none; transition: none; }
   }
-
-  /* ---------- PROTÓTIPO: vinheta de vidro nas bordas do viewport ----------
-     Só aparece com ?vinheta na URL (o JS lá embaixo cria os elementos).
-     Faixa fixa em cima e embaixo com backdrop-filter + máscara esfumaçada:
-     o conteúdo "se dissolve" na borda do quadro sem desfocar seções
-     inteiras a cada frame de scroll. */
-  .vinheta-frame {
-    position: fixed; left: 0; right: 0;
-    height: clamp(64px, 11vh, 140px);
-    pointer-events: none; z-index: 15;
-    backdrop-filter: blur(var(--vinheta-blur, 4px));
-    -webkit-backdrop-filter: blur(var(--vinheta-blur, 4px));
-  }
-  .vinheta-frame--topo {
-    top: var(--header-h, 62px); /* começa logo abaixo do header fixo */
-    background: linear-gradient(to bottom, rgba(11, 10, 8, 0.55), rgba(11, 10, 8, 0));
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 28%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 0%, #000 28%, transparent 100%);
-  }
-  .vinheta-frame--base {
-    bottom: 0;
-    background: linear-gradient(to top, rgba(11, 10, 8, 0.6), rgba(11, 10, 8, 0));
-    -webkit-mask-image: linear-gradient(to top, #000 0%, #000 28%, transparent 100%);
-    mask-image: linear-gradient(to top, #000 0%, #000 28%, transparent 100%);
-  }
 </style>
 <noscript><style>[data-reveal] { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
@@ -993,31 +968,6 @@
         cards.forEach(function (c) { c.classList.remove('selecionado'); });
         if (!jaSelecionado) card.classList.add('selecionado');
       });
-    });
-  })();
-
-  // ---------- PROTÓTIPO: vinheta de vidro nas bordas (ativa só com ?vinheta) ----------
-  // Abrir com ?vinheta pra ver o efeito; ?vinheta=6 pra ajustar o blur.
-  // Visitante normal não vê nada -- os elementos nem são criados.
-  (function () {
-    var params = new URLSearchParams(location.search);
-    if (!params.has('vinheta')) return;
-    var blur = params.get('vinheta');
-    if (blur && !isNaN(parseFloat(blur))) {
-      document.documentElement.style.setProperty('--vinheta-blur', parseFloat(blur) + 'px');
-    }
-    // a faixa de cima começa logo abaixo do header fixo -- mede a altura
-    // real dele (muda entre desktop/mobile) e mantém sincronizado.
-    var header = document.querySelector('header');
-    function medirHeader() {
-      if (header) document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
-    }
-    medirHeader();
-    window.addEventListener('resize', medirHeader);
-    ['topo', 'base'].forEach(function (pos) {
-      var el = document.createElement('div');
-      el.className = 'vinheta-frame vinheta-frame--' + pos;
-      document.body.appendChild(el);
     });
   })();
 </script>
