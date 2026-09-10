@@ -10,7 +10,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
-const { criarCheckout, habilitado } = require('./checkout');
+const { criarCheckout, habilitado, emTeste } = require('./checkout');
 
 const app = express();
 const PORT = process.env.PORT || 3300;
@@ -21,7 +21,7 @@ app.use(express.json());
 // estiver (sem ASAAS_API_KEY), os botões "Contratar" seguem levando pro
 // WhatsApp, como era antes.
 app.get('/api/checkout/config', (req, res) => {
-  res.json({ habilitado: habilitado() });
+  res.json({ habilitado: habilitado(), teste: emTeste() });
 });
 
 app.post('/api/checkout', async (req, res) => {

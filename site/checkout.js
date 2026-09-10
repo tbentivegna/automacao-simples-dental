@@ -26,6 +26,13 @@ function habilitado() {
   return Boolean(ASAAS_KEY);
 }
 
+// true quando a chave aponta pro sandbox do Asaas -- o front usa isso pra
+// mostrar o aviso de "período de testes" no modal. Some sozinho quando
+// ASAAS_BASE_URL virar o de produção.
+function emTeste() {
+  return /sandbox/i.test(ASAAS_BASE);
+}
+
 async function asaas(method, endpoint, body) {
   const res = await fetch(ASAAS_BASE + endpoint, {
     method,
@@ -118,4 +125,4 @@ async function criarCheckout({ plano, periodo, nome, email, cpfCnpj, telefone, n
   return { url: pgto.invoiceUrl, tipo: 'parcelado' };
 }
 
-module.exports = { criarCheckout, habilitado, PLANOS };
+module.exports = { criarCheckout, habilitado, emTeste, PLANOS };
