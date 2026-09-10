@@ -253,7 +253,10 @@
     background: var(--bg-elevated); border: 1px solid var(--line); border-radius: 4px; padding: 34px 28px;
     display: flex; flex-direction: column; gap: 18px; cursor: pointer;
   }
-  .plano.destaque { border-color: var(--gold); background: var(--bg-elevated-2); position: relative; }
+  /* "Mais escolhido": só o selo + uma borda dourada discreta (mesmo fundo
+     dos outros cards) -- antes tinha fundo mais claro + borda dourada
+     cheia + selo, 3 sinais empilhados que davam destaque demais. */
+  .plano.destaque { border-color: rgba(184, 154, 104, 0.5); position: relative; }
   .plano.destaque::before {
     content: "Mais escolhido"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
     font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #14110c; background: var(--gold-bright);
