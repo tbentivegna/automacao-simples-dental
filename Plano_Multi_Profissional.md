@@ -1,6 +1,9 @@
 # Plano — Suporte a múltiplos profissionais
 
-**Status:** Fase 1 (fundação) **NO AR em produção** desde 2026-09-10 — commits `b761f93`, `05127bc`, `2939bf7`. Migration 014 + seed aplicados no banco de produção da Lumi (`whatsapp-teste`, 1 profissional: Dra. Aline) e no banco do demo standalone (3 profissionais fictícios); standalone-bridge e admin-panel redeployados; seletor confirmado aparecendo no painel do demo. **Fase 1.5** (CRUD no painel) codada e testada local (commit `eacfa9c`) — **falta redeploy** do standalone-bridge + admin-panel. **Fases 2–5** não começaram.
+**Status:**
+- **Fase 1 (fundação) + Fase 1.5 (CRUD no painel): NO AR** desde 2026-09-10 (commits `b761f93`, `05127bc`, `2939bf7`, `eacfa9c`). Migration 014 + seed no banco de produção da Lumi (1 profissional: Dra. Aline) e no demo (3 fictícios); standalone-bridge + admin-panel redeployados; seletor + CRUD confirmados no painel do demo.
+- **Fase 2a (prompt + tools + harness): CODADA E TESTADA no harness** (commit `d5da502`) — o n8n (workflows PROD/DEV/Standalone) **ainda NÃO foi tocado**, isso é a Fase 2b.
+- Fases 2b, 3, 4, 5 não começaram.
 
 ## Feito na Fase 1
 
@@ -211,7 +214,8 @@ Novo bloco no núcleo fixo (multi-profissional + roteamento por especialidade), 
 | Fase | Entrega | Testável por |
 |---|---|---|
 | **1 — Fundação** ✅ **NO AR** | migration 014 (profissionais + `profissional_id` + `profissional_horarios`), funções da `standalone-bridge`, rota `listarProfissionais`, seletor no painel. Aplicado em produção 2026-09-10 (Lumi PROD = só Aline, zero mudança de comportamento; Demo = 3). Falta CRUD no painel (Fase 1.5). | painel, ponta a ponta, sem tocar na Lumi |
-| **2 — Lumi** | tool nova, regras de prompt (nome + roteamento + guarda de 1 prof), os 3 workflows, template, checks do harness. | `lumi-harness` |
+| **2a — Lumi (prompt/tools/harness)** ✅ `d5da502` | Ferramenta "Lista Profissionais", seção "PROFISSIONAIS DA CLÍNICA" (guarda de 1 prof + roteamento por especialidade + citar profissionalNome), `profissionalId` opcional em Verifica/Cria/Remarcar. Template + `system-prompt.txt` + harness (mocks, `seedProfissionais`, 2 checks novos). `server.js` raiz ganhou `GET /profissionais` (só leitura). Testado: A/B contra o prompt da Aline (0 falhas, módulo inerte pra clínica de 1), C/D contra prompt demo multi-prof (0 falhas). | `lumi-harness` |
+| **2b — Lumi (n8n)** | Aplicar nos 3 workflows: node "Lista Profissionais" (httpRequestTool → `GET {BRIDGE_URL}/profissionais`), `profissionalId` nos schemas de Verifica/Cria/Remarcar, systemMessage com a seção nova. Disciplina realinha-draft. Standalone leva o módulo inteiro; PROD/DEV levam igual mas ficam inertes (1 profissional). | execução n8n |
 | **3 — Demo** | personas do demo + `Roteiro_Demo_Vendas.md` mostrando o fluxo multi-prof. | roteiro de venda |
 | **4 — Simples Dental (adiado)** | parsear "` - Dr(a).`", filtrar o calendário do SD por profissional, passar o profissional na criação via Playwright. | **gatilho:** clínica SD com >1 dentista assina |
 | **5 — futuro** | Analytics por profissional; `clinicorp-bridge` no mesmo contrato. | — |
