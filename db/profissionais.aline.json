@@ -1,0 +1,15 @@
+{
+  "_comentario": "Seed do Lumi PROD / DEV / whatsapp-teste -- clínica de um profissional só. Sem 'horarios': herda public.configuracao_horarios (que já é o expediente real dela). node db/seed-profissionais.js db/profissionais.aline.json",
+  "profissionais": [
+    {
+      "nome": "Dra. Aline Bentivegna",
+      "especialidades": ["Ortodontia", "Invisalign", "Harmonização Orofacial", "Clareamento Dental", "Odontopediatria"],
+      "especialidadePrincipal": "Ortodontia",
+      "aceitaPrimeiraConsulta": true,
+      "ativo": true,
+      "padrao": true,
+      "cor": "#b89a68",
+      "ordem": 0
+    }
+  ]
+}

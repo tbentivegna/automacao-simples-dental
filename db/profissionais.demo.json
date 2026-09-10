@@ -1,0 +1,62 @@
+{
+  "_comentario": "Seed do banco de DEMO do standalone (lumi_standalone_teste / demo em produção). 3 profissionais fictícios com agendas diferentes, pra ter o que demonstrar no multi-profissional. node db/seed-profissionais.js db/profissionais.demo.json  (DATABASE_URL apontando pro banco do demo).",
+  "profissionais": [
+    {
+      "nome": "Dra. Camila Duarte",
+      "especialidades": ["Ortodontia", "Clínico Geral", "Clareamento Dental"],
+      "especialidadePrincipal": "Ortodontia",
+      "aceitaPrimeiraConsulta": true,
+      "ativo": true,
+      "padrao": true,
+      "cor": "#b89a68",
+      "ordem": 0,
+      "horarios": {
+        "segunda": ["08:30", "09:30", "10:30", "13:30", "14:30", "15:30", "16:30"],
+        "terca": ["08:30", "09:30", "10:30"],
+        "quarta": ["08:30", "09:30", "10:30", "13:30", "14:30", "15:30", "16:30"],
+        "quinta": [],
+        "sexta": ["08:00", "09:00", "10:00"],
+        "sabado": [],
+        "domingo": []
+      }
+    },
+    {
+      "nome": "Dr. Rafael Nunes",
+      "especialidades": ["Endodontia"],
+      "especialidadePrincipal": "Endodontia",
+      "aceitaPrimeiraConsulta": true,
+      "ativo": true,
+      "padrao": false,
+      "cor": "#7fbf8f",
+      "ordem": 1,
+      "horarios": {
+        "segunda": [],
+        "terca": ["09:00", "10:00", "11:00", "14:00", "15:00"],
+        "quarta": [],
+        "quinta": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
+        "sexta": [],
+        "sabado": [],
+        "domingo": []
+      }
+    },
+    {
+      "nome": "Dra. Beatriz Lima",
+      "especialidades": ["Implantodontia", "Cirurgia Oral"],
+      "especialidadePrincipal": "Implantodontia",
+      "aceitaPrimeiraConsulta": true,
+      "ativo": true,
+      "padrao": false,
+      "cor": "#c98da8",
+      "ordem": 2,
+      "horarios": {
+        "segunda": ["13:30", "14:30", "15:30", "16:30"],
+        "terca": [],
+        "quarta": ["13:30", "14:30", "15:30", "16:30"],
+        "quinta": [],
+        "sexta": [],
+        "sabado": ["08:00", "09:00", "10:00"],
+        "domingo": []
+      }
+    }
+  ]
+}

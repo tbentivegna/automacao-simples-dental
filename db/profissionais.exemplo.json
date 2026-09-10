@@ -1,0 +1,35 @@
+{
+  "_comentario": "Template pro seed de profissionais. Copie pra db/profissionais.<clinica>.json e ajuste. Rodar: node db/seed-profissionais.js db/profissionais.<clinica>.json (DATABASE_URL do ambiente no env). 'nome' é chave natural (upsert idempotente). Exatamente um com padrao:true. 'horarios' é opcional -- sem ele, o profissional herda public.configuracao_horarios.",
+  "profissionais": [
+    {
+      "nome": "Dra. Fulana da Silva",
+      "especialidades": ["Ortodontia", "Clínico Geral"],
+      "especialidadePrincipal": "Ortodontia",
+      "aceitaPrimeiraConsulta": true,
+      "ativo": true,
+      "padrao": true,
+      "cor": "#b89a68",
+      "ordem": 0,
+      "observacoes": "",
+      "horarios": {
+        "segunda": ["08:30", "09:30", "10:30", "13:30", "14:30", "15:30"],
+        "terca": [],
+        "quarta": ["08:30", "09:30", "10:30", "13:30", "14:30", "15:30"],
+        "quinta": [],
+        "sexta": ["08:00", "09:00", "10:00"],
+        "sabado": [],
+        "domingo": []
+      }
+    },
+    {
+      "nome": "Dr. Beltrano de Souza",
+      "especialidades": ["Endodontia"],
+      "especialidadePrincipal": "Endodontia",
+      "aceitaPrimeiraConsulta": true,
+      "ativo": true,
+      "padrao": false,
+      "cor": "#7fbf8f",
+      "ordem": 1
+    }
+  ]
+}
