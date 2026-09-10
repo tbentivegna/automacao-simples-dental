@@ -201,6 +201,9 @@
   .cabecalho-secao .eyebrow { margin-bottom: 14px; }
   .cabecalho-secao h2 { font-size: clamp(26px, 3.4vw, 36px); }
   .cabecalho-secao p { color: var(--text-dim); margin-top: 16px; font-size: 15.5px; }
+  /* Planos: título curto de uma linha só + cabeçalho mais compacto pra
+     puxar os cards pra cima e caberem mais na dobra. */
+  .cabecalho-planos { max-width: 760px; margin-bottom: 30px; }
 
   /* ---------- caminhos (Simples Dental / Standalone) ---------- */
   .caminhos { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -759,9 +762,9 @@
 
   <section id="planos">
     <div class="envelope">
-      <div class="cabecalho-secao" data-reveal>
+      <div class="cabecalho-secao cabecalho-planos" data-reveal>
         <p class="eyebrow">Investimento</p>
-        <h2>Um plano pra cada tamanho de clínica</h2>
+        <h2>Você paga pelo que usa</h2>
       </div>
 
       <div class="planos-toggle" data-reveal>
