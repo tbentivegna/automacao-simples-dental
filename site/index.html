@@ -573,9 +573,12 @@
     border-radius: 4px; padding: 9px 11px;
   }
   .modal-checkout .aviso-teste a { color: var(--gold-bright); font-weight: 600; }
-  .modal-checkout form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; margin-top: 18px; }
+  .modal-checkout form { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 14px; margin-top: 18px; align-items: start; }
   .modal-checkout form .full { grid-column: 1 / -1; }
-  .modal-checkout label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.2px; }
+  .modal-checkout label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.2px; }
+  .modal-checkout .rotulo { display: block; }
+  .modal-checkout .opcional { color: var(--text-faint); }
+  .modal-checkout p.campo-obs { margin-top: -5px; }
   @media (max-width: 480px) {
     .modal-checkout form { grid-template-columns: 1fr; }
     .modal-checkout .conteudo { padding: 28px 22px 24px; }
@@ -966,22 +969,22 @@
     <p class="resumo-obs" data-modal-obs></p>
     <p class="aviso-teste" data-aviso-teste hidden>Checkout em <strong>período de testes</strong> — nenhuma cobrança real acontece ainda. Para contratar de verdade agora, <a data-wpp-teste href="https://wa.me/5511981174657" target="_blank" rel="noopener">fale no WhatsApp</a>.</p>
     <form data-form-checkout>
-      <label class="full">Nome completo
+      <label class="full"><span class="rotulo">Nome completo</span>
         <input type="text" name="nome" autocomplete="name" required>
       </label>
-      <label class="full">E-mail
+      <label class="full"><span class="rotulo">E-mail</span>
         <input type="email" name="email" autocomplete="email" required>
       </label>
-      <label class="full">Nome da clínica
+      <label class="full"><span class="rotulo">Nome da clínica</span>
         <input type="text" name="nomeClinica" autocomplete="organization">
       </label>
-      <label>CPF ou CNPJ
+      <label><span class="rotulo">CPF ou CNPJ</span>
         <input type="text" name="cpfCnpj" inputmode="numeric" required>
-        <span class="campo-obs">Para emitir a cobrança.</span>
       </label>
-      <label>WhatsApp <span class="campo-obs">(opcional)</span>
+      <label><span class="rotulo">WhatsApp <span class="opcional">(opcional)</span></span>
         <input type="tel" name="telefone" autocomplete="tel">
       </label>
+      <p class="campo-obs full">O CPF ou CNPJ é necessário para emitir a cobrança.</p>
       <p class="erro-checkout" data-erro-checkout></p>
       <button type="submit" class="botao botao-ouro">Ir para o pagamento seguro</button>
     </form>
