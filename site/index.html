@@ -537,11 +537,23 @@
   .modal-checkout {
     border: 1px solid var(--line); border-radius: 6px; padding: 0;
     background: var(--bg-elevated); color: var(--text);
-    max-width: 440px; width: calc(100% - 40px);
+    max-width: 520px; width: calc(100% - 40px);
+    max-height: calc(100vh - 48px); overflow-y: auto;
     box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+    /* barra de rolagem discreta e no tom da página (só aparece em telas
+       baixas) -- o cinza padrão do SO destoava demais. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(184, 154, 104, 0.5) transparent;
   }
+  .modal-checkout::-webkit-scrollbar { width: 10px; }
+  .modal-checkout::-webkit-scrollbar-track { background: transparent; }
+  .modal-checkout::-webkit-scrollbar-thumb {
+    background: var(--line); border-radius: 999px;
+    border: 3px solid var(--bg-elevated);
+  }
+  .modal-checkout::-webkit-scrollbar-thumb:hover { background: var(--gold); }
   .modal-checkout::backdrop { background: rgba(5, 4, 3, 0.72); backdrop-filter: blur(3px); }
-  .modal-checkout .conteudo { padding: 30px 30px 26px; }
+  .modal-checkout .conteudo { padding: 32px 36px 28px; }
   .modal-checkout .fechar {
     position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
@@ -561,8 +573,13 @@
     border-radius: 4px; padding: 9px 11px;
   }
   .modal-checkout .aviso-teste a { color: var(--gold-bright); font-weight: 600; }
-  .modal-checkout form { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .modal-checkout form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; margin-top: 18px; }
+  .modal-checkout form .full { grid-column: 1 / -1; }
   .modal-checkout label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.2px; }
+  @media (max-width: 480px) {
+    .modal-checkout form { grid-template-columns: 1fr; }
+    .modal-checkout .conteudo { padding: 28px 22px 24px; }
+  }
   .modal-checkout input {
     font-family: var(--font-body); font-size: 14px; color: var(--text);
     background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
@@ -572,12 +589,12 @@
   .modal-checkout input::placeholder { color: var(--text-faint); }
   .modal-checkout .campo-obs { font-size: 11px; color: var(--text-faint); }
   .modal-checkout .erro-checkout {
-    display: none; font-size: 12.5px; color: #e6a2a2; background: rgba(230, 162, 162, 0.08);
+    display: none; grid-column: 1 / -1; font-size: 12.5px; color: #e6a2a2; background: rgba(230, 162, 162, 0.08);
     border: 1px solid rgba(230, 162, 162, 0.25); border-radius: 4px; padding: 9px 11px; line-height: 1.5;
   }
   .modal-checkout .erro-checkout.visivel { display: block; }
   .modal-checkout .erro-checkout a { color: var(--gold-bright); }
-  .modal-checkout button[type="submit"] { justify-content: center; width: 100%; margin-top: 4px; }
+  .modal-checkout button[type="submit"] { grid-column: 1 / -1; justify-content: center; width: 100%; margin-top: 4px; }
   .modal-checkout button[type="submit"][disabled] { opacity: 0.6; cursor: progress; }
   .modal-checkout .selo-pagamento {
     margin-top: 12px; font-size: 11px; color: var(--text-faint); line-height: 1.5; text-align: center;
@@ -949,18 +966,18 @@
     <p class="resumo-obs" data-modal-obs></p>
     <p class="aviso-teste" data-aviso-teste hidden>Checkout em <strong>período de testes</strong> — nenhuma cobrança real acontece ainda. Para contratar de verdade agora, <a data-wpp-teste href="https://wa.me/5511981174657" target="_blank" rel="noopener">fale no WhatsApp</a>.</p>
     <form data-form-checkout>
-      <label>Nome completo
+      <label class="full">Nome completo
         <input type="text" name="nome" autocomplete="name" required>
       </label>
-      <label>E-mail
+      <label class="full">E-mail
         <input type="email" name="email" autocomplete="email" required>
       </label>
-      <label>Nome da clínica
+      <label class="full">Nome da clínica
         <input type="text" name="nomeClinica" autocomplete="organization">
       </label>
       <label>CPF ou CNPJ
         <input type="text" name="cpfCnpj" inputmode="numeric" required>
-        <span class="campo-obs">Necessário para emitir a cobrança.</span>
+        <span class="campo-obs">Para emitir a cobrança.</span>
       </label>
       <label>WhatsApp <span class="campo-obs">(opcional)</span>
         <input type="tel" name="telefone" autocomplete="tel">
