@@ -44,6 +44,39 @@ const idxFecha = template.indexOf('```', idxAbre + 3);
 if (idxAbre === -1 || idxFecha === -1) throw new Error('Não achei os delimitadores ``` do núcleo fixo.');
 let corpo = template.slice(idxAbre + 3, idxFecha).trim();
 
+// CADASTRO DO PACIENTE NOVO: escolhe a variante COMPLETA (default) ou LEVE
+// (standalone -- só o nome basta). Feito ANTES do strip genérico de
+// comentários, porque é keyed nos marcadores <!-- CADASTRO-*-INI/FIM -->.
+const cadastroCompleto = !(vars._modulo_cadastro_completo && vars._modulo_cadastro_completo.incluir === false);
+{
+  const rxHeavy = /<!-- CADASTRO-COMPLETO-INI -->\n?([\s\S]*?)<!-- CADASTRO-COMPLETO-FIM -->\n?/;
+  const rxLight = /<!-- CADASTRO-LEVE-INI -->\n?([\s\S]*?)<!-- CADASTRO-LEVE-FIM -->\n?/;
+  const mHeavy = corpo.match(rxHeavy);
+  const mLight = corpo.match(rxLight);
+  if (mHeavy && mLight) {
+    const escolhido = (cadastroCompleto ? mHeavy[1] : mLight[1]).trim() + '\n';
+    const ini = mHeavy.index;
+    const fim = mLight.index + mLight[0].length;
+    corpo = corpo.slice(0, ini) + escolhido + corpo.slice(fim);
+  }
+  if (!cadastroCompleto) {
+    // Neutraliza a menção explícita à ficha completa na descrição da tool
+    // Cria Agendamento (senão o modelo ainda pede CPF/endereço).
+    corpo = corpo.replace(
+      /Se for paciente novo no Simples Dental \(ver seção 🆕 CADASTRO DE PACIENTE NOVO\), inclua também dataNascimentoPaciente\/cpfPaciente\/email\/cep\/numero\/complemento -- e os campos de responsável, se for menor de idade\. cpfPaciente\/dataNascimentoPaciente são SEMPRE da pessoa que é o paciente \(a criança, se for dependente\) -- nunca copie o dado do responsável pra esses campos; se o CPF da criança nunca foi informado, deixe cpfPaciente vazio\./,
+      'Se a consulta for para um dependente menor, inclua também dataNascimentoPaciente (da criança) e nomeResponsavel -- ver seção CONSULTA PARA DEPENDENTE. Pra paciente adulto respondendo por si, o nome já basta.'
+    );
+    corpo = corpo.replace(
+      /pergunte ativamente os dados que faltam ANTES de seguir, numa mensagem separada\. Depois, confirme o horário escolhido/g,
+      'peça só o que faltar (normalmente nada pra adulto -- ver a seção). Depois, confirme o horário escolhido'
+    );
+    corpo = corpo.replace(
+      /pergunte ativamente os dados que faltam, numa mensagem própria, ANTES de seguir pro passo 5\. Só depois de ter esses dados é que você segue pro passo 5\./g,
+      'peça só o que faltar (normalmente nada, pra adulto). Depois siga pro passo 5.'
+    );
+  }
+}
+
 // Remove os comentários editoriais <!-- MÓDULO: ... --> / <!-- MÓDULO OPCIONAL: ... -->
 corpo = corpo.replace(/<!--[\s\S]*?-->\n?/g, '');
 
