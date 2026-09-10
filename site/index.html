@@ -590,6 +590,8 @@
   }
   .modal-checkout input:focus { outline: none; border-color: var(--gold); }
   .modal-checkout input::placeholder { color: var(--text-faint); }
+  .modal-checkout input[aria-invalid="true"] { border-color: #e6a2a2; }
+  .modal-checkout input[aria-invalid="true"]:focus { border-color: #e6a2a2; }
   .modal-checkout .campo-obs { font-size: 11px; color: var(--text-faint); }
   .modal-checkout .erro-checkout {
     display: none; grid-column: 1 / -1; font-size: 12.5px; color: #e6a2a2; background: rgba(230, 162, 162, 0.08);
@@ -1157,9 +1159,60 @@
     var erroEl = dialog.querySelector('[data-erro-checkout]');
     var avisoTesteEl = dialog.querySelector('[data-aviso-teste]');
     var wppTesteEl = dialog.querySelector('[data-wpp-teste]');
+    var campoDoc = form.querySelector('[name="cpfCnpj"]');
     var submit = form.querySelector('button[type="submit"]');
     var planosEl = document.querySelector('.planos[data-periodo]');
     var atual = { plano: 'Pro', periodo: 'anual' };
+
+    // valida dígito verificador de CPF (11) / CNPJ (14) -- mesma regra do
+    // servidor, só que aqui pra dar retorno na hora e não bater na API à toa.
+    function docValido(valor) {
+      var d = String(valor || '').replace(/\D/g, '');
+      if (d.length === 11) {
+        if (/^(\d)\1{10}$/.test(d)) return false;
+        var dvCpf = function (base) {
+          var soma = 0;
+          for (var i = 0; i < base.length; i++) soma += Number(base[i]) * (base.length + 1 - i);
+          var r = (soma * 10) % 11;
+          return r === 10 ? 0 : r;
+        };
+        return dvCpf(d.slice(0, 9)) === Number(d[9]) && dvCpf(d.slice(0, 10)) === Number(d[10]);
+      }
+      if (d.length === 14) {
+        if (/^(\d)\1{13}$/.test(d)) return false;
+        var dvCnpj = function (base) {
+          var pesos = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+          var soma = 0;
+          for (var i = 0; i < base.length; i++) soma += Number(base[i]) * pesos[i];
+          var r = soma % 11;
+          return r < 2 ? 0 : 11 - r;
+        };
+        return dvCnpj(d.slice(0, 12)) === Number(d[12]) && dvCnpj(d.slice(0, 13)) === Number(d[13]);
+      }
+      return false;
+    }
+
+    function mascaraDoc(valor) {
+      var d = String(valor || '').replace(/\D/g, '').slice(0, 14);
+      var p;
+      if (d.length <= 11) {
+        p = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 9), d.slice(9, 11)].filter(Boolean);
+        return p.slice(0, 3).join('.') + (p[3] ? '-' + p[3] : '');
+      }
+      p = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12), d.slice(12, 14)];
+      return p[0] + (p[1] ? '.' + p[1] : '') + (p[2] ? '.' + p[2] : '') + (p[3] ? '/' + p[3] : '') + (p[4] ? '-' + p[4] : '');
+    }
+
+    if (campoDoc) {
+      campoDoc.addEventListener('input', function () {
+        campoDoc.value = mascaraDoc(campoDoc.value);
+        campoDoc.removeAttribute('aria-invalid');
+      });
+      campoDoc.addEventListener('blur', function () {
+        if (campoDoc.value.trim() && !docValido(campoDoc.value)) campoDoc.setAttribute('aria-invalid', 'true');
+        else campoDoc.removeAttribute('aria-invalid');
+      });
+    }
 
     function periodoAtual() {
       return (planosEl && planosEl.getAttribute('data-periodo')) || 'anual';
@@ -1168,8 +1221,10 @@
       var txt = 'Olá! Quero contratar o plano ' + atual.plano + ' (' + atual.periodo + ').';
       return 'https://wa.me/5511981174657?text=' + encodeURIComponent(txt);
     }
-    function mostrarErro(msg) {
-      erroEl.innerHTML = msg + ' <a href="' + linkWhatsapp() + '" target="_blank" rel="noopener">Falar no WhatsApp</a>.';
+    function mostrarErro(msg, semWhatsapp) {
+      erroEl.innerHTML = semWhatsapp
+        ? msg
+        : msg + ' <a href="' + linkWhatsapp() + '" target="_blank" rel="noopener">Falar no WhatsApp</a>.';
       erroEl.classList.add('visivel');
     }
     function limparErro() { erroEl.classList.remove('visivel'); erroEl.textContent = ''; }
@@ -1182,6 +1237,7 @@
       obsEl.textContent = info.obs || '';
       if (wppTesteEl) wppTesteEl.href = linkWhatsapp();
       limparErro();
+      if (campoDoc) campoDoc.removeAttribute('aria-invalid');
       submit.disabled = false;
       submit.textContent = 'Ir para o pagamento seguro';
       dialog.showModal();
@@ -1208,6 +1264,11 @@
       var dados = Object.fromEntries(new FormData(form).entries());
       dados.plano = atual.plano;
       dados.periodo = atual.periodo;
+      if (!docValido(dados.cpfCnpj)) {
+        if (campoDoc) { campoDoc.setAttribute('aria-invalid', 'true'); campoDoc.focus(); }
+        mostrarErro('CPF ou CNPJ inválido — confira os números.', true);
+        return;
+      }
       submit.disabled = true;
       submit.textContent = 'Processando…';
       fetch('/api/checkout', {

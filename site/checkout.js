@@ -68,6 +68,34 @@ function erro(codigo, mensagem) {
   return e;
 }
 
+// Valida dígitos verificadores de CPF (11) ou CNPJ (14). Não é só
+// tamanho -- evita mandar documento inválido pro Asaas e tomar 400.
+function cpfCnpjValido(valor) {
+  const d = String(valor || '').replace(/\D/g, '');
+  if (d.length === 11) {
+    if (/^(\d)\1{10}$/.test(d)) return false;
+    const dv = (base) => {
+      let soma = 0;
+      for (let i = 0; i < base.length; i++) soma += Number(base[i]) * (base.length + 1 - i);
+      const r = (soma * 10) % 11;
+      return r === 10 ? 0 : r;
+    };
+    return dv(d.slice(0, 9)) === Number(d[9]) && dv(d.slice(0, 10)) === Number(d[10]);
+  }
+  if (d.length === 14) {
+    if (/^(\d)\1{13}$/.test(d)) return false;
+    const dv = (base) => {
+      const pesos = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+      let soma = 0;
+      for (let i = 0; i < base.length; i++) soma += Number(base[i]) * pesos[i];
+      const r = soma % 11;
+      return r < 2 ? 0 : 11 - r;
+    };
+    return dv(d.slice(0, 12)) === Number(d[12]) && dv(d.slice(0, 13)) === Number(d[13]);
+  }
+  return false;
+}
+
 async function acharOuCriarCliente({ nome, email, cpfCnpj, telefone, nomeClinica }) {
   const digitos = String(cpfCnpj || '').replace(/\D/g, '');
   const busca = await asaas('GET', `/customers?cpfCnpj=${digitos}&limit=1`);
@@ -91,8 +119,7 @@ async function criarCheckout({ plano, periodo, nome, email, cpfCnpj, telefone, n
   const faltando = ['nome', 'email', 'cpfCnpj'].filter((k) => !String({ nome, email, cpfCnpj }[k] || '').trim());
   if (faltando.length) throw erro('DADOS', `Preencha: ${faltando.join(', ')}.`);
   if (!/^\S+@\S+\.\S+$/.test(email)) throw erro('DADOS', 'E-mail inválido.');
-  const docDigitos = String(cpfCnpj).replace(/\D/g, '');
-  if (docDigitos.length !== 11 && docDigitos.length !== 14) throw erro('DADOS', 'CPF ou CNPJ inválido.');
+  if (!cpfCnpjValido(cpfCnpj)) throw erro('DADOS', 'CPF ou CNPJ inválido.');
 
   const cliente = await acharOuCriarCliente({ nome, email, cpfCnpj, telefone, nomeClinica });
 
@@ -125,4 +152,4 @@ async function criarCheckout({ plano, periodo, nome, email, cpfCnpj, telefone, n
   return { url: pgto.invoiceUrl, tipo: 'parcelado' };
 }
 
-module.exports = { criarCheckout, habilitado, emTeste, PLANOS };
+module.exports = { criarCheckout, habilitado, emTeste, cpfCnpjValido, PLANOS };
