@@ -532,6 +532,50 @@
   @media (prefers-reduced-motion: reduce) {
     [data-reveal] { opacity: 1; transform: none; transition: none; }
   }
+
+  /* ---------- modal de contratação (coleta de dados antes do pagamento Asaas) ---------- */
+  .modal-checkout {
+    border: 1px solid var(--line); border-radius: 6px; padding: 0;
+    background: var(--bg-elevated); color: var(--text);
+    max-width: 440px; width: calc(100% - 40px);
+    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+  }
+  .modal-checkout::backdrop { background: rgba(5, 4, 3, 0.72); backdrop-filter: blur(3px); }
+  .modal-checkout .conteudo { padding: 30px 30px 26px; }
+  .modal-checkout .fechar {
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; color: var(--text-dim); font-size: 22px;
+    cursor: pointer; border-radius: 999px; line-height: 1; transition: color 0.15s ease, background 0.15s ease;
+  }
+  .modal-checkout .fechar:hover { color: var(--text); background: var(--bg-elevated-2); }
+  .modal-checkout .eyebrow { margin-bottom: 8px; }
+  .modal-checkout h3 { font-family: var(--font-display); font-size: 22px; }
+  .modal-checkout .resumo-preco {
+    margin-top: 6px; font-size: 13.5px; color: var(--gold-bright);
+  }
+  .modal-checkout .resumo-obs { margin-top: 2px; font-size: 12px; color: var(--text-faint); }
+  .modal-checkout form { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+  .modal-checkout label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.2px; }
+  .modal-checkout input {
+    font-family: var(--font-body); font-size: 14px; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+    padding: 10px 12px; transition: border-color 0.15s ease;
+  }
+  .modal-checkout input:focus { outline: none; border-color: var(--gold); }
+  .modal-checkout input::placeholder { color: var(--text-faint); }
+  .modal-checkout .campo-obs { font-size: 11px; color: var(--text-faint); }
+  .modal-checkout .erro-checkout {
+    display: none; font-size: 12.5px; color: #e6a2a2; background: rgba(230, 162, 162, 0.08);
+    border: 1px solid rgba(230, 162, 162, 0.25); border-radius: 4px; padding: 9px 11px; line-height: 1.5;
+  }
+  .modal-checkout .erro-checkout.visivel { display: block; }
+  .modal-checkout .erro-checkout a { color: var(--gold-bright); }
+  .modal-checkout button[type="submit"] { justify-content: center; width: 100%; margin-top: 4px; }
+  .modal-checkout button[type="submit"][disabled] { opacity: 0.6; cursor: progress; }
+  .modal-checkout .selo-pagamento {
+    margin-top: 14px; font-size: 11px; color: var(--text-faint); line-height: 1.55; text-align: center;
+  }
 </style>
 <noscript><style>[data-reveal] { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
@@ -890,6 +934,37 @@
   </div>
 </footer>
 
+<dialog class="modal-checkout" id="modalCheckout" aria-labelledby="modalCheckoutTitulo">
+  <button type="button" class="fechar" data-fechar-modal aria-label="Fechar">&times;</button>
+  <div class="conteudo">
+    <p class="eyebrow">Contratar</p>
+    <h3 id="modalCheckoutTitulo" data-modal-titulo>Plano</h3>
+    <p class="resumo-preco" data-modal-preco></p>
+    <p class="resumo-obs" data-modal-obs></p>
+    <form data-form-checkout>
+      <label>Nome completo
+        <input type="text" name="nome" autocomplete="name" required>
+      </label>
+      <label>E-mail
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+      <label>Nome da clínica
+        <input type="text" name="nomeClinica" autocomplete="organization">
+      </label>
+      <label>CPF ou CNPJ
+        <input type="text" name="cpfCnpj" inputmode="numeric" required>
+        <span class="campo-obs">Necessário para emitir a cobrança.</span>
+      </label>
+      <label>WhatsApp <span class="campo-obs">(opcional)</span>
+        <input type="tel" name="telefone" autocomplete="tel">
+      </label>
+      <p class="erro-checkout" data-erro-checkout></p>
+      <button type="submit" class="botao botao-ouro">Ir para o pagamento seguro</button>
+    </form>
+    <p class="selo-pagamento">Pagamento processado pelo <strong>Asaas</strong>. Os dados do cartão são digitados no ambiente seguro deles, nunca aqui.</p>
+  </div>
+</dialog>
+
 <script>
   document.querySelectorAll('[data-carrossel]').forEach(function (carrossel) {
     var trilho = carrossel.querySelector('.carrossel-trilho');
@@ -1024,6 +1099,104 @@
         var jaSelecionado = card.classList.contains('selecionado');
         cards.forEach(function (c) { c.classList.remove('selecionado'); });
         if (!jaSelecionado) card.classList.add('selecionado');
+      });
+    });
+  })();
+
+  // ---------- modal de contratação -> checkout Asaas ----------
+  // Só entra em ação se o backend responder que o checkout está ligado
+  // (tem ASAAS_API_KEY). Senão, os botões "Contratar" seguem indo pro
+  // WhatsApp, como o href deles já aponta.
+  (function () {
+    var dialog = document.getElementById('modalCheckout');
+    var botoes = document.querySelectorAll('.botao-contratar');
+    if (!dialog || !botoes.length || typeof dialog.showModal !== 'function') return;
+
+    var PRECOS = {
+      Basic: {
+        mensal: { titulo: 'Plano Basic · Mensal', preco: 'R$ 400/mês', obs: 'Cobrado mês a mês. Cancela quando quiser.' },
+        anual: { titulo: 'Plano Basic · Anual', preco: '12× R$ 320 sem juros', obs: 'R$ 3.840/ano — economia de R$ 960.' },
+      },
+      Pro: {
+        mensal: { titulo: 'Plano Pro · Mensal', preco: 'R$ 700/mês', obs: 'Cobrado mês a mês. Cancela quando quiser.' },
+        anual: { titulo: 'Plano Pro · Anual', preco: '12× R$ 560 sem juros', obs: 'R$ 6.720/ano — economia de R$ 1.680.' },
+      },
+    };
+
+    var form = dialog.querySelector('[data-form-checkout]');
+    var tituloEl = dialog.querySelector('[data-modal-titulo]');
+    var precoEl = dialog.querySelector('[data-modal-preco]');
+    var obsEl = dialog.querySelector('[data-modal-obs]');
+    var erroEl = dialog.querySelector('[data-erro-checkout]');
+    var submit = form.querySelector('button[type="submit"]');
+    var planosEl = document.querySelector('.planos[data-periodo]');
+    var atual = { plano: 'Pro', periodo: 'anual' };
+
+    function periodoAtual() {
+      return (planosEl && planosEl.getAttribute('data-periodo')) || 'anual';
+    }
+    function linkWhatsapp() {
+      var txt = 'Olá! Quero contratar o plano ' + atual.plano + ' (' + atual.periodo + ').';
+      return 'https://wa.me/5511981174657?text=' + encodeURIComponent(txt);
+    }
+    function mostrarErro(msg) {
+      erroEl.innerHTML = msg + ' <a href="' + linkWhatsapp() + '" target="_blank" rel="noopener">Falar no WhatsApp</a>.';
+      erroEl.classList.add('visivel');
+    }
+    function limparErro() { erroEl.classList.remove('visivel'); erroEl.textContent = ''; }
+
+    function abrir(plano) {
+      atual = { plano: plano, periodo: periodoAtual() };
+      var info = (PRECOS[plano] || {})[atual.periodo] || {};
+      tituloEl.textContent = info.titulo || ('Plano ' + plano);
+      precoEl.textContent = info.preco || '';
+      obsEl.textContent = info.obs || '';
+      limparErro();
+      submit.disabled = false;
+      submit.textContent = 'Ir para o pagamento seguro';
+      dialog.showModal();
+    }
+
+    // habilita o modal só se o backend confirmar
+    fetch('/api/checkout/config').then(function (r) { return r.json(); }).then(function (cfg) {
+      if (!cfg || !cfg.habilitado) return;
+      botoes.forEach(function (b) {
+        b.addEventListener('click', function (e) {
+          e.preventDefault();
+          abrir(b.dataset.plano || 'Pro');
+        });
+      });
+    }).catch(function () { /* sem backend: deixa o href do WhatsApp agir */ });
+
+    dialog.querySelector('[data-fechar-modal]').addEventListener('click', function () { dialog.close(); });
+    dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      limparErro();
+      var dados = Object.fromEntries(new FormData(form).entries());
+      dados.plano = atual.plano;
+      dados.periodo = atual.periodo;
+      submit.disabled = true;
+      submit.textContent = 'Processando…';
+      fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados),
+      }).then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, body: j }; });
+      }).then(function (res) {
+        if (res.ok && res.body && res.body.url) {
+          window.location.href = res.body.url;
+          return;
+        }
+        mostrarErro((res.body && res.body.erro) || 'Não consegui abrir o pagamento agora.');
+        submit.disabled = false;
+        submit.textContent = 'Ir para o pagamento seguro';
+      }).catch(function () {
+        mostrarErro('Falha de conexão ao abrir o pagamento.');
+        submit.disabled = false;
+        submit.textContent = 'Ir para o pagamento seguro';
       });
     });
   })();
