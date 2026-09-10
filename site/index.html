@@ -125,7 +125,11 @@
   @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-  section[id] { scroll-margin-top: 84px; }
+  /* ao pular via link do menu, a seção tem 88px de padding-top só de
+     respiro -- sem compensar, o título parava ~100px abaixo do header e
+     dava a sensação de "espaço morto". scroll-margin negativo estaciona
+     o scroll já dentro do padding, deixando o título colado ao header. */
+  section[id] { scroll-margin-top: -6px; }
 
   .envelope { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
 
@@ -146,6 +150,12 @@
     transition: color 0.15s ease;
   }
   .nav-header a:hover { color: var(--gold-bright); }
+  /* 7 itens no menu: aperta um pouco em telas de notebook menores pra
+     não encostar na logo/botão antes de sumir de vez no mobile. */
+  @media (max-width: 1000px) {
+    .nav-header { gap: 17px; }
+    .nav-header a { font-size: 12.5px; }
+  }
 
   .botao {
     display: inline-flex; align-items: center; gap: 8px;
@@ -407,13 +417,61 @@
   }
 
   @media (max-width: 860px) {
-    .caminhos, .grade-recursos, .confianca-lista, .planos, .cenarios-dor { grid-template-columns: 1fr; }
-    .grade-recursos { background: var(--line-soft); }
     .nav-header { display: none; }
     header .botao span.rotulo-longo { display: none; }
     section { padding: 64px 0; }
+    section[id] { scroll-margin-top: 10px; } /* header é mais baixo no mobile */
     .hero { padding: 72px 0 56px; }
     .hero h1 { font-size: clamp(28px, 8vw, 58px); }
+
+    /* ---------- no mobile os grids viram carrossel com "espiada" lateral ----------
+       antes empilhava 1 card por linha e virava um scroll sem fim. Agora
+       desliza na horizontal, com scroll-snap e um pedaço do próximo card
+       aparecendo pra deixar claro que dá pra arrastar. */
+    .cenarios-dor, .caminhos, .confianca-lista, .planos {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding-left: 28px;
+      gap: 14px;
+      margin: 0 -28px;           /* sangra até a borda da tela */
+      padding: 4px 28px 12px;    /* alinha o 1º card ao texto acima */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .cenarios-dor::-webkit-scrollbar,
+    .caminhos::-webkit-scrollbar,
+    .confianca-lista::-webkit-scrollbar,
+    .planos::-webkit-scrollbar { display: none; }
+    .cenarios-dor > *,
+    .caminhos > *,
+    .confianca-lista > *,
+    .planos > * {
+      flex: 0 0 82%;
+      scroll-snap-align: start;
+    }
+    /* o card de plano tem o selo "Mais escolhido" pra fora (top:-12px) e o
+       anel de seleção -- precisa de folga vertical porque o overflow-x
+       recorta o eixo Y. */
+    .planos { padding-top: 22px; padding-bottom: 22px; }
+
+    /* a vitrine do painel (6 recursos) segue a mesma ideia, mantendo as
+       linhas de 1px da grade como separador entre os cards. */
+    .grade-recursos {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      gap: 1px;
+      background: var(--line-soft);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .grade-recursos::-webkit-scrollbar { display: none; }
+    .grade-recursos > .recurso {
+      flex: 0 0 62%;
+      scroll-snap-align: start;
+      min-height: 150px;
+    }
   }
 
   /* ---------- hover: cards e blocos ganham profundidade ao passar o mouse ---------- */
@@ -481,8 +539,10 @@
     </div>
     <nav class="nav-header">
       <a href="#problema">O problema</a>
+      <a href="#caminhos">Sua clínica</a>
       <a href="#conversa">Como funciona</a>
       <a href="#painel">Painel</a>
+      <a href="#confianca">Confiança</a>
       <a href="#planos">Preços</a>
       <a href="#faq">Perguntas</a>
     </nav>
