@@ -1,6 +1,21 @@
 # Plano — Suporte a múltiplos profissionais
 
-**Status:** planejamento (2026-09-10). Nada implementado ainda.
+**Status:** Fase 1 (fundação) **implementada e testada localmente** em 2026-09-10 — commits `b761f93`, `05127bc`, `2939bf7`. **Não aplicada em produção ainda** (falta rodar a migration + o seed nos bancos reais e redeployar standalone-bridge + admin-panel — ver §6.1). Fases 2–5 não começaram.
+
+## Feito na Fase 1
+
+- `db/migrations/014_profissionais.sql` — `profissionais` (com `especialidades text[]`, `aceita_primeira_consulta`, `padrao` unique parcial), `profissional_horarios` (aditiva, fallback pro singleton), `consultas.profissional_id` uuid nullable. Só schema.
+- `db/seed-profissionais.js` + `db/profissionais.aline.json` (Lumi: 1 profissional) + `db/profissionais.demo.json` (standalone demo: 3 com agendas distintas) + `.exemplo.json`. Upsert idempotente por `nome` + backfill de `consultas.profissional_id` pro padrão.
+- `standalone-bridge`: `buscarConfiguracaoHorarios(profissionalId?)` com merge; `listarProfissionais()`; `resolverProfissionalParaAgenda({profissionalId, especialidade})`; verificar/criar/remarcar escopam conflito por profissional; `buscarAgendamentosPaciente` devolve `profissionalNome`; `listarAgendaSemana` aceita filtro; rota `GET /profissionais`.
+- `admin-panel`: `GET /api/profissionais` (via bridge, tolerante a 404); `<select>` de filtro no topo da Agenda + campo de profissional na Nova consulta, ambos só aparecem com 2+ profissionais ativos; filtro client-side sobre `agendaCache`.
+- **Retrocompatível:** 0 profissionais cadastrados (ou migration não rodada) => tudo opera como hoje. Testado contra `whatsapp-teste` (Aline) e `lumi_standalone_teste` (3 demo).
+
+### Ainda aberto dentro do escopo "fundação"
+- **CRUD de profissionais no painel** (adicionar/editar/desativar sem re-rodar o seed) — não feito. Por enquanto: editar o JSON e re-rodar `db/seed-profissionais.js`. É a "Fase 1.5".
+- Colorir a agenda por profissional quando "Todos" (usar `profissionais.cor`) — não feito, polimento.
+
+---
+
 **Decisões do Tiago que abriram este plano:**
 - Preparar Demo **e** PROD para multi-profissional, mesmo que PROD só tenha a Dra. Aline por enquanto.
 - A tabela de profissionais precisa de **especialidade**, pra rotear o paciente quando a necessidade for específica.
@@ -192,11 +207,26 @@ Novo bloco no núcleo fixo (multi-profissional + roteamento por especialidade), 
 
 | Fase | Entrega | Testável por |
 |---|---|---|
-| **1 — Fundação** | migration 014 (profissionais + `profissional_id` + `profissional_horarios`), funções da `standalone-bridge`, rota `listarProfissionais`, seletor + CRUD mínimo no painel. Seed: Aline sozinha em PROD (zero mudança de comportamento), 3 no Demo. | painel, ponta a ponta, sem tocar na Lumi |
+| **1 — Fundação** ✅ (local) | migration 014 (profissionais + `profissional_id` + `profissional_horarios`), funções da `standalone-bridge`, rota `listarProfissionais`, seletor no painel. Seed: Aline sozinha em PROD (zero mudança de comportamento), 3 no Demo. **Falta: aplicar em produção (§6.1) + CRUD no painel (Fase 1.5).** | painel, ponta a ponta, sem tocar na Lumi |
 | **2 — Lumi** | tool nova, regras de prompt (nome + roteamento + guarda de 1 prof), os 3 workflows, template, checks do harness. | `lumi-harness` |
 | **3 — Demo** | personas do demo + `Roteiro_Demo_Vendas.md` mostrando o fluxo multi-prof. | roteiro de venda |
 | **4 — Simples Dental (adiado)** | parsear "` - Dr(a).`", filtrar o calendário do SD por profissional, passar o profissional na criação via Playwright. | **gatilho:** clínica SD com >1 dentista assina |
 | **5 — futuro** | Analytics por profissional; `clinicorp-bridge` no mesmo contrato. | — |
+
+### 6.1 Passos pra aplicar a Fase 1 em produção (Tiago)
+
+Ordem importa: migration **antes** do redeploy do código.
+
+1. **Migration 014** em cada banco real:
+   - Lumi PROD: `node db/run-migration.js 014_profissionais.sql` (com `DATABASE_URL` do banco de produção da Lumi).
+   - Banco do demo standalone: idem, com o `DATABASE_URL` do demo.
+   - (Se houver clínica standalone real já no ar: idem no banco dela.)
+2. **Seed** em cada banco:
+   - Lumi PROD: `node db/seed-profissionais.js db/profissionais.aline.json`.
+   - Demo: `DATABASE_URL="<demo>" node db/seed-profissionais.js db/profissionais.demo.json`.
+   - É idempotente — pode rodar de novo sem medo.
+3. **Redeploy no Easypanel**: `standalone-bridge` (rota `/profissionais` + agenda por profissional) e `admin-panel` (seletor). O `server.js` da raiz **não** precisa (Fase 4).
+4. Conferir no painel do demo: seletor aparece com os 3, filtra a agenda.
 
 ---
 
