@@ -156,6 +156,7 @@ const secoes = {
   analytics: carregarPaginaAnalytics,
   configuracoes: () => {
     carregarConfiguracaoHorarios();
+    carregarProfissionais();
     carregarLicoesAprendidas();
     carregarConexaoWhatsapp();
   },
@@ -2652,6 +2653,161 @@ document.getElementById('conteudoLicoesAprendidas').addEventListener('click', as
   } catch (erro) {
     alert(erro.message);
     cartao.querySelectorAll('button[data-decidir]').forEach((b) => (b.disabled = false));
+  }
+});
+
+// ============================================================
+// Profissionais (Configurações) -- CRUD de public.profissionais via
+// bridge. O card só aparece quando o bridge suporta a rota (standalone);
+// no Simples Dental (server.js da raiz) a lista vem vazia e fica oculto.
+// ============================================================
+
+const DIAS_PROF = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+let profissionaisCache = [];
+
+async function carregarProfissionais() {
+  const painel = document.getElementById('painelProfissionais');
+  const alvo = document.getElementById('conteudoProfissionais');
+  try {
+    const dados = await chamarApi('/api/profissionais?todos=1');
+    profissionaisCache = (dados && dados.profissionais) || [];
+    if (profissionaisCache.length === 0) {
+      painel.hidden = true; // bridge sem a rota (Simples Dental) ou nenhum cadastrado
+      return;
+    }
+    painel.hidden = false;
+    alvo.innerHTML = profissionaisCache.map(renderizarProfissional).join('');
+  } catch (erro) {
+    painel.hidden = false;
+    alvo.innerHTML = elementoErro(erro.message);
+  }
+}
+
+function renderizarProfissional(p) {
+  const selos = [
+    p.padrao ? '<span class="selo selo-neutro">Padrão</span>' : '',
+    !p.ativo ? '<span class="selo selo-urgente">Inativo</span>' : '',
+    p.aceitaPrimeiraConsulta ? '' : '<span class="selo selo-neutro">Só encaminhado</span>',
+    p.expedienteProprio ? '<span class="selo selo-neutro">Expediente próprio</span>' : '',
+  ].filter(Boolean).join(' ');
+  const esp = (p.especialidades || []).join(' · ') || '<span class="texto-fraco">sem especialidade</span>';
+  return `
+    <div class="cartao-profissional${p.ativo ? '' : ' cartao-profissional--inativo'}" data-linha-prof="${escapar(p.id)}">
+      <div class="cartao-profissional__topo">
+        <span class="cartao-profissional__cor" style="background:${escapar(p.cor || '#b89a68')}"></span>
+        <strong>${escapar(p.nome)}</strong>
+        ${selos}
+      </div>
+      <div class="cartao-profissional__esp">${esp}</div>
+      <div class="cartao-profissional__acoes">
+        <button class="botao" data-editar-prof="${escapar(p.id)}">Editar</button>
+        ${p.padrao ? '' : `<button class="botao" data-toggle-prof="${escapar(p.id)}" data-ativo="${p.ativo ? '1' : '0'}">${p.ativo ? 'Desativar' : 'Ativar'}</button>`}
+      </div>
+    </div>`;
+}
+
+const formProfissional = document.getElementById('formProfissional');
+
+function abrirFormProfissional(p) {
+  document.getElementById('profissionalId').value = p ? p.id : '';
+  document.getElementById('profissionalNome').value = p ? p.nome : '';
+  document.getElementById('profissionalCor').value = (p && p.cor) || '#b89a68';
+  document.getElementById('profissionalEspecialidades').value = p ? (p.especialidades || []).join(', ') : '';
+  document.getElementById('profissionalEspPrincipal').value = (p && p.especialidadePrincipal) || '';
+  document.getElementById('profissionalOrdem').value = p ? p.ordem : profissionaisCache.length;
+  document.getElementById('profissionalAceita1a').checked = p ? p.aceitaPrimeiraConsulta : true;
+  document.getElementById('profissionalPadrao').checked = p ? p.padrao : false;
+  document.getElementById('profissionalAtivo').checked = p ? p.ativo : true;
+
+  const exp = p && p.expedienteProprio;
+  document.getElementById('profissionalTemExpediente').checked = !!exp;
+  document.getElementById('profissionalExpediente').hidden = !exp;
+  DIAS_PROF.forEach((dia) => {
+    const campo = document.querySelector(`[data-dia-prof="${dia}"]`);
+    campo.value = exp && exp.horarios && Array.isArray(exp.horarios[dia]) ? exp.horarios[dia].join(', ') : '';
+  });
+  document.getElementById('profissionalDuracao').value = (exp && exp.duracaoConsultaMinutos) || '';
+
+  document.getElementById('profissionalFeedback').textContent = '';
+  formProfissional.hidden = false;
+  document.getElementById('profissionalNome').focus();
+}
+
+document.getElementById('botaoNovoProfissional').addEventListener('click', () => abrirFormProfissional(null));
+document.getElementById('botaoCancelarProfissional').addEventListener('click', () => (formProfissional.hidden = true));
+document.getElementById('profissionalTemExpediente').addEventListener('change', (e) => {
+  document.getElementById('profissionalExpediente').hidden = !e.target.checked;
+});
+
+document.getElementById('conteudoProfissionais').addEventListener('click', async (evento) => {
+  const editar = evento.target.closest('button[data-editar-prof]');
+  const toggle = evento.target.closest('button[data-toggle-prof]');
+  if (editar) {
+    const p = profissionaisCache.find((x) => x.id === editar.dataset.editarProf);
+    if (p) abrirFormProfissional(p);
+    return;
+  }
+  if (toggle) {
+    toggle.disabled = true;
+    try {
+      await chamarApi(`/api/profissionais/${toggle.dataset.toggleProf}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo: toggle.dataset.ativo !== '1' }),
+      });
+      profissionaisAgendaCarregados = false;
+      await carregarProfissionais();
+    } catch (erro) {
+      alert(erro.message);
+      toggle.disabled = false;
+    }
+  }
+});
+
+formProfissional.addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const feedback = document.getElementById('profissionalFeedback');
+  const id = document.getElementById('profissionalId').value;
+  const temExpediente = document.getElementById('profissionalTemExpediente').checked;
+
+  const payload = {
+    nome: document.getElementById('profissionalNome').value.trim(),
+    cor: document.getElementById('profissionalCor').value,
+    especialidades: document.getElementById('profissionalEspecialidades').value,
+    especialidadePrincipal: document.getElementById('profissionalEspPrincipal').value.trim(),
+    ordem: Number(document.getElementById('profissionalOrdem').value) || 0,
+    aceitaPrimeiraConsulta: document.getElementById('profissionalAceita1a').checked,
+    padrao: document.getElementById('profissionalPadrao').checked,
+    ativo: document.getElementById('profissionalAtivo').checked,
+  };
+  if (temExpediente) {
+    const horarios = {};
+    DIAS_PROF.forEach((dia) => {
+      const bruto = document.querySelector(`[data-dia-prof="${dia}"]`).value;
+      horarios[dia] = bruto.split(',').map((h) => h.trim()).filter(Boolean);
+    });
+    payload.horarios = horarios;
+    const dur = document.getElementById('profissionalDuracao').value;
+    if (dur) payload.duracaoConsultaMinutos = Number(dur);
+  } else {
+    payload.horarios = null; // remove o expediente próprio (herda o da clínica)
+  }
+
+  const botao = evento.submitter || formProfissional.querySelector('button[type="submit"]');
+  botao.disabled = true;
+  try {
+    await chamarApi(id ? `/api/profissionais/${id}` : '/api/profissionais', {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    formProfissional.hidden = true;
+    profissionaisAgendaCarregados = false; // Agenda re-carrega a lista do seletor
+    await carregarProfissionais();
+  } catch (erro) {
+    feedback.textContent = erro.message;
+  } finally {
+    botao.disabled = false;
   }
 });
 

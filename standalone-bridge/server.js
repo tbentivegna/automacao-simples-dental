@@ -25,6 +25,7 @@ const {
   mudarRotuloAgendamento,
   listarProfissionais,
 } = require('./consultas');
+const profissionaisCrud = require('./profissionais');
 
 const app = express();
 app.use(express.json());
@@ -93,10 +94,37 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
 // migration 014 não rodou) -- o resto do sistema opera como antes.
 app.get('/profissionais', async (req, res) => {
   try {
-    res.json({ profissionais: await listarProfissionais() });
+    // ?todos=1 -> lista completa (inclui inativos + expediente próprio),
+    // usada pelo CRUD do painel. Sem o param -> só ativos, formato enxuto
+    // (dropdown do painel + tool da Lumi).
+    const lista = req.query.todos === '1' ? await profissionaisCrud.listarTodos() : await listarProfissionais();
+    res.json({ profissionais: lista });
   } catch (erro) {
     console.error('Erro ao listar profissionais:', erro);
     res.status(500).json({ erro: 'Falha ao listar profissionais', detalhe: erro.message });
+  }
+});
+
+function erroProfissional(res, erro, contexto) {
+  const code = erro.code || 'ERRO';
+  const status = code === 'DADOS' ? 400 : code === 'NAO_ENCONTRADO' ? 404 : 500;
+  console.error(`Erro ${contexto}:`, code, erro.message);
+  res.status(status).json({ erro: erro.message, codigo: code });
+}
+
+app.post('/profissionais', async (req, res) => {
+  try {
+    res.json(await profissionaisCrud.criar(req.body || {}));
+  } catch (erro) {
+    erroProfissional(res, erro, 'ao criar profissional');
+  }
+});
+
+app.put('/profissionais/:id', async (req, res) => {
+  try {
+    res.json(await profissionaisCrud.atualizar(req.params.id, req.body || {}));
+  } catch (erro) {
+    erroProfissional(res, erro, 'ao atualizar profissional');
   }
 });
 

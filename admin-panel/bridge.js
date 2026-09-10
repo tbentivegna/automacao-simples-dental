@@ -25,15 +25,25 @@ async function buscarAgendaSemana(semanas) {
   return chamarBridge(`/agenda-semana?semanas=${encodeURIComponent(semanas || 4)}`);
 }
 
-// Lista os profissionais ativos (multi-profissional). Bridges que ainda
-// não têm essa rota (server.js da raiz / Simples Dental) respondem 404 --
-// nesse caso devolvemos vazio e o painel opera como "agenda única".
-async function buscarProfissionais() {
+// Lista os profissionais (multi-profissional). `todos` = inclui inativos +
+// expediente próprio (pro CRUD); sem ele, só ativos (dropdown). Bridges
+// que ainda não têm essa rota (server.js da raiz / Simples Dental)
+// respondem 404 -- nesse caso devolvemos vazio e o painel opera como
+// "agenda única".
+async function buscarProfissionais({ todos = false } = {}) {
   try {
-    return await chamarBridge('/profissionais');
+    return await chamarBridge(`/profissionais${todos ? '?todos=1' : ''}`);
   } catch (erro) {
     return { profissionais: [] };
   }
+}
+
+async function criarProfissional(payload) {
+  return chamarBridge('/profissionais', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function atualizarProfissional(id, payload) {
+  return chamarBridge(`/profissionais/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) });
 }
 
 // Força uma sincronização da agenda real do Simples Dental -> public.consultas
@@ -68,4 +78,4 @@ async function mudarRotuloConsulta({ idAgendamento, rotulo, telefone }) {
   });
 }
 
-module.exports = { buscarAgendaSemana, buscarProfissionais, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };
+module.exports = { buscarAgendaSemana, buscarProfissionais, criarProfissional, atualizarProfissional, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };

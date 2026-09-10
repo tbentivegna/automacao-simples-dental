@@ -51,7 +51,7 @@ const {
   buscarLicoesAprendidas,
   decidirLicaoAprendida,
 } = require('./queries');
-const { buscarAgendaSemana, buscarProfissionais, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
+const { buscarAgendaSemana, buscarProfissionais, criarProfissional, atualizarProfissional, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
 const { enviarMensagem, statusConexao, obterQrCode, trocarNumero } = require('./evolution');
 
 if (!process.env.ADMIN_PASSWORD) {
@@ -549,14 +549,41 @@ app.get('/api/agenda', exigirAutenticacaoApi, async (req, res) => {
   }
 });
 
-// Profissionais ativos da clínica (multi-profissional). Vazio => o painel
+// Profissionais da clínica (multi-profissional). ?todos=1 => lista
+// completa (inativos + expediente próprio) pro CRUD de Configurações;
+// sem o param => só ativos, pro seletor da Agenda. Vazio => o painel
 // esconde o seletor e opera como agenda única.
 app.get('/api/profissionais', exigirAutenticacaoApi, async (req, res) => {
   try {
-    res.json(await buscarProfissionais());
+    res.json(await buscarProfissionais({ todos: req.query.todos === '1' }));
   } catch (erro) {
     console.error('Erro em /api/profissionais:', erro);
     res.json({ profissionais: [] });
+  }
+});
+
+function responderErroProfissional(res, erro) {
+  const detalhe = String(erro.message || '');
+  // repassa o 400 de validação do bridge como 400 (não como 502 genérico)
+  const status = /inv[aá]lid|obrigat[óo]ri|j[aá] existe|n[aã]o pode|padr[aã]o/i.test(detalhe) ? 400 : 502;
+  res.status(status).json({ erro: 'Falha ao salvar profissional.', detalhe });
+}
+
+app.post('/api/profissionais', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await criarProfissional(req.body || {}));
+  } catch (erro) {
+    console.error('Erro em POST /api/profissionais:', erro);
+    responderErroProfissional(res, erro);
+  }
+});
+
+app.put('/api/profissionais/:id', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await atualizarProfissional(req.params.id, req.body || {}));
+  } catch (erro) {
+    console.error('Erro em PUT /api/profissionais/:id:', erro);
+    responderErroProfissional(res, erro);
   }
 });
 

@@ -408,6 +408,66 @@
           </form>
         </div>
 
+        <div class="painel painel-profissionais" id="painelProfissionais" hidden>
+          <div class="cabecalho-secao">
+            <div>
+              <h3>Profissionais</h3>
+              <p>Dentistas/profissionais da clínica. Cada um tem sua própria agenda e especialidades; a Lumi usa isso para direcionar o paciente. Um deles é o <strong>padrão</strong> (para quando não há preferência).</p>
+            </div>
+            <div class="cabecalho-secao__acoes">
+              <button class="botao botao-primario" id="botaoNovoProfissional">+ Adicionar</button>
+            </div>
+          </div>
+
+          <form class="form-profissional" id="formProfissional" hidden>
+            <input type="hidden" id="profissionalId" />
+            <div class="form-profissional__linha">
+              <label>Nome (como aparece pro paciente)
+                <input type="text" id="profissionalNome" placeholder="ex: Dra. Aline Bentivegna" required />
+              </label>
+              <label>Cor na agenda
+                <input type="color" id="profissionalCor" value="#b89a68" />
+              </label>
+            </div>
+            <label>Especialidades <span class="texto-fraco">(separadas por vírgula)</span>
+              <input type="text" id="profissionalEspecialidades" placeholder="ex: Ortodontia, Harmonização Orofacial, Clareamento" />
+            </label>
+            <div class="form-profissional__linha">
+              <label>Especialidade principal <span class="texto-fraco">(opcional)</span>
+                <input type="text" id="profissionalEspPrincipal" placeholder="ex: Ortodontia" />
+              </label>
+              <label>Ordem <span class="texto-fraco">(exibição)</span>
+                <input type="number" id="profissionalOrdem" value="0" step="1" />
+              </label>
+            </div>
+            <div class="form-profissional__flags">
+              <label class="checkbox"><input type="checkbox" id="profissionalAceita1a" checked /> Aceita Primeira Consulta</label>
+              <label class="checkbox"><input type="checkbox" id="profissionalPadrao" /> É o profissional padrão</label>
+              <label class="checkbox"><input type="checkbox" id="profissionalAtivo" checked /> Ativo</label>
+            </div>
+
+            <label class="checkbox form-profissional__toggle-exp"><input type="checkbox" id="profissionalTemExpediente" /> Expediente próprio (diferente do da clínica)</label>
+            <div class="form-profissional__expediente" id="profissionalExpediente" hidden>
+              <div class="form-profissional__dia"><label>Segunda</label><input type="text" data-dia-prof="segunda" placeholder="08:30, 09:30, 10:30 — vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Terça</label><input type="text" data-dia-prof="terca" placeholder="vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Quarta</label><input type="text" data-dia-prof="quarta" placeholder="vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Quinta</label><input type="text" data-dia-prof="quinta" placeholder="vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Sexta</label><input type="text" data-dia-prof="sexta" placeholder="vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Sábado</label><input type="text" data-dia-prof="sabado" placeholder="quinzenal — vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Domingo</label><input type="text" data-dia-prof="domingo" placeholder="vazio = fechado" /></div>
+              <div class="form-profissional__dia"><label>Duração (min)</label><input type="number" id="profissionalDuracao" min="15" max="240" step="5" placeholder="herda da clínica" /></div>
+            </div>
+
+            <div id="profissionalFeedback" class="form-profissional__feedback" role="status"></div>
+            <div class="form-profissional__acoes">
+              <button type="button" class="botao" id="botaoCancelarProfissional">Cancelar</button>
+              <button type="submit" class="botao botao-primario">Salvar</button>
+            </div>
+          </form>
+
+          <div id="conteudoProfissionais"><div class="carregando">Carregando…</div></div>
+        </div>
+
         <div class="painel painel-licoes-aprendidas">
           <div class="cabecalho-secao">
             <div>

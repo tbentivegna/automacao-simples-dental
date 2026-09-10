@@ -235,6 +235,13 @@ async function listarProfissionais() {
   }
 }
 
+// Chamado depois de qualquer escrita em profissionais / profissional_horarios
+// pra a próxima leitura não pegar o cache velho (60s).
+function limparCacheProfissionais() {
+  cacheProfissionais = { expiraEm: 0, dados: null };
+  cacheConfiguracaoHorarios.clear();
+}
+
 // Resolve qual profissional escopar numa operação de agenda.
 //  - profissionalId explícito -> valida contra a lista de ativos
 //  - senão especialidade -> se casar com EXATAMENTE um ativo, usa ele
@@ -266,4 +273,5 @@ module.exports = {
   buscarConfiguracaoHorarios,
   listarProfissionais,
   resolverProfissionalParaAgenda,
+  limparCacheProfissionais,
 };
