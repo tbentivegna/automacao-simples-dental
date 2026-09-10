@@ -1,6 +1,6 @@
 # Plano — Suporte a múltiplos profissionais
 
-**Status:** Fase 1 (fundação) **implementada e testada localmente** em 2026-09-10 — commits `b761f93`, `05127bc`, `2939bf7`. **Não aplicada em produção ainda** (falta rodar a migration + o seed nos bancos reais e redeployar standalone-bridge + admin-panel — ver §6.1). Fases 2–5 não começaram.
+**Status:** Fase 1 (fundação) **NO AR em produção** desde 2026-09-10 — commits `b761f93`, `05127bc`, `2939bf7`. Migration 014 + seed aplicados no banco de produção da Lumi (`whatsapp-teste`, 1 profissional: Dra. Aline) e no banco do demo standalone (3 profissionais fictícios); standalone-bridge e admin-panel redeployados; seletor confirmado aparecendo no painel do demo. **Fase 1.5** (CRUD de profissionais no painel) e **Fases 2–5** não começaram.
 
 ## Feito na Fase 1
 
@@ -207,7 +207,7 @@ Novo bloco no núcleo fixo (multi-profissional + roteamento por especialidade), 
 
 | Fase | Entrega | Testável por |
 |---|---|---|
-| **1 — Fundação** ✅ (local) | migration 014 (profissionais + `profissional_id` + `profissional_horarios`), funções da `standalone-bridge`, rota `listarProfissionais`, seletor no painel. Seed: Aline sozinha em PROD (zero mudança de comportamento), 3 no Demo. **Falta: aplicar em produção (§6.1) + CRUD no painel (Fase 1.5).** | painel, ponta a ponta, sem tocar na Lumi |
+| **1 — Fundação** ✅ **NO AR** | migration 014 (profissionais + `profissional_id` + `profissional_horarios`), funções da `standalone-bridge`, rota `listarProfissionais`, seletor no painel. Aplicado em produção 2026-09-10 (Lumi PROD = só Aline, zero mudança de comportamento; Demo = 3). Falta CRUD no painel (Fase 1.5). | painel, ponta a ponta, sem tocar na Lumi |
 | **2 — Lumi** | tool nova, regras de prompt (nome + roteamento + guarda de 1 prof), os 3 workflows, template, checks do harness. | `lumi-harness` |
 | **3 — Demo** | personas do demo + `Roteiro_Demo_Vendas.md` mostrando o fluxo multi-prof. | roteiro de venda |
 | **4 — Simples Dental (adiado)** | parsear "` - Dr(a).`", filtrar o calendário do SD por profissional, passar o profissional na criação via Playwright. | **gatilho:** clínica SD com >1 dentista assina |
