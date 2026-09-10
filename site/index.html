@@ -263,11 +263,47 @@
   .plano .quem { font-size: 13px; color: var(--text-dim); }
   .plano .preco { font-family: var(--font-display); font-size: 26px; color: var(--gold-bright); margin-top: 10px; }
   .plano .preco span { font-family: var(--font-body); font-size: 14px; color: var(--text-dim); }
+  .plano .preco-detalhe { font-size: 12.5px; color: var(--text-faint); margin-top: 4px; line-height: 1.5; }
   .planos-nota { margin-top: 22px; font-size: 12.5px; color: var(--text-faint); text-align: center; max-width: 640px; margin-left: auto; margin-right: auto; }
   .plano ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
   .plano li { font-size: 13.5px; color: var(--text-dim); padding-left: 18px; position: relative; line-height: 1.55; }
   .plano li::before { content: "—"; position: absolute; left: 0; color: var(--gold); }
   .plano .botao { justify-content: center; width: 100%; margin-top: auto; }
+  .plano .acoes-plano { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .plano .acoes-plano .botao { margin-top: 0; }
+  .plano .link-duvida {
+    font-size: 12.5px; color: var(--text-dim); text-align: center; text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .plano .link-duvida:hover { color: var(--gold-bright); }
+
+  /* ---------- seletor de período (mensal / anual) ---------- */
+  .planos-toggle {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    gap: 10px; margin: 0 auto 34px;
+  }
+  .planos-toggle .grupo { display: inline-flex; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+  .planos-toggle button {
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--text-dim);
+    background: transparent; border: none; border-radius: 999px; padding: 8px 18px; cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .planos-toggle button:hover { color: var(--gold-bright); }
+  .planos-toggle button.ativo {
+    color: #14110c; background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  }
+  .planos-toggle .economize {
+    font-size: 12px; letter-spacing: 0.4px; color: var(--sucesso); font-weight: 600;
+  }
+  /* mostra o preço da modalidade escolhida, esconde a outra */
+  .planos[data-periodo="mensal"] .preco-anual,
+  .planos[data-periodo="anual"] .preco-mensal { display: none; }
+
+  /* ---------- aviso honesto sobre IA ---------- */
+  .aviso-ia {
+    margin: 28px auto 0; max-width: 620px; text-align: center;
+    font-size: 12.5px; color: var(--text-faint); line-height: 1.65;
+  }
 
   /* ---------- faq ---------- */
   .faq { max-width: 760px; margin: 0 auto; }
@@ -644,40 +680,67 @@
       <div class="cabecalho-secao" data-reveal>
         <p class="eyebrow">Investimento</p>
         <h2>Um plano pra cada tamanho de clínica</h2>
-        <p>Mensalidade a partir de, conforme o porte — valor final combinado em conversa.</p>
+        <p>Preço fixo, sem pegadinha. No plano anual você economiza 20%.</p>
       </div>
-      <div class="planos" data-reveal>
+
+      <div class="planos-toggle" data-reveal>
+        <div class="grupo" role="tablist" aria-label="Período de cobrança">
+          <button type="button" data-periodo="mensal" class="ativo" aria-selected="true">Mensal</button>
+          <button type="button" data-periodo="anual" aria-selected="false">Anual</button>
+        </div>
+        <span class="economize">economize 20% no anual</span>
+      </div>
+
+      <!-- Botão "Contratar": hoje abre o WhatsApp com a intenção de compra
+           já escrita (o fechamento ainda é manual). Quando existir link de
+           checkout, trocar o href de cada .botao-contratar pelo link do
+           provedor (um por plano × período) e manter o "Tirar uma dúvida
+           antes" apontando pro WhatsApp. -->
+      <div class="planos" data-reveal data-periodo="mensal">
         <div class="plano">
           <div>
             <p class="nome">Basic</p>
             <p class="quem">Um profissional</p>
-            <p class="preco">a partir de R$400<span>/mês*</span></p>
+            <p class="preco preco-mensal">R$400<span>/mês</span></p>
+            <p class="preco-detalhe preco-mensal">Cobrado mês a mês. Cancela quando quiser.</p>
+            <p class="preco preco-anual">R$320<span>/mês</span></p>
+            <p class="preco-detalhe preco-anual">Cobrado R$3.840/ano · economia de R$960 · pode parcelar no cartão.</p>
           </div>
           <ul>
             <li>Agendar, confirmar, cancelar e remarcar via WhatsApp</li>
             <li>Lembretes automáticos de consulta</li>
             <li>Painel de Agenda e Mensagens</li>
           </ul>
-          <a class="botao botao-fantasma" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Vi%20o%20site%20da%20Lumi%20e%20queria%20saber%20mais." target="_blank" rel="noopener">Falar sobre este plano</a>
+          <div class="acoes-plano">
+            <a class="botao botao-fantasma botao-contratar" data-plano="Basic" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Quero%20contratar%20o%20plano%20Basic." target="_blank" rel="noopener">Contratar</a>
+            <a class="link-duvida" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Tenho%20uma%20d%C3%BAvida%20sobre%20o%20plano%20Basic%20antes%20de%20seguir." target="_blank" rel="noopener">Tirar uma dúvida antes</a>
+          </div>
         </div>
         <div class="plano destaque">
           <div>
             <p class="nome">Pro</p>
             <p class="quem">Múltiplos profissionais</p>
-            <p class="preco">a partir de R$700<span>/mês*</span></p>
+            <p class="preco preco-mensal">R$700<span>/mês</span></p>
+            <p class="preco-detalhe preco-mensal">Cobrado mês a mês. Cancela quando quiser.</p>
+            <p class="preco preco-anual">R$560<span>/mês</span></p>
+            <p class="preco-detalhe preco-anual">Cobrado R$6.720/ano · economia de R$1.680 · pode parcelar no cartão.</p>
           </div>
           <ul>
             <li>Tudo do Basic</li>
             <li>Funil de resgate automático</li>
             <li>Painel completo — Analytics, Oportunidades, Pendências</li>
           </ul>
-          <a class="botao botao-ouro" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Vi%20o%20site%20da%20Lumi%20e%20queria%20saber%20mais." target="_blank" rel="noopener">Falar sobre este plano</a>
+          <div class="acoes-plano">
+            <a class="botao botao-ouro botao-contratar" data-plano="Pro" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Quero%20contratar%20o%20plano%20Pro." target="_blank" rel="noopener">Contratar</a>
+            <a class="link-duvida" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Tenho%20uma%20d%C3%BAvida%20sobre%20o%20plano%20Pro%20antes%20de%20seguir." target="_blank" rel="noopener">Tirar uma dúvida antes</a>
+          </div>
         </div>
         <div class="plano">
           <div>
             <p class="nome">Advanced</p>
             <p class="quem">Multi-unidade</p>
             <p class="preco">Sob consulta</p>
+            <p class="preco-detalhe">Condições combinadas conforme o número de unidades.</p>
           </div>
           <ul>
             <li>Tudo do Pro</li>
@@ -685,10 +748,16 @@
             <li>Marca própria no painel (sua logo, sem a marca Lumi)</li>
             <li>Atendimento dedicado</li>
           </ul>
-          <a class="botao botao-fantasma" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Vi%20o%20site%20da%20Lumi%20e%20queria%20saber%20mais." target="_blank" rel="noopener">Fale conosco</a>
+          <div class="acoes-plano">
+            <a class="botao botao-fantasma" href="https://wa.me/5511981174657?text=Ol%C3%A1%21%20Tenho%20interesse%20no%20plano%20Advanced%20%28multi-unidade%29." target="_blank" rel="noopener">Fale conosco</a>
+          </div>
         </div>
       </div>
-      <p class="planos-nota">* + taxa de setup única, a partir de R$400 — o valor final depende de critérios como integração com sistema já existente, personalização e porte da clínica.</p>
+      <p class="planos-nota">Setup único de R$400 na implantação — inclui a entrevista de personalização e a configuração inicial. O plano anual pode ser parcelado no cartão de crédito.</p>
+
+      <p class="aviso-ia" data-reveal>
+        A Lumi usa inteligência artificial e pode errar — por isso todo caso fora do previsto vira uma pendência pra decisão de um humano. Ela nunca dá diagnóstico nem substitui o atendimento.
+      </p>
     </div>
   </section>
 
@@ -835,6 +904,42 @@
     setTimeout(function () {
       elementos.forEach(function (el) { el.classList.add('revelado'); });
     }, 4000);
+  })();
+
+  // ---------- seletor de período dos planos (mensal / anual) ----------
+  (function () {
+    var toggle = document.querySelector('.planos-toggle');
+    var planos = document.querySelector('.planos[data-periodo]');
+    if (!toggle || !planos) return;
+    var botoes = toggle.querySelectorAll('button[data-periodo]');
+
+    // Reescreve o link "Contratar" de cada plano com o período escolhido no
+    // texto pré-preenchido do WhatsApp -- assim o Tiago já recebe o lead
+    // sabendo qual plano E qual modalidade. Quando virar link de checkout,
+    // este trecho troca pra só escolher entre 2 hrefs por plano.
+    var precos = {
+      mensal: { Basic: 'Basic mensal (R$400/mês)', Pro: 'Pro mensal (R$700/mês)' },
+      anual: { Basic: 'Basic anual (R$3.840/ano, R$320/mês)', Pro: 'Pro anual (R$6.720/ano, R$560/mês)' },
+    };
+
+    function aplicar(periodo) {
+      planos.setAttribute('data-periodo', periodo);
+      botoes.forEach(function (b) {
+        var ativo = b.dataset.periodo === periodo;
+        b.classList.toggle('ativo', ativo);
+        b.setAttribute('aria-selected', String(ativo));
+      });
+      planos.querySelectorAll('.botao-contratar').forEach(function (a) {
+        var rotulo = (precos[periodo] || {})[a.dataset.plano];
+        if (!rotulo) return;
+        a.href = 'https://wa.me/5511981174657?text=' + encodeURIComponent('Olá! Quero contratar o plano ' + rotulo + '.');
+      });
+    }
+
+    botoes.forEach(function (b) {
+      b.addEventListener('click', function () { aplicar(b.dataset.periodo); });
+    });
+    aplicar('mensal');
   })();
 </script>
 </body>
