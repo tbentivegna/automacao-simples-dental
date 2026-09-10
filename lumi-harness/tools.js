@@ -29,6 +29,11 @@ const tools = [
             description:
               'Preencha somente se o paciente já indicou preferência de período (manhã ou tarde) nesta pergunta. Deixe de fora se ainda não sabe a preferência.',
           },
+          profissionalId: {
+            type: 'string',
+            description:
+              'Opcional. id do profissional (vindo de Lista Profissionais) quando a consulta já está definida com um profissional específico -- numa clínica com mais de um. Deixe de fora numa clínica de um profissional só.',
+          },
         },
       },
     },
@@ -141,6 +146,11 @@ const tools = [
             description:
               'Celular do responsável, se for diferente do número desta conversa no WhatsApp. Só quando o paciente for menor de idade e novo no Simples Dental.',
           },
+          profissionalId: {
+            type: 'string',
+            description:
+              'Opcional. id do profissional escolhido (de Lista Profissionais), numa clínica com mais de um profissional. Deixe de fora numa clínica de um profissional só.',
+          },
         },
       },
     },
@@ -223,6 +233,11 @@ const tools = [
             description:
               'Novo horário no formato HH:mm. Deve ser um horário retornado por "Verifica Disponibilidade" e explicitamente escolhido pelo paciente. Nunca invente.',
           },
+          profissionalId: {
+            type: 'string',
+            description:
+              'Opcional. id do profissional, se a remarcação envolver trocar de profissional (clínica com mais de um). Deixe de fora pra manter o mesmo profissional.',
+          },
         },
       },
     },
@@ -268,6 +283,17 @@ const tools = [
           },
         },
       },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'lista_profissionais',
+      // Multi-profissional (Plano_Multi_Profissional.md). No n8n é um
+      // httpRequestTool -> GET {BRIDGE_URL}/profissionais. Sem parâmetros.
+      description:
+        'Retorna os profissionais ativos da clínica: id, nome, especialidades, aceitaPrimeiraConsulta e qual é o padrão. Use numa clínica com mais de um profissional pra decidir com quem é a consulta (roteamento por especialidade / profissional pedido pelo nome / padrão). Numa clínica de um profissional só, a lista vem com um item -- nesse caso siga o fluxo normal sem perguntar nada.',
+      parameters: { type: 'object', properties: {} },
     },
   },
 ];

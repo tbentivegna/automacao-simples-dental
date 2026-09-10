@@ -45,8 +45,21 @@ function paraDataISO(dataBR) {
 // Cria um novo estado isolado (uma "sessão" de teste = uma agenda fake +
 // um cadastro fake de pacientes por telefone). Cada tool recebida do
 // modelo chama um dos métodos abaixo em vez de bater no server.js real.
-function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriacao = false } = {}) {
-  const agenda = []; // { id, dataISO, hora, paciente, telefone, status }
+function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriacao = false, profissionais = [] } = {}) {
+  const agenda = []; // { id, dataISO, hora, paciente, telefone, status, profissionalId, profissionalNome }
+
+  // Multi-profissional (Plano_Multi_Profissional.md). Lista vazia => a tool
+  // lista_profissionais devolve [] e a Lumi opera como clínica de agenda
+  // única (mesma guarda "LISTA COM UM SÓ PROFISSIONAL / falha" do prompt).
+  const listaProfissionais = (profissionais || []).map((p, i) => ({
+    id: p.id || `prof-${i + 1}`,
+    nome: p.nome,
+    especialidades: p.especialidades || [],
+    especialidadePrincipal: p.especialidadePrincipal || (p.especialidades && p.especialidades[0]) || null,
+    aceitaPrimeiraConsulta: p.aceitaPrimeiraConsulta !== undefined ? !!p.aceitaPrimeiraConsulta : true,
+    padrao: !!p.padrao,
+  }));
+  const nomeDoProfissional = (id) => (listaProfissionais.find((p) => p.id === id) || {}).nome || null;
   // telefone -> Set de nomes cadastrados nesse telefone. Não é mais 1
   // nome por telefone -- uma família pode ter vários filhos cadastrados
   // no mesmo WhatsApp da mãe/pai, cada um como paciente próprio (ver
@@ -80,13 +93,21 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return cadastrados.size === 1 ? [...cadastrados][0] : null;
   }
 
-  function slotOcupado(dataISO, hora) {
+  function slotOcupado(dataISO, hora, profissionalId) {
     return agenda.some(
-      (a) => a.dataISO === dataISO && a.hora === hora && a.status !== 'Cancelada pelo paciente' && a.status !== 'Cancelada pelo profissional'
+      (a) =>
+        a.dataISO === dataISO &&
+        a.hora === hora &&
+        a.status !== 'Cancelada pelo paciente' &&
+        a.status !== 'Cancelada pelo profissional' &&
+        // multi-profissional: quando um profissionalId é passado, só conflita
+        // com consulta DO MESMO profissional (dois dentistas podem ter
+        // consulta no mesmo horário). Sem profissionalId, conflita com tudo.
+        (!profissionalId || !a.profissionalId || a.profissionalId === profissionalId)
     );
   }
 
-  function verificar_disponibilidade({ diaSemana: diaSemanaFiltro, periodo: periodoFiltro } = {}) {
+  function verificar_disponibilidade({ diaSemana: diaSemanaFiltro, periodo: periodoFiltro, profissionalId } = {}) {
     const hojeISO = formatadorDiaISO.format(new Date());
     const diaSemanaHoje = new Date(`${hojeISO}T12:00:00${OFFSET_BRASILIA}`).getDay();
     const deslocamentoAteSegunda = diaSemanaHoje === 0 ? -6 : 1 - diaSemanaHoje;
@@ -120,7 +141,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       // Só entra no resultado o que está livre -- horário ocupado não serve
       // pra nada no fluxo de agendamento, e só é mais uma coisa que o modelo
       // precisaria filtrar/ignorar corretamente (o que ele nem sempre faz).
-      let horariosLivres = horariosDoDia.filter((horario) => !slotOcupado(diaISO, horario));
+      let horariosLivres = horariosDoDia.filter((horario) => !slotOcupado(diaISO, horario, profissionalId));
 
       if (periodoFiltro === 'manha') horariosLivres = horariosLivres.filter((h) => h < '12:00');
       if (periodoFiltro === 'tarde') horariosLivres = horariosLivres.filter((h) => h >= '12:00');
@@ -150,7 +171,14 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       if (tarde.length) resumoPorDiaSemana[info.diaSemana].tarde.push({ data: diaBR, horarios: tarde });
     }
 
-    return { horarios, resumoPorDiaSemana, diasBloqueados: [], semanasVerificadas: SEMANAS_A_VERIFICAR };
+    const prof = profissionalId ? listaProfissionais.find((p) => p.id === profissionalId) : null;
+    return {
+      horarios,
+      resumoPorDiaSemana,
+      diasBloqueados: [],
+      semanasVerificadas: SEMANAS_A_VERIFICAR,
+      profissional: prof ? { id: prof.id, nome: prof.nome } : null,
+    };
   }
 
   function criar_agendamento({
@@ -170,6 +198,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     dataNascimentoResponsavel,
     cpfResponsavel,
     celularResponsavel,
+    profissionalId,
   } = {}) {
     if (!data || !hora) {
       throw new Error('Campos obrigatórios faltando: data e/ou hora.');
@@ -186,7 +215,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     const dataISO = paraDataISO(data);
     const nome = nomePaciente || resolverPaciente(telefonePaciente);
 
-    if (slotOcupado(dataISO, hora)) {
+    if (slotOcupado(dataISO, hora, profissionalId)) {
       const erro = new Error('CONFLITO_HORARIO: horário não está mais disponível');
       erro.status = 409;
       throw erro;
@@ -200,6 +229,8 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       paciente: nome || '(sem nome)',
       telefone: telefonePaciente,
       status: 'Agendada',
+      profissionalId: profissionalId || null,
+      profissionalNome: nomeDoProfissional(profissionalId),
       observacao: observacao || null,
       categoria: categoria || null,
       rotulo: rotulo || null,
@@ -229,6 +260,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       data,
       hora,
       duracaoMinutos: DURACAO_CONSULTA_MINUTOS,
+      profissional: profissionalId ? { id: profissionalId, nome: nomeDoProfissional(profissionalId) } : null,
     };
   }
 
@@ -254,6 +286,7 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
         id: a.id,
         status: a.status,
         paciente: a.paciente,
+        profissionalNome: a.profissionalNome || null,
         jaOcorreu: new Date(`${a.dataISO}T${a.hora}:00${OFFSET_BRASILIA}`).getTime() + DURACAO_CONSULTA_MINUTOS * 60000 < Date.now(),
         inicioFormatado: `${new Date(`${a.dataISO}T${a.hora}:00${OFFSET_BRASILIA}`).toLocaleString('pt-BR', {
           timeZone: FUSO,
@@ -286,15 +319,16 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return mudarStatus({ id, status: 'Cancelada pelo paciente' });
   }
 
-  function remarcar_agendamento({ id, data, hora } = {}) {
+  function remarcar_agendamento({ id, data, hora, profissionalId } = {}) {
     if (!id || !data || !hora) {
       throw new Error('Campos obrigatórios faltando: id, data e/ou hora.');
     }
     const item = agenda.find((a) => a.id === String(id));
     if (!item) throw new Error(`Agendamento com id ${id} não encontrado`);
 
+    const alvoProf = profissionalId || item.profissionalId || null;
     const dataISO = paraDataISO(data);
-    if (slotOcupado(dataISO, hora)) {
+    if (slotOcupado(dataISO, hora, alvoProf)) {
       const erro = new Error('CONFLITO_HORARIO: horário não está mais disponível');
       erro.status = 409;
       throw erro;
@@ -302,6 +336,10 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
 
     item.dataISO = dataISO;
     item.hora = hora;
+    if (profissionalId) {
+      item.profissionalId = profissionalId;
+      item.profissionalNome = nomeDoProfissional(profissionalId);
+    }
 
     return { sucesso: true, id: item.id, data, hora, duracaoMinutos: DURACAO_CONSULTA_MINUTOS };
   }
@@ -332,6 +370,10 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     return { sucesso: true, nome };
   }
 
+  function lista_profissionais() {
+    return { profissionais: listaProfissionais.map((p) => ({ ...p })) };
+  }
+
   const handlers = {
     verificar_disponibilidade,
     criar_agendamento,
@@ -341,11 +383,12 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
     remarcar_agendamento,
     registrar_consentimento_lembrete,
     atualizar_nome_paciente,
+    lista_profissionais,
   };
 
   // Permite pré-popular cenários (ex: paciente já tem uma consulta marcada
   // antes da conversa começar), sem passar pelo fluxo de criação normal.
-  function seed({ nomePaciente, data, hora, status = 'Agendada', observacao } = {}) {
+  function seed({ nomePaciente, data, hora, status = 'Agendada', observacao, profissionalId, profissionalNome } = {}) {
     const id = String(proximoId++);
     agenda.push({
       id,
@@ -354,6 +397,9 @@ function criarEstadoFake({ telefonePaciente = '11999998888', falharProximaCriaca
       paciente: nomePaciente,
       telefone: telefonePaciente,
       status,
+      profissionalId: profissionalId || null,
+      // nome explícito, ou resolvido do id contra a lista seedada
+      profissionalNome: profissionalNome || nomeDoProfissional(profissionalId),
       observacao: observacao || null,
     });
     registrarPaciente(telefonePaciente, nomePaciente);

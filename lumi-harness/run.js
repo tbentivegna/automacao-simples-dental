@@ -60,7 +60,7 @@ function extraiAgentAction(texto) {
 // Roda uma sessão de conversa completa. `onEvent(evento)` é chamado a cada
 // passo (mensagem do paciente, tool call, resultado mockado, resposta da
 // Lumi) pra quem estiver rodando poder acompanhar/logar em tempo real.
-function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], historico = [], falharProximaCriacao = false, notasSistema = [] } = {}) {
+function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], historico = [], falharProximaCriacao = false, notasSistema = [], seedProfissionais = [] } = {}) {
   // As notas "[Sistema: ...]" são calculadas a cada turno pelo n8n e
   // anexadas ao FINAL do system message (não à mensagem do paciente --
   // senão ficariam gravadas pra sempre no n8n_chat_histories). O cenário
@@ -70,7 +70,7 @@ function criarSessao({ telefonePaciente = '11999998888', seedAgendamentos = [], 
     : SYSTEM_PROMPT;
 
   const messages = [{ role: 'system', content: systemPrompt }];
-  const estadoFake = criarEstadoFake({ telefonePaciente, falharProximaCriacao });
+  const estadoFake = criarEstadoFake({ telefonePaciente, falharProximaCriacao, profissionais: seedProfissionais });
 
   for (const s of seedAgendamentos) estadoFake.seed(s);
 

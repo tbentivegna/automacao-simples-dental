@@ -2495,6 +2495,38 @@ app.post('/buscar-agendamentos-paciente', async (req, res) => {
   }
 });
 
+// Multi-profissional (ver Plano_Multi_Profissional.md). Só leitura -- uma
+// query em public.profissionais, NÃO é a parte de Playwright/Simples
+// Dental adiada pra Fase 4. A tool "Lista Profissionais" da Lumi consome
+// isto. Sem a tabela (migration 014 não rodou) ou vazia => [] => a Lumi
+// opera como clínica de agenda única, exatamente como antes.
+app.get('/profissionais', async (req, res) => {
+  if (!pool) return res.json({ profissionais: [] });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, nome, especialidades, especialidade_principal, aceita_primeira_consulta, padrao, cor, ordem
+       FROM public.profissionais WHERE ativo ORDER BY ordem, nome`
+    );
+    res.json({
+      profissionais: rows.map((r) => ({
+        id: r.id,
+        nome: r.nome,
+        especialidades: r.especialidades || [],
+        especialidadePrincipal: r.especialidade_principal || null,
+        aceitaPrimeiraConsulta: r.aceita_primeira_consulta,
+        padrao: r.padrao,
+        cor: r.cor || null,
+        ordem: r.ordem,
+      })),
+    });
+  } catch (erro) {
+    if (!/relation .*profissionais.* does not exist/i.test(erro.message)) {
+      console.error('Erro ao listar profissionais:', erro.message);
+    }
+    res.json({ profissionais: [] });
+  }
+});
+
 // Sem parâmetros no corpo. Usado só pelo workflow separado de lembretes
 // (n8n/lembretes-workflow.json) -- NÃO é uma tool da Lumi, por isso não
 // precisa (nem deve) ser adicionada como httpRequestTool no fluxo de
