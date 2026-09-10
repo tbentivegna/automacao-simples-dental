@@ -51,7 +51,7 @@ const {
   buscarLicoesAprendidas,
   decidirLicaoAprendida,
 } = require('./queries');
-const { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
+const { buscarAgendaSemana, buscarProfissionais, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta } = require('./bridge');
 const { enviarMensagem, statusConexao, obterQrCode, trocarNumero } = require('./evolution');
 
 if (!process.env.ADMIN_PASSWORD) {
@@ -546,6 +546,17 @@ app.get('/api/agenda', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/agenda:', erro);
     res.status(502).json({ erro: 'Falha ao buscar agenda.', detalhe: erro.message });
+  }
+});
+
+// Profissionais ativos da clínica (multi-profissional). Vazio => o painel
+// esconde o seletor e opera como agenda única.
+app.get('/api/profissionais', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    res.json(await buscarProfissionais());
+  } catch (erro) {
+    console.error('Erro em /api/profissionais:', erro);
+    res.json({ profissionais: [] });
   }
 });
 

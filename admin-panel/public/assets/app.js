@@ -148,7 +148,10 @@ const secoes = {
   pendencias: carregarPendencias,
   oportunidades: carregarOportunidades,
   pacientes: () => carregarPacientes(document.getElementById('buscaPacientes').value, 1),
-  agenda: () => mostrarAgendaVisualizacaoAtual(),
+  agenda: () => {
+    carregarProfissionaisAgenda();
+    mostrarAgendaVisualizacaoAtual();
+  },
   mensagens: () => carregarConversas(document.getElementById('buscaConversas').value),
   analytics: carregarPaginaAnalytics,
   configuracoes: () => {
@@ -877,6 +880,11 @@ const STATUS_CONSULTA = [
 
 let semanaAtualAgenda = 0;
 let agendaCache = [];
+// Multi-profissional: lista carregada 1x, e qual profissional está
+// filtrando a visão da Agenda ('' = todos). O filtro é 100% no cliente --
+// o bridge já devolve profissionalId/profissionalNome em cada compromisso.
+let profissionaisAgenda = [];
+let profissionalAgendaFiltro = '';
 // Até qual aba de semana o agendaCache já cobre (-1 = nunca buscou). A
 // automação contra o Simples Dental é lenta, então evitamos rebuscar toda
 // vez que a secretária só troca de aba ou reabre a seção -- só busca de
@@ -919,6 +927,50 @@ function buscarAgendaCompartilhada(semanas) {
   requisicaoAgendaEmAndamento = { semanas, promessa };
   return promessa;
 }
+
+// Carrega a lista de profissionais 1x. Só mostra os seletores (filtro da
+// Agenda + campo de Nova consulta) quando há 2+ ativos -- clínica de um
+// profissional só não vê ruído nenhum.
+let profissionaisAgendaCarregados = false;
+async function carregarProfissionaisAgenda() {
+  if (profissionaisAgendaCarregados) return;
+  profissionaisAgendaCarregados = true;
+  try {
+    const dados = await chamarApi('/api/profissionais');
+    profissionaisAgenda = (dados && dados.profissionais) || [];
+  } catch (erro) {
+    profissionaisAgenda = [];
+  }
+  const filtro = document.getElementById('filtroProfissionalAgenda');
+  const campoNova = document.getElementById('novaConsultaProfissional');
+  if (profissionaisAgenda.length < 2) {
+    if (filtro) filtro.hidden = true;
+    if (campoNova) campoNova.hidden = true;
+    return;
+  }
+  const opcoes = profissionaisAgenda
+    .map((p) => `<option value="${escapar(p.id)}">${escapar(p.nome)}</option>`)
+    .join('');
+  if (filtro) {
+    filtro.innerHTML = `<option value="">Todos os profissionais</option>${opcoes}`;
+    filtro.hidden = false;
+  }
+  if (campoNova) {
+    campoNova.innerHTML = `<option value="">Profissional (padrão)</option>${opcoes}`;
+    campoNova.hidden = false;
+  }
+}
+
+// A visão da Agenda filtrada pelo profissional selecionado ('' = todos).
+function agendaVisivel() {
+  if (!profissionalAgendaFiltro) return agendaCache;
+  return agendaCache.filter((c) => c.profissionalId === profissionalAgendaFiltro);
+}
+
+document.getElementById('filtroProfissionalAgenda').addEventListener('change', (evento) => {
+  profissionalAgendaFiltro = evento.target.value || '';
+  renderizarVisualizacaoAtual();
+});
 
 async function carregarAgenda(semanas) {
   // Mostra "Carregando…" no container que está visível de fato -- a tabela
@@ -1003,7 +1055,7 @@ function limitesSemana(deslocamentoSemanas) {
 function renderizarAgenda() {
   const alvo = document.getElementById('conteudoAgenda');
   const { inicioSemana, fimSemana } = limitesSemana(semanaAtualAgenda);
-  const daSemana = agendaCache
+  const daSemana = agendaVisivel()
     .filter((c) => !ehBloqueioDeDia(c)) // descarta bloqueios de dia inteiro
     .filter((c) => c.inicio >= inicioSemana && c.inicio < fimSemana)
     .sort((a, b) => a.inicio - b.inicio);
@@ -1316,7 +1368,7 @@ async function renderizarGradeHoraria(dias) {
   const config = await obterConfiguracaoHorarios();
   const inicioIntervalo = dias[0];
   const fimIntervalo = dias[dias.length - 1] + 86_400_000;
-  const doIntervalo = agendaCache.filter((c) => c.inicio >= inicioIntervalo && c.inicio < fimIntervalo);
+  const doIntervalo = agendaVisivel().filter((c) => c.inicio >= inicioIntervalo && c.inicio < fimIntervalo);
   const { inicioMin, fimMin } = calcularFaixaHoras(config, dias, doIntervalo);
   const agora = Date.now();
   const hoje = inicioDoDiaLocal(new Date());
@@ -1337,7 +1389,7 @@ async function renderizarGradeHoraria(dias) {
 
   const colunasHtml = dias
     .map((diaMs) => {
-      const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
+      const doDia = agendaVisivel().filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
       const bloqueio = doDia.find(ehBloqueioDeDia);
       const reais = doDia.filter((c) => !ehBloqueioDeDia(c));
       const empacotados = empacotarColunas(reais);
@@ -1399,11 +1451,11 @@ function renderizarAgendaMes() {
   const dias = Array.from({ length: 28 }, (_, i) => inicio + i * 86_400_000);
   const hoje = inicioDoDiaLocal(new Date());
   const fimIntervalo = dias[dias.length - 1] + 86_400_000;
-  const doIntervalo = agendaCache.filter((c) => c.inicio >= dias[0] && c.inicio < fimIntervalo && !ehBloqueioDeDia(c));
+  const doIntervalo = agendaVisivel().filter((c) => c.inicio >= dias[0] && c.inicio < fimIntervalo && !ehBloqueioDeDia(c));
 
   const celulas = dias
     .map((diaMs) => {
-      const doDia = agendaCache.filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
+      const doDia = agendaVisivel().filter((c) => inicioDoDiaLocal(new Date(c.inicio)) === diaMs);
       const bloqueado = doDia.some(ehBloqueioDeDia);
       const dataIso = formatarDataISO(diaMs);
       // Calculado sempre -- ver comentário equivalente em renderizarGradeHoraria.
@@ -1620,6 +1672,7 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
   const categoria = document.getElementById('novaConsultaCategoria').value;
   const rotulo = document.getElementById('novaConsultaRotulo').value.trim();
   const observacao = document.getElementById('novaConsultaObservacao').value.trim();
+  const profissionalId = (document.getElementById('novaConsultaProfissional') || {}).value || '';
 
   // Sem patch otimista de verdade aqui -- /criar-agendamento não devolve o
   // id real da consulta, então não dá pra colocar um item clicável no
@@ -1641,6 +1694,7 @@ formNovaConsulta.addEventListener('submit', async (evento) => {
         categoria: categoria || undefined,
         rotulo: rotulo || undefined,
         observacao: observacao || undefined,
+        profissionalId: profissionalId || undefined,
       }),
     });
     atualizarAgendaEmSegundoPlano();

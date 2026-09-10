@@ -25,6 +25,17 @@ async function buscarAgendaSemana(semanas) {
   return chamarBridge(`/agenda-semana?semanas=${encodeURIComponent(semanas || 4)}`);
 }
 
+// Lista os profissionais ativos (multi-profissional). Bridges que ainda
+// não têm essa rota (server.js da raiz / Simples Dental) respondem 404 --
+// nesse caso devolvemos vazio e o painel opera como "agenda única".
+async function buscarProfissionais() {
+  try {
+    return await chamarBridge('/profissionais');
+  } catch (erro) {
+    return { profissionais: [] };
+  }
+}
+
 // Força uma sincronização da agenda real do Simples Dental -> public.consultas
 // (o espelho). É Playwright, pode demorar -- timeout folgado.
 async function sincronizarAgenda(semanas) {
@@ -57,4 +68,4 @@ async function mudarRotuloConsulta({ idAgendamento, rotulo, telefone }) {
   });
 }
 
-module.exports = { buscarAgendaSemana, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };
+module.exports = { buscarAgendaSemana, buscarProfissionais, sincronizarAgenda, criarConsulta, mudarStatusConsulta, remarcarConsulta, mudarRotuloConsulta };

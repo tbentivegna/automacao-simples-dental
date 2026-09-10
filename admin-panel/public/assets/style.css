@@ -697,6 +697,24 @@ html, body {
   gap: 10px;
 }
 
+/* Seletor de profissional (multi-profissional) -- só renderiza quando a
+   clínica tem 2+ ativos (app.js). Fica na mesma barra de Dia/Semana/Mês. */
+.filtro-profissional-agenda {
+  padding: 8px 12px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  margin-left: auto;
+}
+
+.filtro-profissional-agenda:focus {
+  outline: none;
+  border-color: var(--cor-marca);
+}
+
 /* Mesma pegadinha do form-nova-pendencia/banner-pausado: [hidden] tem a
    mesma especificidade que ".seletor-janela"/".agenda-nav-dia" (que usam
    display:flex), e a classe vence por vir depois -- sem isto os controles

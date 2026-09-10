@@ -134,6 +134,11 @@
             <button data-semana="3">+3 semanas</button>
           </div>
 
+          <!-- multi-profissional: só aparece quando a clínica tem 2+ profissionais ativos -->
+          <select id="filtroProfissionalAgenda" class="filtro-profissional-agenda" hidden aria-label="Filtrar agenda por profissional">
+            <option value="">Todos os profissionais</option>
+          </select>
+
           <div class="agenda-nav-dia" id="navegacaoDiaAgenda" hidden>
             <button type="button" class="botao" id="botaoDiaAnterior" aria-label="Dia anterior">‹</button>
             <button type="button" class="botao" id="botaoDiaHoje">Hoje</button>
@@ -147,6 +152,9 @@
           <datalist id="sugestoesPacienteConsulta"></datalist>
           <input type="date" id="novaConsultaData" required />
           <input type="time" id="novaConsultaHora" required />
+          <select id="novaConsultaProfissional" hidden>
+            <option value="">Profissional (padrão)</option>
+          </select>
           <input type="number" id="novaConsultaDuracao" placeholder="Duração em minutos (opcional)" min="15" step="15" />
           <select id="novaConsultaCategoria">
             <option value="">Categoria (opcional)</option>
