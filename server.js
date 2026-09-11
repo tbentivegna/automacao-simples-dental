@@ -906,11 +906,33 @@ function paraDataISO(dataBR) {
 // aceitam bem receber o valor de uma vez só (via fill) -- o Angular
 // rejeita e volta para o último valor válido. Simulamos digitação real,
 // caractere por caractere, que é como um humano preencheria.
-async function preencherCampoComMascara(locator, valor) {
-  await locator.click();
-  await locator.press('Control+A');
-  await locator.press('Backspace');
-  await locator.pressSequentially(String(valor), { delay: 60 });
+//
+// Achado real 11/09 (caso Alessandra Saito): o clique em inputDtNascimento
+// -- primeiro campo tocado dentro da aba "Informações adicionais", que
+// mesmo já vindo selecionada por padrão ainda passa por uma animação de
+// entrada quando o diálogo de cadastro abre -- deu timeout de 30s com o
+// elemento já RESOLVIDO (achado no DOM), só não "estável"/clicável a
+// tempo. Sem retry nenhum, um timeout passageiro desses derrubava o
+// cadastro inteiro (e a consulta foi pro time humano em vez de ser
+// criada). Agora tenta até 3x com timeout mais curto por tentativa -- no
+// pior caso a soma fica parecida com o timeout único de antes, mas agora
+// com chance real de recuperar de uma animação lenta.
+async function preencherCampoComMascara(locator, valor, tentativasMax = 3) {
+  let ultimoErro;
+  for (let tentativa = 1; tentativa <= tentativasMax; tentativa++) {
+    try {
+      await locator.click({ timeout: 10000 });
+      await locator.press('Control+A');
+      await locator.press('Backspace');
+      await locator.pressSequentially(String(valor), { delay: 60 });
+      return;
+    } catch (erro) {
+      ultimoErro = erro;
+      console.warn(`[preencherCampoComMascara] tentativa ${tentativa}/${tentativasMax} falhou: ${erro.message}`);
+      if (tentativa < tentativasMax) await locator.page().waitForTimeout(800);
+    }
+  }
+  throw ultimoErro;
 }
 
 // O campo de celular do cadastro de paciente novo espera só o número
@@ -1157,6 +1179,15 @@ async function criarAgendamento({
       // por exemplo, reaproveita o mesmo data-testid="btnSalvar" no botão
       // "Marcar" do formulário principal.
       const dialogoCadastro = page.locator('mat-dialog-container').last();
+
+      // Achado real 11/09 (caso Alessandra Saito): dá tempo do diálogo (e
+      // da aba "Informações adicionais", selecionada por padrão) terminarem
+      // a animação de entrada antes de mexer em qualquer campo -- mesma
+      // cautela que o preenchimento do CEP já tinha (lá é depois de clicar
+      // na aba "Endereço"; aqui é a aba que já abre selecionada, que também
+      // anima, só que sem nenhum clique nosso pra "esperar" antes).
+      await aparece(dialogoCadastro, 5000);
+      await page.waitForTimeout(400);
 
       await dialogoCadastro.locator('[data-testid="inputNome"]').fill(nomePaciente);
       await dialogoCadastro.locator('[data-testid="inputCelular"]').fill(telefoneLocal(telefone));
