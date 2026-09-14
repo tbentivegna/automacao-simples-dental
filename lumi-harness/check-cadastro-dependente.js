@@ -92,16 +92,49 @@ async function cenarioB(n) {
   return falhou;
 }
 
+// Caso real 2 (14/09/2026, mesma paciente Alessandra Saito voltando pra
+// tentar de novo): a Lumi já reconheceu certinho que era pro bebê e pediu
+// nome+nascimento dele (cenário A funcionando!). Alessandra respondeu
+// "Pedro Saito Pereira - 09/07/2025" -- e a Lumi chamou Atualiza Nome do
+// Paciente com "Pedro Saito Pereira", sobrescrevendo o cadastro da própria
+// Alessandra (cliente.nome) com o nome do filho dela. Confirmado via
+// public.cliente: nome virou "Pedro Saito Pereira" em vez de "Alessandra
+// Saito". Bug residual do fix anterior: a regra de "nome mais completo
+// durante o cadastro" não tinha exceção pro caso do nome coletado ser o do
+// DEPENDENTE, não de quem está conversando.
+async function cenarioC(n) {
+  let falhou = 0;
+  for (let i = 1; i <= n; i++) {
+    const sessao = criarSessao({ telefonePaciente: `1198${String(i).padStart(7, '0')}` });
+    const eventos = [];
+    await sessao.enviarMensagemPaciente('Olá', (e) => eventos.push(e));
+    await sessao.enviarMensagemPaciente('Alessandra', (e) => eventos.push(e));
+    await sessao.enviarMensagemPaciente('A odonto realiza consulta com bebê de 14 meses?', (e) => eventos.push(e));
+    await sessao.enviarMensagemPaciente('sim, é pro bebê', (e) => eventos.push(e));
+    await sessao.enviarMensagemPaciente('Pedro Saito Pereira - 09/07/2025', (e) => eventos.push(e));
+
+    const nomeGravado = sessao.estadoFake._nomePacienteAtualizado.nome;
+    const ok = nomeGravado === null || /alessandra/i.test(nomeGravado || '');
+    console.log(`  [C.${i}] ${ok ? 'ok' : 'FALHA'} -- Atualiza Nome do Paciente gravou: ${JSON.stringify(nomeGravado)}`);
+    if (!ok) falhou++;
+  }
+  console.log(`\nCenário C (nunca grava o nome do dependente em Atualiza Nome do Paciente): ${falhou}/${n} falhas`);
+  return falhou;
+}
+
 async function main(n) {
   console.log(`=== Prompt: ${process.env.LUMI_SYSTEM_PROMPT_PATH || '(padrão, system-prompt.txt)'} | provider: ${process.env.LUMI_PROVIDER || 'mistral'} ===\n`);
   console.log('--- Cenário A: "bebê" sem parentesco explícito ---');
   const a = await cenarioA(n);
   console.log('\n--- Cenário B: fluxo completo até Cria Agendamento ---');
   const b = await cenarioB(n);
+  console.log('\n--- Cenário C: não sobrescreve nome de quem conversa com o do dependente ---');
+  const c = await cenarioC(n);
 
   console.log('\n\n=== RESUMO ===');
   console.log(`A) não perguntou nome+nascimento do dependente : ${a}/${n} ${a === 0 ? 'OK' : 'FALHA'}`);
   console.log(`B) campos trocados na Cria Agendamento          : ${b}/${n} ${b === 0 ? 'OK' : 'FALHA'}`);
+  console.log(`C) gravou nome do dependente em vez do responsável : ${c}/${n} ${c === 0 ? 'OK' : 'FALHA'}`);
   process.exit(a === 0 && b === 0 ? 0 : 1);
 }
 
