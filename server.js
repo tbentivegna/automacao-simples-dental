@@ -1678,7 +1678,15 @@ async function listarLembretesDoDia() {
 
     const doDia = compromissos.filter((c) => {
       if (!(c.fim > c.inicio)) return false; // descarta bloqueios de dia inteiro
-      if (STATUS_CANCELADOS.includes(c.status)) return false;
+      // Achado real 14/09 (caso Renan/Luiza): compromisso com status
+      // "Cancelada por mensagem" continuou visível no calendário (não some
+      // como um cancelamento comum, vira 'removido_do_calendario' na sync)
+      // e escapou do filtro porque STATUS_CANCELADOS só reconhecia os 2
+      // valores fixos de STATUS_VALIDOS ("Cancelada pelo paciente"/"...pelo
+      // profissional") -- a Lumi mandou lembrete de uma consulta cancelada.
+      // Prefixo pega qualquer variante de cancelamento que o Simples Dental
+      // use, igual ao idioma já usado em mudarStatusAgendamento (linha ~1836).
+      if (c.status && c.status.startsWith('Cancelada')) return false;
       const diaISO = formatadorDiaISO.format(new Date(c.inicio));
       return diaISO === hojeISO || diaISO === amanhaISO;
     });
@@ -1753,8 +1761,6 @@ const STATUS_VALIDOS = [
   'Cancelada pelo paciente',
   'Cancelada pelo profissional',
 ];
-
-const STATUS_CANCELADOS = STATUS_VALIDOS.filter((s) => s.startsWith('Cancelada'));
 
 // Base de /confirmar-agendamento e /cancelar-agendamento: clica no
 // compromisso (abre o popover pequeno) e troca o status pelo dropdown.
