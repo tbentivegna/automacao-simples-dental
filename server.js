@@ -1299,24 +1299,30 @@ async function criarAgendamento({
       // menos tentativas com espaçamento bem maior -- dando tempo de
       // qualquer overlay/transição anterior assentar de verdade antes
       // da próxima interação, ao invés de competir com ela.
-      // Achado real 15/09 (11ª tentativa): sem o retry rápido, o erro de
-      // JS sumiu (console vazio) -- confirma que era mesmo a repetição
-      // rápida causando aquilo. Mas o diálogo AINDA não abriu, 3/3, sem
-      // erro nenhum dessa vez -- comportamento mais estável agora, só
-      // precisa de mais chances (mantendo o mesmo espaçamento seguro que
-      // eliminou o erro de JS).
+      // CAUSA RAIZ REAL, achada 15/09 com a ajuda do Tiago (print +
+      // HTML reais, reproduzindo manualmente): o Simples Dental está
+      // servindo DUAS VERSÕES diferentes desse controle -- às vezes um
+      // <a> "Cadastrar novo paciente" (o que o código sempre procurou),
+      // às vezes um <button mat-button> "Novo paciente" (confirmado no
+      // print: "NOVO PACIENTE" é só CSS uppercase, o texto real é "Novo
+      // paciente"). Isso explica TODA a intermitência das ~12 tentativas
+      // anteriores nesta sessão -- não era corrida de tempo nem clique
+      // mal-posicionado, era literalmente procurar o texto errado
+      // metade das vezes. Locator agora cobre as duas variantes.
       let dialogoCadastro;
       let cadastroAbriu = false;
-      const MAX_TENTATIVAS_ABRIR_CADASTRO = 6;
-      const linkCadastrarNovo = page.getByText('Cadastrar novo paciente');
+      const MAX_TENTATIVAS_ABRIR_CADASTRO = 3;
+      const linkCadastrarNovo = page
+        .locator('button:has-text("Novo paciente"), a:has-text("Cadastrar novo paciente")')
+        .first();
       for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_ABRIR_CADASTRO && !cadastroAbriu; tentativa++) {
-        await page.waitForTimeout(2000 + tentativa * 1000);
+        await page.waitForTimeout(1000 + tentativa * 500);
         await clicarComRetry(linkCadastrarNovo, { timeoutMs: 15000 });
         dialogoCadastro = page.locator('mat-dialog-container').last();
         cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 6000);
         if (!cadastroAbriu) {
           console.warn(
-            `[criarAgendamento] diálogo de cadastro não abriu (tentativa ${tentativa}/${MAX_TENTATIVAS_ABRIR_CADASTRO} de ativar "Cadastrar novo paciente").`
+            `[criarAgendamento] diálogo de cadastro não abriu (tentativa ${tentativa}/${MAX_TENTATIVAS_ABRIR_CADASTRO} de ativar "Novo paciente"/"Cadastrar novo paciente").`
           );
         }
       }
