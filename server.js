@@ -262,7 +262,10 @@ async function comFilaSegura(tarefa) {
 async function getBrowser() {
   if (!browserCompartilhado) {
     browserCompartilhado = await chromium.launch({
-      headless: true,
+      // PLAYWRIGHT_HEADLESS=false -- só pra debug local (abre a janela de
+      // verdade); em produção não existe display, então o padrão continua
+      // headless sempre que a env var não for setada explicitamente.
+      headless: process.env.PLAYWRIGHT_HEADLESS !== 'false',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -902,6 +905,30 @@ function paraDataISO(dataBR) {
   return `${ano}-${mes}-${dia}`;
 }
 
+// Achado real 15/09 (caso Valentina Freitas, 2ª tentativa): o MESMO padrão
+// do fix de força bruta abaixo (preencherCampoComMascara) também derruba
+// cliques comuns, não só campos com máscara -- desta vez em
+// getByText('Cadastrar novo paciente'), bloqueado pelo próprio painel do
+// autocomplete (mat-autocomplete-panel) que estava aberto por cima dele.
+// Mesma causa (elemento decorativo/overlay do Angular Material "intercepta"
+// o ponto de clique sem bloquear de verdade a interação), lugar diferente.
+// Helper genérico pra qualquer clique simples que possa esbarrar nisso --
+// não é masked-field, só clique com a mesma rede de segurança.
+async function clicarComRetry(locator, { tentativasMax = 3, timeoutMs = 10000 } = {}) {
+  let ultimoErro;
+  for (let tentativa = 1; tentativa <= tentativasMax; tentativa++) {
+    try {
+      await locator.click({ timeout: timeoutMs, force: tentativa > 1 });
+      return;
+    } catch (erro) {
+      ultimoErro = erro;
+      console.warn(`[clicarComRetry] tentativa ${tentativa}/${tentativasMax} falhou: ${erro.message}`);
+      if (tentativa < tentativasMax) await locator.page().waitForTimeout(800);
+    }
+  }
+  throw ultimoErro;
+}
+
 // Alguns campos (data, hora, duração) têm máscara de formatação e não
 // aceitam bem receber o valor de uma vez só (via fill) -- o Angular
 // rejeita e volta para o último valor válido. Simulamos digitação real,
@@ -1182,14 +1209,14 @@ async function criarAgendamento({
     let cadastroIncompleto = false;
     let motivoCadastroIncompleto = null;
     if (encontrouPaciente) {
-      await opcaoPaciente.click();
+      await clicarComRetry(opcaoPaciente, { timeoutMs: 30000 });
     } else {
       // Paciente não encontrado -- cadastra um novo
       pacienteNovo = true;
       if (!nomePaciente) {
         throw new Error('Paciente não encontrado pelo telefone e nomePaciente não foi informado para cadastro.');
       }
-      await page.getByText('Cadastrar novo paciente').click();
+      await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
 
       // O cadastro abre num diálogo NOVO, por cima do formulário principal
       // (que continua "por baixo", ainda presente no DOM). Restringimos a
