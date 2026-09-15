@@ -1455,16 +1455,55 @@ async function criarAgendamento({
       await dispensarBannerCookies(page);
 
       await clicarComRetry(dialogoCadastro.locator('[data-testid="btnSalvar"]'), { timeoutMs: 20000 });
-      // Depois de salvar, a tela volta sozinha para o formulário de
-      // agendamento com o paciente já selecionado -- esperamos isso
-      // acontecer conferindo se o campo de paciente ficou preenchido.
-      await page.waitForFunction(
-        () => {
-          const campo = document.querySelector('sd-pacientes-autocomplete input');
-          return campo && campo.value && campo.value.trim().length > 0;
-        },
-        { timeout: 10000 }
-      );
+
+      // CAUSA RAIZ (15/09, 25ª tentativa): este é o ponto onde o fluxo
+      // realmente morria -- o diálogo de cadastro NÃO fechava depois do
+      // "Salvar", e ninguém percebia. Duas falhas de verificação se
+      // somaram:
+      //
+      // (1) A checagem antiga ("o campo Paciente tem algum valor?") era
+      //     FALSO POSITIVO garantido: o campo já continha o telefone que
+      //     NÓS digitamos na busca, então passava sempre, tendo o
+      //     cadastro salvo ou não.
+      // (2) Com o clique direto no DOM (el.click(), que ignora
+      //     hit-testing), todos os passos seguintes continuaram
+      //     "funcionando" -- clicando nos elementos do formulário de
+      //     agendamento ATRÁS do modal de cadastro ainda aberto. O fluxo
+      //     seguia bonito até "Marcar" e só então falhava, com o sintoma
+      //     aparecendo a 5 passos de distância da causa.
+      //
+      // Agora: exige o fechamento REAL do diálogo de cadastro. Se não
+      // fechar, o motivo está escrito na tela (validação) -- captura e
+      // reporta em vez de seguir às cegas.
+      const cadastroFechou = await dialogoCadastro
+        .waitFor({ state: 'detached', timeout: 20000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!cadastroFechou) {
+        const motivo = await dialogoCadastro
+          .evaluate((raiz) => ({
+            errosDeCampo: Array.from(raiz.querySelectorAll('mat-error'))
+              .map((e) => e.textContent.trim())
+              .filter(Boolean)
+              .slice(0, 10),
+            camposInvalidos: Array.from(raiz.querySelectorAll('.mat-form-field-invalid'))
+              .map((f) => {
+                const rot = f.querySelector('mat-label');
+                return rot ? rot.textContent.trim() : '(sem rótulo)';
+              })
+              .slice(0, 12),
+            secoesVisiveis: Array.from(raiz.querySelectorAll('h1,h2,h3,h4,legend'))
+              .map((h) => h.textContent.trim())
+              .filter(Boolean)
+              .slice(0, 10),
+          }))
+          .catch((e) => `erro ao diagnosticar: ${e.message}`);
+        throw new Error(
+          `O cadastro do paciente novo não foi salvo -- o diálogo continuou aberto depois de clicar em "Salvar". ` +
+          `[diagnóstico] ${JSON.stringify(motivo)}`
+        );
+      }
     }
 
     // 3. Seleciona o profissional
@@ -1557,10 +1596,21 @@ async function criarAgendamento({
     await clicarComRetry(sugestao);
     await clicarComRetry(page.getByRole('button', { name: 'Escolher horário' }));
 
-    // Restringe as buscas seguintes ao diálogo aberto (em vez da página
-    // inteira) -- evita ambiguidade com elementos parecidos que existem
-    // "por baixo", como o filtro de data lá no topo da agenda.
-    const dialogo = page.locator('mat-dialog-container');
+    // Restringe as buscas seguintes ao diálogo de AGENDAMENTO (em vez da
+    // página inteira) -- evita ambiguidade com elementos parecidos que
+    // existem "por baixo", como o filtro de data lá no topo da agenda.
+    //
+    // Achado real 15/09 (25ª tentativa): antes isto era
+    // `page.locator('mat-dialog-container')` sem escopo nenhum. Enquanto
+    // só um diálogo ficava aberto, funcionava; no instante em que dois
+    // ficaram (cadastro de paciente travado por cima do formulário de
+    // agendamento), qualquer chamada sobre o container em si passou a
+    // estourar "strict mode violation: resolved to 2 elements". Agora
+    // identifica o diálogo certo pelo conteúdo -- é o único que tem o
+    // campo de profissional.
+    const dialogo = page.locator('mat-dialog-container', {
+      has: page.locator('[data-testid="inputProfissional"]'),
+    });
 
     // 6. Sobrescreve com os valores reais desejados (digitando caractere
     // por caractere, já que esses campos têm máscara de formatação)
