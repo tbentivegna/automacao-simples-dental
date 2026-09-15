@@ -1223,6 +1223,23 @@ async function criarAgendamento({
     // 2. Busca o paciente pelo telefone -- desambiguando por nome quando o
     // telefone tem mais de um paciente cadastrado (ex: vários filhos no
     // mesmo WhatsApp da família). Ver encontrarOpcaoPaciente.
+    // Diagnóstico (achado real 15/09, 9ª tentativa): nem clique forçado
+    // nem ativação por teclado conseguiram abrir "Cadastrar novo
+    // paciente" em 4/4 tentativas seguidas -- descarta problema de
+    // coordenada/sobreposição de clique. Captura erros de JS da página e
+    // um snapshot do HTML da área, pra saber de verdade o que está na
+    // tela quando isso falhar de novo (sem acesso visual direto ao
+    // container, ver achado do bloqueio de rede do Simples Dental contra
+    // IP novo/local).
+    const mensagensConsolePagina = [];
+    page.on('console', (msg) => {
+      mensagensConsolePagina.push(`[console.${msg.type()}] ${msg.text()}`.slice(0, 300));
+      if (mensagensConsolePagina.length > 40) mensagensConsolePagina.shift();
+    });
+    page.on('pageerror', (err) => {
+      mensagensConsolePagina.push(`[pageerror] ${err.message}`.slice(0, 300));
+    });
+
     const campoPaciente = page.locator('sd-pacientes-autocomplete input[placeholder="Buscar paciente"]');
     const { opcao: opcaoPaciente } = await encontrarOpcaoPaciente(page, campoPaciente, telefone, nomePaciente);
     const encontrouPaciente = !!opcaoPaciente;
@@ -1293,8 +1310,22 @@ async function criarAgendamento({
         }
       }
       if (!cadastroAbriu) {
+        // Diagnóstico: captura o que existe de verdade na tela nesse
+        // momento -- se o link ainda está presente/visível, e o HTML da
+        // área do autocomplete -- mais os últimos erros/logs do console
+        // da própria página, pra investigar sem depender de acesso visual.
+        const linkAindaExiste = await linkCadastrarNovo
+          .isVisible()
+          .catch((e) => `erro ao checar: ${e.message}`);
+        const htmlAutocomplete = await page
+          .locator('sd-pacientes-autocomplete')
+          .innerHTML()
+          .catch((e) => `erro ao capturar HTML: ${e.message}`);
         throw new Error(
-          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de ativar "Cadastrar novo paciente".`
+          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de ativar "Cadastrar novo paciente". ` +
+          `[diagnóstico] link ainda visível: ${JSON.stringify(linkAindaExiste)} | ` +
+          `console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-15))} | ` +
+          `HTML do autocomplete (primeiros 1500 chars): ${String(htmlAutocomplete).slice(0, 1500)}`
         );
       }
 
