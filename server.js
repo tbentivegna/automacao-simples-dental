@@ -1299,9 +1299,15 @@ async function criarAgendamento({
       // menos tentativas com espaçamento bem maior -- dando tempo de
       // qualquer overlay/transição anterior assentar de verdade antes
       // da próxima interação, ao invés de competir com ela.
+      // Achado real 15/09 (11ª tentativa): sem o retry rápido, o erro de
+      // JS sumiu (console vazio) -- confirma que era mesmo a repetição
+      // rápida causando aquilo. Mas o diálogo AINDA não abriu, 3/3, sem
+      // erro nenhum dessa vez -- comportamento mais estável agora, só
+      // precisa de mais chances (mantendo o mesmo espaçamento seguro que
+      // eliminou o erro de JS).
       let dialogoCadastro;
       let cadastroAbriu = false;
-      const MAX_TENTATIVAS_ABRIR_CADASTRO = 3;
+      const MAX_TENTATIVAS_ABRIR_CADASTRO = 6;
       const linkCadastrarNovo = page.getByText('Cadastrar novo paciente');
       for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_ABRIR_CADASTRO && !cadastroAbriu; tentativa++) {
         await page.waitForTimeout(2000 + tentativa * 1000);
