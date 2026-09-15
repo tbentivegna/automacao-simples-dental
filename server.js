@@ -1124,18 +1124,15 @@ async function preencherCadastroCompleto(dialogo, dados) {
 // existir, não importa quantas opções apareceram; se não bater com
 // nenhuma, devolve "não encontrado" em vez de chutar a única disponível.
 async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
-  // Achado real 15/09 (caso Valentina, 17ª tentativa): mesmo com o texto
-  // certo do botão/link já corrigido, o clique em "Cadastrar novo
-  // paciente" continuou falhando intermitentemente, sempre com o campo
-  // Paciente marcado ng-invalid/ng-dirty/ng-touched no HTML capturado.
-  // .fill() seta o valor de uma vez só (um evento de input), diferente
-  // de como um humano digita (uma sequência de teclas) -- se a busca/
-  // validação do Simples Dental depende de eventos de teclado de verdade
-  // pra assentar direito, um preenchimento instantâneo pode deixar o
-  // componente num estado interno inconsistente mesmo que pareça normal
-  // na tela. Troca pra digitação real, igual preencherCampoComMascara.
-  await campoBusca.click();
-  await campoBusca.pressSequentially(telefoneLocal(telefone), { delay: 60 });
+  // Achado real 15/09 (caso Valentina, 18ª tentativa): tentei digitação
+  // real (pressSequentially) em vez de .fill(), achando que resolveria a
+  // instabilidade -- só PIOROU: o erro de JS "getComputedStyle" (que já
+  // tínhamos visto sumir quando reduzimos a REPETIÇÃO de interações)
+  // voltou 11 vezes nessa tentativa, uma pra cada tecla digitada. Padrão
+  // consistente em toda a investigação: MAIS interações/eventos = MAIS
+  // chance desse bug do Angular CDK aparecer, não menos. Volta pro
+  // .fill() simples (1 evento só, não 11).
+  await campoBusca.fill(telefoneLocal(telefone));
   const opcoes = page.locator('.sd-pacientes-autocomplete__option');
   const apareceu = await aparece(opcoes.first(), 6000);
   if (!apareceu) return { opcao: null, nome: null };
@@ -1320,23 +1317,23 @@ async function criarAgendamento({
       // anteriores nesta sessão -- não era corrida de tempo nem clique
       // mal-posicionado, era literalmente procurar o texto errado
       // metade das vezes. Locator agora cobre as duas variantes.
-      let dialogoCadastro;
-      let cadastroAbriu = false;
-      const MAX_TENTATIVAS_ABRIR_CADASTRO = 3;
+      // Achado real 15/09 (caso Valentina, 18ª tentativa): o link "Cadastrar
+      // novo paciente" NÃO depende da busca terminar -- o Tiago confirmou
+      // (print real) que ele já aparece fixo do lado do campo Paciente
+      // desde o instante em que o modal abre, mesmo sem nada digitado
+      // ainda. Padrão consistente em toda a investigação: MAIS
+      // interações/cliques repetidos = MAIS chance do bug de JS
+      // "getComputedStyle" do Angular CDK aparecer (confirmado por a/b:
+      // sumiu quando reduzimos tentativas, voltou 11x quando trocamos pra
+      // digitação tecla-por-tecla). Por isso: UM clique só, direto, sem
+      // loop de retry -- menos interação é mais confiável aqui, não mais
+      // tentativas.
       const linkCadastrarNovo = page
         .locator('button:has-text("Novo paciente"), a:has-text("Cadastrar novo paciente")')
         .first();
-      for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_ABRIR_CADASTRO && !cadastroAbriu; tentativa++) {
-        await page.waitForTimeout(1000 + tentativa * 500);
-        await clicarComRetry(linkCadastrarNovo, { timeoutMs: 15000 });
-        dialogoCadastro = page.locator('mat-dialog-container').last();
-        cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 6000);
-        if (!cadastroAbriu) {
-          console.warn(
-            `[criarAgendamento] diálogo de cadastro não abriu (tentativa ${tentativa}/${MAX_TENTATIVAS_ABRIR_CADASTRO} de ativar "Novo paciente"/"Cadastrar novo paciente").`
-          );
-        }
-      }
+      await linkCadastrarNovo.click({ force: true, timeout: 15000 });
+      let dialogoCadastro = page.locator('mat-dialog-container').last();
+      const cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 10000);
       if (!cadastroAbriu) {
         // Diagnóstico: captura o que existe de verdade na tela nesse
         // momento -- o outerHTML exato do elemento que o seletor
@@ -1356,7 +1353,7 @@ async function criarAgendamento({
           .innerHTML()
           .catch((e) => `erro ao capturar HTML: ${e.message}`);
         throw new Error(
-          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de ativar "Novo paciente"/"Cadastrar novo paciente". ` +
+          `O diálogo de cadastro de paciente novo não abriu depois de clicar em "Novo paciente"/"Cadastrar novo paciente". ` +
           `[diagnóstico] link ainda visível: ${JSON.stringify(linkAindaExiste)} | ` +
           `HTML do elemento clicado: ${String(htmlDoLink).slice(0, 800)} | ` +
           `console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-15))} | ` +
