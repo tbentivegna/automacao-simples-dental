@@ -1261,23 +1261,40 @@ async function criarAgendamento({
       // campo Nome em si (só existe dentro dele) -- checar só "existe
       // algum mat-dialog-container visível" é sempre falso positivo,
       // porque o formulário de baixo já conta (achado real 15/09).
+      // Achado real 15/09 (8ª tentativa): mesmo com force:true + loop de
+      // retry + espera de assentamento, chegou a falhar 4/4 seguidas --
+      // sempre "clica" sem erro, mas o diálogo nunca abre. force:true só
+      // pula a CHECAGEM do Playwright, mas o clique físico ainda é
+      // resolvido pela própria posição/hit-testing do navegador -- se
+      // existir uma camada realmente por cima (não só um falso positivo
+      // de bounding box), o clique "forçado" pode acertar essa camada em
+      // vez do link. Ativar por teclado (focar + Enter) é imune a
+      // qualquer sobreposição/coordenada -- um <a> responde a Enter igual
+      // a um clique, sem depender de onde o mouse "aterrissa".
       let dialogoCadastro;
       let cadastroAbriu = false;
       const MAX_TENTATIVAS_ABRIR_CADASTRO = 4;
+      const linkCadastrarNovo = page.getByText('Cadastrar novo paciente');
       for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_ABRIR_CADASTRO && !cadastroAbriu; tentativa++) {
         await page.waitForTimeout(500 + tentativa * 200);
-        await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
+        try {
+          await linkCadastrarNovo.focus({ timeout: 10000 });
+          await page.keyboard.press('Enter');
+        } catch (erroFoco) {
+          console.warn(`[criarAgendamento] ativação por teclado falhou (tentativa ${tentativa}), tentando clique normal:`, erroFoco.message);
+          await clicarComRetry(linkCadastrarNovo, { timeoutMs: 15000 });
+        }
         dialogoCadastro = page.locator('mat-dialog-container').last();
         cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 6000);
         if (!cadastroAbriu) {
           console.warn(
-            `[criarAgendamento] diálogo de cadastro não abriu (tentativa ${tentativa}/${MAX_TENTATIVAS_ABRIR_CADASTRO} de clicar em "Cadastrar novo paciente").`
+            `[criarAgendamento] diálogo de cadastro não abriu (tentativa ${tentativa}/${MAX_TENTATIVAS_ABRIR_CADASTRO} de ativar "Cadastrar novo paciente").`
           );
         }
       }
       if (!cadastroAbriu) {
         throw new Error(
-          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de clicar em "Cadastrar novo paciente".`
+          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de ativar "Cadastrar novo paciente".`
         );
       }
 
