@@ -1447,7 +1447,13 @@ async function criarAgendamento({
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
       .catch(() => {});
-    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 15000);
+    // Achado real 15/09 (caso Valentina, tentativa de pular o diálogo
+    // revertida -- os campos de data/hora realmente não existem sem
+    // passar por aqui primeiro). O bug de JS do Angular CDK
+    // ("getComputedStyle", ~38x numa execução) pode estar deixando o
+    // Angular lento pra terminar de renderizar em vez de travado de vez
+    // -- aumentando bastante a margem antes de desistir.
+    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 25000);
 
     // 5. Seleciona qualquer sugestão de horário, só para destravar os
     // campos de data/hora (vamos sobrescrever com os valores reais logo
@@ -1455,7 +1461,7 @@ async function criarAgendamento({
     // livre (ex: dia sem expediente ou já totalmente ocupado) -- nesse
     // caso avançamos de dia em dia até aparecer alguma sugestão clicável.
     const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
-    let apareceuSugestao = await aparece(sugestao, 3000);
+    let apareceuSugestao = await aparece(sugestao, 10000);
 
     let tentativas = 0;
     while (!apareceuSugestao && tentativas < 14) {
