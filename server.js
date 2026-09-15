@@ -1288,19 +1288,24 @@ async function criarAgendamento({
       // vez do link. Ativar por teclado (focar + Enter) é imune a
       // qualquer sobreposição/coordenada -- um <a> responde a Enter igual
       // a um clique, sem depender de onde o mouse "aterrissa".
+      // Achado real 15/09 (9ª/10ª tentativa): nem force:true nem
+      // ativação por teclado resolveram, E o console da própria página
+      // mostrou um erro de JS real a cada tentativa ("Failed to execute
+      // 'getComputedStyle' on 'Window': parameter 1 is not of type
+      // 'Element'") -- provável bug do próprio Angular CDK do Simples
+      // Dental (cálculo de posição de overlay) sendo disparado pela
+      // repetição RÁPIDA de tentativas, num ritmo que um humano normal
+      // nunca produziria. Em vez de tentar mais rápido/mais vezes,
+      // menos tentativas com espaçamento bem maior -- dando tempo de
+      // qualquer overlay/transição anterior assentar de verdade antes
+      // da próxima interação, ao invés de competir com ela.
       let dialogoCadastro;
       let cadastroAbriu = false;
-      const MAX_TENTATIVAS_ABRIR_CADASTRO = 4;
+      const MAX_TENTATIVAS_ABRIR_CADASTRO = 3;
       const linkCadastrarNovo = page.getByText('Cadastrar novo paciente');
       for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_ABRIR_CADASTRO && !cadastroAbriu; tentativa++) {
-        await page.waitForTimeout(500 + tentativa * 200);
-        try {
-          await linkCadastrarNovo.focus({ timeout: 10000 });
-          await page.keyboard.press('Enter');
-        } catch (erroFoco) {
-          console.warn(`[criarAgendamento] ativação por teclado falhou (tentativa ${tentativa}), tentando clique normal:`, erroFoco.message);
-          await clicarComRetry(linkCadastrarNovo, { timeoutMs: 15000 });
-        }
+        await page.waitForTimeout(2000 + tentativa * 1000);
+        await clicarComRetry(linkCadastrarNovo, { timeoutMs: 15000 });
         dialogoCadastro = page.locator('mat-dialog-container').last();
         cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 6000);
         if (!cadastroAbriu) {
