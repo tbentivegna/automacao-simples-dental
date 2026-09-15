@@ -914,11 +914,26 @@ function paraDataISO(dataBR) {
 // o ponto de clique sem bloquear de verdade a interação), lugar diferente.
 // Helper genérico pra qualquer clique simples que possa esbarrar nisso --
 // não é masked-field, só clique com a mesma rede de segurança.
+//
+// Achado real 15/09 (caso Valentina, 3ª tentativa): com force só a partir
+// da 2ª tentativa (mesmo padrão de preencherCampoComMascara), o teste real
+// seguinte travou num jeito novo (inputNome nunca apareceu) -- suspeita
+// forte: a 1ª tentativa (estrita) pode ter na real registrado o clique no
+// navegador mesmo o Playwright reportando falha por interceptação (o
+// clique físico às vezes passa durante uma das re-tentativas internas do
+// próprio Playwright, mesmo que a chamada externa acabe dando timeout).
+// Diferente de preencherCampoComMascara (Control+A+Backspace+digitar de
+// novo é idempotente, clicar 2x não tem problema), um clique de navegação
+// como "Cadastrar novo paciente" NÃO é idempotente -- clicar 2x pode abrir
+// 2 diálogos ou acertar algo atrás do primeiro que já abriu. Como esse
+// padrão de interceptação nunca foi transitório em nenhum dos 3 casos reais
+// vistos até agora (sempre as mesmas dezenas de tentativas internas do
+// Playwright falhando igual), força já na 1ª tentativa -- nunca clica 2x.
 async function clicarComRetry(locator, { tentativasMax = 3, timeoutMs = 10000 } = {}) {
   let ultimoErro;
   for (let tentativa = 1; tentativa <= tentativasMax; tentativa++) {
     try {
-      await locator.click({ timeout: timeoutMs, force: tentativa > 1 });
+      await locator.click({ timeout: timeoutMs, force: true });
       return;
     } catch (erro) {
       ultimoErro = erro;
