@@ -1328,19 +1328,26 @@ async function criarAgendamento({
       }
       if (!cadastroAbriu) {
         // Diagnóstico: captura o que existe de verdade na tela nesse
-        // momento -- se o link ainda está presente/visível, e o HTML da
-        // área do autocomplete -- mais os últimos erros/logs do console
-        // da própria página, pra investigar sem depender de acesso visual.
+        // momento -- o outerHTML exato do elemento que o seletor
+        // encontrou (pra saber qual das duas variantes -- "Novo
+        // paciente" ou "Cadastrar novo paciente" -- apareceu de fato, e
+        // com que estrutura), se ainda está visível, e os últimos erros/
+        // logs do console da própria página -- pra investigar sem
+        // depender de acesso visual.
         const linkAindaExiste = await linkCadastrarNovo
           .isVisible()
           .catch((e) => `erro ao checar: ${e.message}`);
+        const htmlDoLink = await linkCadastrarNovo
+          .evaluate((el) => el.outerHTML)
+          .catch((e) => `erro ao capturar HTML do link: ${e.message}`);
         const htmlAutocomplete = await page
           .locator('sd-pacientes-autocomplete')
           .innerHTML()
           .catch((e) => `erro ao capturar HTML: ${e.message}`);
         throw new Error(
-          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de ativar "Cadastrar novo paciente". ` +
+          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de ativar "Novo paciente"/"Cadastrar novo paciente". ` +
           `[diagnóstico] link ainda visível: ${JSON.stringify(linkAindaExiste)} | ` +
+          `HTML do elemento clicado: ${String(htmlDoLink).slice(0, 800)} | ` +
           `console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-15))} | ` +
           `HTML do autocomplete (primeiros 1500 chars): ${String(htmlAutocomplete).slice(0, 1500)}`
         );
