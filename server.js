@@ -1301,10 +1301,9 @@ async function criarAgendamento({
 
     // 3. Seleciona o profissional
     await page.locator('[data-testid="inputProfissional"]').fill(nomeProfissional);
-    await page
-      .locator('.sd-profissionais-autocomplete__name-container', { hasText: nomeProfissional })
-      .first()
-      .click();
+    await clicarComRetry(
+      page.locator('.sd-profissionais-autocomplete__name-container', { hasText: nomeProfissional }).first()
+    );
 
     // Diagnóstico: confirma o que ficou preenchido no campo Paciente
     // até este ponto, antes de seguir -- ajuda a investigar casos em
@@ -1316,7 +1315,7 @@ async function criarAgendamento({
 
     // 4. Procura horário livre -- abre o diálogo de sugestão
     await dispensarBannerCookies(page);
-    await page.getByText('Encontrar horário livre').click();
+    await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 30000 });
 
     // Print de diagnóstico logo após o clique, para confirmarmos se o
     // diálogo "Sugestão de horários" realmente abriu ou não.
@@ -1360,8 +1359,8 @@ async function criarAgendamento({
     if (!apareceuSugestao) {
       throw new Error('Nenhuma sugestão de horário apareceu em 14 dias -- não foi possível destravar os campos de data/hora.');
     }
-    await sugestao.click();
-    await page.getByRole('button', { name: 'Escolher horário' }).click();
+    await clicarComRetry(sugestao);
+    await clicarComRetry(page.getByRole('button', { name: 'Escolher horário' }));
 
     // Restringe as buscas seguintes ao diálogo aberto (em vez da página
     // inteira) -- evita ambiguidade com elementos parecidos que existem
@@ -1431,7 +1430,7 @@ async function criarAgendamento({
 
 
     // 9. Marca de verdade
-    await page.getByRole('button', { name: 'Marcar', exact: true }).click();
+    await clicarComRetry(page.getByRole('button', { name: 'Marcar', exact: true }), { timeoutMs: 20000 });
 
     // 10. Confirma sucesso pelo fechamento do diálogo. Testado manualmente:
     // o Simples Dental fecha o diálogo e mostra o toast de sucesso de forma
