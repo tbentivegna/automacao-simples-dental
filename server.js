@@ -1437,11 +1437,12 @@ async function criarAgendamento({
     await dispensarBannerCookies(page);
     // Achado real 15/09 (caso Valentina, texto do botão E do título já
     // confirmados corretos pelo Tiago -- não é problema de seletor).
-    // Mesma lição do "Cadastrar novo paciente": reclicar quando o
-    // primeiro clique pode só estar demorando (não falhando) arrisca
-    // interferir num diálogo que já está no meio de abrir -- por isso UM
-    // clique só, com espera bem mais generosa, em vez de retry.
-    await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 30000 });
+    // Mesma lição do "Cadastrar novo paciente" (que só se resolveu de
+    // verdade tirando o retry por completo, não só reduzindo): mesmo
+    // clicarComRetry ainda tenta de novo internamente se a 1ª tentativa
+    // dá qualquer erro -- troca pro clique direto, uma vez só, sem
+    // nenhuma camada de retry por baixo.
+    await page.getByText('Encontrar horário livre').click({ force: true, timeout: 30000 });
     await page.waitForTimeout(1000);
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
