@@ -1251,39 +1251,34 @@ async function criarAgendamento({
       // que pra um bloqueio sempre presente -- por isso, além do
       // force:true de clicarComRetry, uma pequena espera de assentamento
       // antes do clique.
-      await page.waitForTimeout(500);
-      await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
-
+      // Loop de até 4 tentativas (achado real 15/09: esse clique é
+      // intermitente, às vezes falha 2x seguidas -- 1+1 não bastava mais).
       // O cadastro abre num diálogo NOVO, por cima do formulário principal
       // (que continua "por baixo", ainda presente no DOM -- ele TAMBÉM é
       // um mat-dialog-container, é por isso que reaproveita o mesmo
       // data-testid="btnSalvar" do botão "Marcar" do formulário principal).
-      // Restringimos a busca ao último diálogo aberto (o de cima) para não
-      // confundir com elementos parecidos do formulário de baixo.
-      let dialogoCadastro = page.locator('mat-dialog-container').last();
-
-      // Verificação + auto-recuperação: como o clique acima já se mostrou
-      // intermitente (funciona numa tentativa, "clica" sem efeito nenhum
-      // na seguinte, sem lançar erro nenhum), confere de verdade se o
-      // diálogo DE CADASTRO abriu antes de seguir. Achado real 15/09 (5ª
-      // tentativa, mesmo teste): checar só "existe algum mat-dialog-
-      // container visível" é um teste FALSO POSITIVO sempre -- o
-      // formulário de "novo evento" (aberto no passo 1, por baixo) já É
-      // um mat-dialog-container e está visível o tempo todo, então essa
-      // checagem passava mesmo quando o cadastro não abria de verdade.
-      // Certo é checar o campo Nome em si, que só existe dentro do
-      // diálogo de cadastro.
-      const campoNome = dialogoCadastro.locator('[data-testid="inputNome"]');
-      const diagloAbriuDeVerdade = await aparece(campoNome, 6000);
-      if (!diagloAbriuDeVerdade) {
-        console.warn('[criarAgendamento] diálogo de cadastro não abriu depois do clique em "Cadastrar novo paciente" -- tentando de novo.');
-        await page.waitForTimeout(500);
+      // Confere de verdade se o diálogo DE CADASTRO abriu checando o
+      // campo Nome em si (só existe dentro dele) -- checar só "existe
+      // algum mat-dialog-container visível" é sempre falso positivo,
+      // porque o formulário de baixo já conta (achado real 15/09).
+      let dialogoCadastro;
+      let cadastroAbriu = false;
+      const MAX_TENTATIVAS_ABRIR_CADASTRO = 4;
+      for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_ABRIR_CADASTRO && !cadastroAbriu; tentativa++) {
+        await page.waitForTimeout(500 + tentativa * 200);
         await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
         dialogoCadastro = page.locator('mat-dialog-container').last();
-        const abriuNaSegunda = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 8000);
-        if (!abriuNaSegunda) {
-          throw new Error('O diálogo de cadastro de paciente novo não abriu depois de 2 tentativas de clicar em "Cadastrar novo paciente".');
+        cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 6000);
+        if (!cadastroAbriu) {
+          console.warn(
+            `[criarAgendamento] diálogo de cadastro não abriu (tentativa ${tentativa}/${MAX_TENTATIVAS_ABRIR_CADASTRO} de clicar em "Cadastrar novo paciente").`
+          );
         }
+      }
+      if (!cadastroAbriu) {
+        throw new Error(
+          `O diálogo de cadastro de paciente novo não abriu depois de ${MAX_TENTATIVAS_ABRIR_CADASTRO} tentativas de clicar em "Cadastrar novo paciente".`
+        );
       }
 
       // Achado real 11/09 (caso Alessandra Saito): dá tempo do diálogo (e
