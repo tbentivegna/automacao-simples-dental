@@ -917,11 +917,28 @@ function paraDataISO(dataBR) {
 // criada). Agora tenta até 3x com timeout mais curto por tentativa -- no
 // pior caso a soma fica parecida com o timeout único de antes, mas agora
 // com chance real de recuperar de uma animação lenta.
+//
+// Achado real 14/09 (caso Valentina Freitas): o retry acima RODOU (3
+// tentativas, confirmado no log real da execução) e as 3 falharam da MESMA
+// forma -- não era mais uma animação passageira. O log do Playwright mostra
+// 22 tentativas internas, todas com o mesmo motivo: "<mat-label>Data de
+// nascimento</mat-label> ... subtree intercepts pointer events". É um
+// problema estrutural do Angular Material, não uma corrida de tempo: com o
+// campo vazio (appearance="outline"), o rótulo flutuante fica centralizado
+// DENTRO do input até o primeiro foco, e o ponto de clique padrão do
+// Playwright (centro do elemento) cai bem em cima do rótulo -- que
+// tecnicamente "intercepta" o clique mesmo sendo só decorativo, sem
+// bloquear de verdade a interação. Esperar mais ou repetir com o mesmo
+// clique estrito nunca ia resolver, porque o estado não muda entre
+// tentativas. Por isso: a partir da 2ª tentativa, o clique usa
+// `force: true` (pula a checagem de "recebe eventos" -- já confirmamos
+// pelo log que o elemento existe/está visível/habilitado, então isso não
+// mascara um bloqueio real, só o falso positivo do rótulo flutuante).
 async function preencherCampoComMascara(locator, valor, tentativasMax = 3) {
   let ultimoErro;
   for (let tentativa = 1; tentativa <= tentativasMax; tentativa++) {
     try {
-      await locator.click({ timeout: 10000 });
+      await locator.click({ timeout: 10000, force: tentativa > 1 });
       await locator.press('Control+A');
       await locator.press('Backspace');
       await locator.pressSequentially(String(valor), { delay: 60 });
