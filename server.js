@@ -1024,12 +1024,19 @@ function telefoneLocal(texto) {
 // qualquer mudança de layout no site pode quebrar isso silenciosamente.
 async function preencherCadastroCompleto(dialogo, dados) {
   // Data de nascimento primeiro -- é ela que faz o Simples Dental decidir
-  // (client-side) se mostra/exige a seção "Dados do responsável".
+  // (client-side) se mostra/exige a seção "Dados do responsável". Achado
+  // 15/09 (revisão completa, caso Valentina -- DOB dela indica 11 anos):
+  // essa reação client-side (o formulário reflui/mostra uma seção nova)
+  // acontece bem depois de digitar a data, e nada no código esperava esse
+  // reflow assentar antes de seguir pro próximo campo -- risco real de
+  // instabilidade (posição dos campos seguintes pode mudar) além dos
+  // problemas de clique já corrigidos. Pequena espera de segurança aqui.
   if (dados.dataNascimentoPaciente) {
     await preencherCampoComMascara(
       dialogo.locator('[data-testid="inputDtNascimento"]'),
       dados.dataNascimentoPaciente
     );
+    await dialogo.page().waitForTimeout(600);
   }
   if (dados.cpfPaciente) {
     await preencherCampoComMascara(dialogo.locator('[data-testid="inputCpf"]'), somenteDigitos(dados.cpfPaciente));
@@ -1071,7 +1078,7 @@ async function preencherCadastroCompleto(dialogo, dados) {
   // Bairro/Cidade/Estado sozinho -- só Número (e opcionalmente
   // Complemento) precisam ser digitados manualmente.
   if (dados.cep) {
-    await dialogo.getByText(/endereço/i).first().click();
+    await clicarComRetry(dialogo.getByText(/endereço/i).first());
     await preencherCampoComMascara(dialogo.locator('[data-testid="inputCep"]'), somenteDigitos(dados.cep));
     // Sem um seletor confirmado pro campo "Rua" pra esperar de forma
     // ativa (waitForFunction), uma espera fixa é o que temos por ora --
@@ -1154,7 +1161,7 @@ async function encontrarOpcaoPaciente(page, campoBusca, telefone, nomeBuscado) {
 // container recebido.
 async function selecionarRotulo(page, container, rotulo) {
   const campo = container.locator('input[data-testid="inputRotulo"]');
-  await campo.click();
+  await clicarComRetry(campo);
   await campo.fill('');
   await campo.fill(rotulo);
 
@@ -1163,7 +1170,7 @@ async function selecionarRotulo(page, container, rotulo) {
   if (!apareceu) {
     throw new Error(`Rótulo "${rotulo}" não encontrado na lista de opções do Simples Dental.`);
   }
-  await opcao.click();
+  await clicarComRetry(opcao);
 }
 
 async function criarAgendamento({
@@ -1211,7 +1218,7 @@ async function criarAgendamento({
     const compromissosExistentes = await coletarCompromissosVariasSemanas(page, semanasParaConflito);
 
     // 1. Abre o formulário de novo evento
-    await page.click('[data-testid="btnNovoEvento"]');
+    await clicarComRetry(page.locator('[data-testid="btnNovoEvento"]'));
 
     // 2. Busca o paciente pelo telefone -- desambiguando por nome quando o
     // telefone tem mais de um paciente cadastrado (ex: vários filhos no
@@ -1248,26 +1255,32 @@ async function criarAgendamento({
       await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
 
       // O cadastro abre num diálogo NOVO, por cima do formulário principal
-      // (que continua "por baixo", ainda presente no DOM). Restringimos a
-      // busca ao último diálogo aberto (o de cima) para não confundir com
-      // elementos parecidos do formulário de baixo -- o Simples Dental,
-      // por exemplo, reaproveita o mesmo data-testid="btnSalvar" no botão
-      // "Marcar" do formulário principal.
+      // (que continua "por baixo", ainda presente no DOM -- ele TAMBÉM é
+      // um mat-dialog-container, é por isso que reaproveita o mesmo
+      // data-testid="btnSalvar" do botão "Marcar" do formulário principal).
+      // Restringimos a busca ao último diálogo aberto (o de cima) para não
+      // confundir com elementos parecidos do formulário de baixo.
       let dialogoCadastro = page.locator('mat-dialog-container').last();
 
       // Verificação + auto-recuperação: como o clique acima já se mostrou
       // intermitente (funciona numa tentativa, "clica" sem efeito nenhum
       // na seguinte, sem lançar erro nenhum), confere de verdade se o
-      // diálogo abriu antes de seguir -- se não abriu, tenta o clique mais
-      // uma vez em vez de gastar 30s tentando preencher um campo que nunca
-      // vai existir.
-      const diagloAbriuDeVerdade = await aparece(dialogoCadastro, 6000);
+      // diálogo DE CADASTRO abriu antes de seguir. Achado real 15/09 (5ª
+      // tentativa, mesmo teste): checar só "existe algum mat-dialog-
+      // container visível" é um teste FALSO POSITIVO sempre -- o
+      // formulário de "novo evento" (aberto no passo 1, por baixo) já É
+      // um mat-dialog-container e está visível o tempo todo, então essa
+      // checagem passava mesmo quando o cadastro não abria de verdade.
+      // Certo é checar o campo Nome em si, que só existe dentro do
+      // diálogo de cadastro.
+      const campoNome = dialogoCadastro.locator('[data-testid="inputNome"]');
+      const diagloAbriuDeVerdade = await aparece(campoNome, 6000);
       if (!diagloAbriuDeVerdade) {
         console.warn('[criarAgendamento] diálogo de cadastro não abriu depois do clique em "Cadastrar novo paciente" -- tentando de novo.');
         await page.waitForTimeout(500);
         await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
         dialogoCadastro = page.locator('mat-dialog-container').last();
-        const abriuNaSegunda = await aparece(dialogoCadastro, 8000);
+        const abriuNaSegunda = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 8000);
         if (!abriuNaSegunda) {
           throw new Error('O diálogo de cadastro de paciente novo não abriu depois de 2 tentativas de clicar em "Cadastrar novo paciente".');
         }
@@ -1318,7 +1331,7 @@ async function criarAgendamento({
       // Contorno extra, caso o banner de cookies ainda esteja de pé
       await dispensarBannerCookies(page);
 
-      await dialogoCadastro.locator('[data-testid="btnSalvar"]').click();
+      await clicarComRetry(dialogoCadastro.locator('[data-testid="btnSalvar"]'), { timeoutMs: 20000 });
       // Depois de salvar, a tela volta sozinha para o formulário de
       // agendamento com o paciente já selecionado -- esperamos isso
       // acontecer conferindo se o campo de paciente ficou preenchido.
@@ -1375,7 +1388,7 @@ async function criarAgendamento({
       await dispensarBannerCookies(page);
       const cliqueAvancar = await page
         .getByRole('button', { name: 'Avançar um dia' })
-        .click({ timeout: 4000 })
+        .click({ timeout: 4000, force: true })
         .then(() => true)
         .catch(() => false);
 
