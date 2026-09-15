@@ -1328,10 +1328,37 @@ async function criarAgendamento({
       // digitação tecla-por-tecla). Por isso: UM clique só, direto, sem
       // loop de retry -- menos interação é mais confiável aqui, não mais
       // tentativas.
+      // CAUSA RAIZ (15/09, 24ª tentativa) -- as 23 tentativas anteriores
+      // erraram o MÉTODO do clique, não o alvo. Duas descobertas:
+      //
+      // (1) O `<a>` real NÃO TEM href:
+      //     <a sdwithrole="ROLE_CRIAR_PACIENTE" sdanalyticstrack="click"
+      //        class="sd-pacientes-autocomplete__field-link ...">
+      //     Um <a> sem href não é focável e NÃO dispara click no Enter --
+      //     ou seja, a 9ª tentativa ("focar + Enter, imune a sobreposição")
+      //     nunca chegou a acionar o link. Ela não descartou a hipótese de
+      //     sobreposição, só usou um método que não funciona nesse elemento.
+      //
+      // (2) TODO o resto que tentamos é clique POR COORDENADA: o Playwright
+      //     calcula o centro do elemento e manda um evento de mouse naquele
+      //     ponto. `force: true` pula a checagem do PLAYWRIGHT, mas quem
+      //     decide quem recebe o evento é o hit-test do NAVEGADOR -- se o
+      //     painel do autocomplete (mat-autocomplete-panel, que renderiza
+      //     logo abaixo do input, exatamente em cima deste link) estiver
+      //     aberto, o clique vai no painel. Sem erro, sem efeito. É
+      //     exatamente o sintoma que vimos 23 vezes.
+      //
+      // Fix: Escape primeiro (fecha o painel do autocomplete sem limpar o
+      // campo) e depois `el.click()` direto no DOM -- dispara o evento no
+      // próprio elemento, sem coordenada, sem hit-test, sem z-index. O
+      // handler (click) do Angular roda igual. É o único método que nunca
+      // foi tentado nesta investigação.
       const linkCadastrarNovo = page
         .locator('button:has-text("Novo paciente"), a:has-text("Cadastrar novo paciente")')
         .first();
-      await linkCadastrarNovo.click({ force: true, timeout: 15000 });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      await linkCadastrarNovo.evaluate((el) => el.click());
       let dialogoCadastro = page.locator('mat-dialog-container').last();
       const cadastroAbriu = await aparece(dialogoCadastro.locator('[data-testid="inputNome"]'), 10000);
       if (!cadastroAbriu) {
@@ -1352,9 +1379,30 @@ async function criarAgendamento({
           .locator('sd-pacientes-autocomplete')
           .innerHTML()
           .catch((e) => `erro ao capturar HTML: ${e.message}`);
+        // Diagnóstico decisivo pra hipótese de sobreposição: pergunta ao
+        // próprio navegador QUEM receberia um clique no centro do link
+        // (document.elementFromPoint). Se vier o próprio <a>, sobreposição
+        // está descartada de vez e o problema é o handler do Angular não
+        // rodar. Se vier um .cdk-overlay-*/mat-autocomplete-panel, está
+        // provado que era overlay o tempo todo.
+        const quemRecebeOClique = await linkCadastrarNovo
+          .evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            const alvo = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            if (!alvo) return '(elementFromPoint devolveu null -- fora da viewport?)';
+            return {
+              mesmoElemento: alvo === el,
+              contidoNoLink: el.contains(alvo),
+              tag: alvo.tagName,
+              classe: alvo.className,
+              painelAutocompleteAberto: !!document.querySelector('.mat-mdc-autocomplete-panel'),
+            };
+          })
+          .catch((e) => `erro no elementFromPoint: ${e.message}`);
         throw new Error(
           `O diálogo de cadastro de paciente novo não abriu depois de clicar em "Novo paciente"/"Cadastrar novo paciente". ` +
           `[diagnóstico] link ainda visível: ${JSON.stringify(linkAindaExiste)} | ` +
+          `quem receberia o clique nesse ponto: ${JSON.stringify(quemRecebeOClique)} | ` +
           `HTML do elemento clicado: ${String(htmlDoLink).slice(0, 800)} | ` +
           `console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-15))} | ` +
           `HTML do autocomplete (primeiros 1500 chars): ${String(htmlAutocomplete).slice(0, 1500)}`
@@ -1442,7 +1490,11 @@ async function criarAgendamento({
     // clicarComRetry ainda tenta de novo internamente se a 1ª tentativa
     // dá qualquer erro -- troca pro clique direto, uma vez só, sem
     // nenhuma camada de retry por baixo.
-    await page.getByText('Encontrar horário livre').click({ force: true, timeout: 30000 });
+    // 24ª tentativa: mesmo raciocínio do "Cadastrar novo paciente" acima --
+    // este clique também é por coordenada e também compete com overlays do
+    // Angular Material (o autocomplete de profissional que acabou de ser
+    // usado renderiza logo acima). Clique direto no DOM, imune a hit-test.
+    await page.getByText('Encontrar horário livre').evaluate((el) => el.click());
     await page.waitForTimeout(1000);
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
