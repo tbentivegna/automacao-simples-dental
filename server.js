@@ -1368,7 +1368,13 @@ async function criarAgendamento({
     await page
       .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
       .catch(() => {});
-    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 3000);
+    // Achado real 15/09 (caso Valentina, 6ª tentativa, pós revisão
+    // completa): com o resto do fluxo mais longo agora (cadastro completo
+    // + todas as esperas de segurança adicionadas), 3s não foi margem
+    // suficiente pro diálogo de sugestão renderizar -- o clique em si não
+    // deu erro (não é o mesmo problema de interceptação de antes), só
+    // demorou mais que o esperado. Aumentado pra dar mais margem.
+    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 8000);
 
     // 5. Seleciona qualquer sugestão de horário, só para destravar os
     // campos de data/hora (vamos sobrescrever com os valores reais logo
