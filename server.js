@@ -1625,7 +1625,12 @@ async function criarAgendamento({
 
 
     // 9. Marca de verdade
-    await clicarComRetry(page.getByRole('button', { name: 'Marcar', exact: true }), { timeoutMs: 20000 });
+    // 24ª tentativa: mesma correção que destravou "Cadastrar novo paciente"
+    // e "Encontrar horário livre" -- clique direto no DOM em vez de clique
+    // por coordenada, imune a hit-test/overlay do Angular Material.
+    const botaoMarcar = page.getByRole('button', { name: 'Marcar', exact: true });
+    await botaoMarcar.waitFor({ state: 'visible', timeout: 20000 });
+    await botaoMarcar.evaluate((el) => el.click());
 
     // 10. Confirma sucesso pelo fechamento do diálogo. Testado manualmente:
     // o Simples Dental fecha o diálogo e mostra o toast de sucesso de forma
@@ -1641,7 +1646,37 @@ async function criarAgendamento({
       await page
         .screenshot({ path: path.join(SCREENSHOTS_DIR, `erro-dialogo-nao-fechou-${Date.now()}.png`) })
         .catch(() => {});
-      throw new Error('O diálogo de agendamento não fechou depois de clicar em "Marcar" -- provável falha ao salvar.');
+      // Diagnóstico (24ª tentativa -- 1ª vez na investigação que o fluxo
+      // chega até aqui): se o diálogo não fechou, o motivo quase sempre
+      // está escrito na própria tela. Captura o estado do botão (pode
+      // estar disabled por validação), as mensagens de erro dos campos
+      // (mat-error) e quais campos ficaram marcados como inválidos.
+      const diagnosticoMarcar = await dialogo
+        .evaluate((raiz) => {
+          const btn = Array.from(raiz.querySelectorAll('button')).find(
+            (b) => b.textContent && b.textContent.trim() === 'Marcar'
+          );
+          return {
+            botaoEncontrado: !!btn,
+            botaoDesabilitado: btn ? btn.disabled || btn.getAttribute('aria-disabled') === 'true' : null,
+            errosDeCampo: Array.from(raiz.querySelectorAll('mat-error'))
+              .map((e) => e.textContent.trim())
+              .filter(Boolean)
+              .slice(0, 10),
+            camposInvalidos: Array.from(raiz.querySelectorAll('.mat-form-field-invalid'))
+              .map((f) => {
+                const rot = f.querySelector('mat-label');
+                return rot ? rot.textContent.trim() : '(sem rótulo)';
+              })
+              .slice(0, 10),
+          };
+        })
+        .catch((e) => `erro no diagnóstico: ${e.message}`);
+      throw new Error(
+        `O diálogo de agendamento não fechou depois de clicar em "Marcar" -- provável falha ao salvar. ` +
+        `[diagnóstico] ${JSON.stringify(diagnosticoMarcar)} | ` +
+        `console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-10))}`
+      );
     }
 
     // A partir daqui o agendamento já está confirmado (diálogo fechou). O
