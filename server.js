@@ -1231,6 +1231,20 @@ async function criarAgendamento({
       if (!nomePaciente) {
         throw new Error('Paciente não encontrado pelo telefone e nomePaciente não foi informado para cadastro.');
       }
+
+      // Achado real 15/09 (caso Valentina, 4ª tentativa): diferente do
+      // campo Data de Nascimento (sempre falha, 100% reproduzível), este
+      // clique é INTERMITENTE -- funcionou numa tentativa (cadastro inteiro
+      // completou) e falhou na seguinte (diálogo nunca abriu, sem nenhum
+      // cadastro parcial no Simples Dental depois -- confirmado via Busca
+      // Agendamentos). Isso aponta mais pra uma corrida de tempo (o
+      // painel "sem resultados / cadastrar novo paciente" só aparece
+      // depois que a busca por telefone conclui sem achar nada, e pode
+      // ainda estar assentando/animando bem quando o clique acontece) do
+      // que pra um bloqueio sempre presente -- por isso, além do
+      // force:true de clicarComRetry, uma pequena espera de assentamento
+      // antes do clique.
+      await page.waitForTimeout(500);
       await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
 
       // O cadastro abre num diálogo NOVO, por cima do formulário principal
@@ -1239,7 +1253,25 @@ async function criarAgendamento({
       // elementos parecidos do formulário de baixo -- o Simples Dental,
       // por exemplo, reaproveita o mesmo data-testid="btnSalvar" no botão
       // "Marcar" do formulário principal.
-      const dialogoCadastro = page.locator('mat-dialog-container').last();
+      let dialogoCadastro = page.locator('mat-dialog-container').last();
+
+      // Verificação + auto-recuperação: como o clique acima já se mostrou
+      // intermitente (funciona numa tentativa, "clica" sem efeito nenhum
+      // na seguinte, sem lançar erro nenhum), confere de verdade se o
+      // diálogo abriu antes de seguir -- se não abriu, tenta o clique mais
+      // uma vez em vez de gastar 30s tentando preencher um campo que nunca
+      // vai existir.
+      const diagloAbriuDeVerdade = await aparece(dialogoCadastro, 6000);
+      if (!diagloAbriuDeVerdade) {
+        console.warn('[criarAgendamento] diálogo de cadastro não abriu depois do clique em "Cadastrar novo paciente" -- tentando de novo.');
+        await page.waitForTimeout(500);
+        await clicarComRetry(page.getByText('Cadastrar novo paciente'), { timeoutMs: 30000 });
+        dialogoCadastro = page.locator('mat-dialog-container').last();
+        const abriuNaSegunda = await aparece(dialogoCadastro, 8000);
+        if (!abriuNaSegunda) {
+          throw new Error('O diálogo de cadastro de paciente novo não abriu depois de 2 tentativas de clicar em "Cadastrar novo paciente".');
+        }
+      }
 
       // Achado real 11/09 (caso Alessandra Saito): dá tempo do diálogo (e
       // da aba "Informações adicionais", selecionada por padrão) terminarem
