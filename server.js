@@ -1420,21 +1420,30 @@ async function criarAgendamento({
 
     // 4. Procura horário livre -- abre o diálogo de sugestão
     await dispensarBannerCookies(page);
-    await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 30000 });
-
-    // Print de diagnóstico logo após o clique, para confirmarmos se o
-    // diálogo "Sugestão de horários" realmente abriu ou não.
-    await page.waitForTimeout(1000);
-    await page
-      .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
-      .catch(() => {});
-    // Achado real 15/09 (caso Valentina, 6ª tentativa, pós revisão
-    // completa): com o resto do fluxo mais longo agora (cadastro completo
-    // + todas as esperas de segurança adicionadas), 3s não foi margem
-    // suficiente pro diálogo de sugestão renderizar -- o clique em si não
-    // deu erro (não é o mesmo problema de interceptação de antes), só
-    // demorou mais que o esperado. Aumentado pra dar mais margem.
-    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 8000);
+    // Achado real 15/09 (caso Valentina, várias tentativas): esse clique
+    // às vezes não abre o diálogo "Sugestão de horários" a tempo -- não é
+    // o mesmo problema de interceptação de outros cliques (esse nunca deu
+    // erro), só timing variável dependendo de quão longo o resto do fluxo
+    // já foi até aqui. Retry de até 3 tentativas em vez de só uma espera
+    // maior, com print de diagnóstico a cada uma.
+    let dialogoAbriu = false;
+    for (let tentativaHorario = 1; tentativaHorario <= 3 && !dialogoAbriu; tentativaHorario++) {
+      if (tentativaHorario > 1) {
+        await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 15000 });
+      } else {
+        await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 30000 });
+      }
+      await page.waitForTimeout(1000);
+      await page
+        .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
+        .catch(() => {});
+      dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 6000);
+      if (!dialogoAbriu) {
+        console.warn(
+          `[criarAgendamento] "Sugestão de horários" não abriu (tentativa ${tentativaHorario}/3 de "Encontrar horário livre").`
+        );
+      }
+    }
 
     // 5. Seleciona qualquer sugestão de horário, só para destravar os
     // campos de data/hora (vamos sobrescrever com os valores reais logo
