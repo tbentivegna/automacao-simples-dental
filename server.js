@@ -1425,23 +1425,87 @@ async function criarAgendamento({
       page.locator('.sd-profissionais-autocomplete__name-container', { hasText: nomeProfissional }).first()
     );
 
-    // 4/5/6. Preenche data/hora/duração diretamente, SEM passar pelo
-    // diálogo "Encontrar horário livre" / "Sugestão de horários".
-    //
-    // Achado real 15/09 (caso Valentina, decisão do Tiago depois de 21
-    // tentativas reais): esse diálogo sempre foi só um atalho de UX pra
-    // SUGERIR um horário -- o código sempre sobrescreveu o valor sugerido
-    // pelo valor real desejado logo em seguida, com o mesmo
-    // preencherCampoComMascara usado aqui. O print real que o Tiago
-    // mandou (tela "Consulta") já mostrava os campos "Data da consulta"/
-    // "Hora de início" preenchidos e com aparência de campo comum, não
-    // desabilitado. E um bug persistente do Angular CDK do Simples
-    // Dental ("getComputedStyle" em elemento inválido, ~38 ocorrências
-    // numa única execução) tornava esse diálogo específico não-confiável
-    // mesmo depois de várias tentativas de mitigação (retry, sem retry,
-    // esperas maiores). Testando pular o diálogo inteiro e preencher os
-    // campos direto no formulário principal, que já está aberto.
-    const dialogo = page.locator('mat-dialog-container').last();
+    // Diagnóstico: confirma o que ficou preenchido no campo Paciente
+    // até este ponto, antes de seguir -- ajuda a investigar casos em
+    // que o campo aparece vazio mais adiante.
+    const valorPacienteAntes = await page
+      .locator('sd-pacientes-autocomplete input')
+      .inputValue()
+      .catch(() => null);
+
+    // 4. Procura horário livre -- abre o diálogo de sugestão
+    await dispensarBannerCookies(page);
+    // Achado real 15/09 (caso Valentina, texto do botão E do título já
+    // confirmados corretos pelo Tiago -- não é problema de seletor).
+    // Mesma lição do "Cadastrar novo paciente" (que só se resolveu de
+    // verdade tirando o retry por completo, não só reduzindo): mesmo
+    // clicarComRetry ainda tenta de novo internamente se a 1ª tentativa
+    // dá qualquer erro -- troca pro clique direto, uma vez só, sem
+    // nenhuma camada de retry por baixo.
+    await page.getByText('Encontrar horário livre').click({ force: true, timeout: 30000 });
+    await page.waitForTimeout(1000);
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
+      .catch(() => {});
+    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 15000);
+
+    // 5. Seleciona qualquer sugestão de horário, só para destravar os
+    // campos de data/hora (vamos sobrescrever com os valores reais logo
+    // em seguida). O dia sugerido por padrão pode não ter nenhum horário
+    // livre (ex: dia sem expediente ou já totalmente ocupado) -- nesse
+    // caso avançamos de dia em dia até aparecer alguma sugestão clicável.
+    const sugestao = page.locator('mat-button-toggle-group button.mat-button-toggle-button').first();
+    let apareceuSugestao = await aparece(sugestao, 3000);
+
+    let tentativas = 0;
+    while (!apareceuSugestao && tentativas < 14) {
+      if (!dialogoAbriu) {
+        // Mesmo diagnóstico rico que resolveu "Cadastrar novo paciente":
+        // console da página + HTML do que existe de verdade na tela.
+        const htmlAreaHorario = await page
+          .locator('body')
+          .evaluate((el) => {
+            const alvo = Array.from(el.querySelectorAll('*')).find(
+              (n) => n.textContent && n.textContent.trim() === 'Encontrar horário livre'
+            );
+            return alvo ? alvo.outerHTML : '(elemento "Encontrar horário livre" não encontrado no DOM)';
+          })
+          .catch((e) => `erro ao capturar HTML: ${e.message}`);
+        throw new Error(
+          `O diálogo "Sugestão de horários" não abriu depois do clique em "Encontrar horário livre" (valorPacienteAntes: ${JSON.stringify(valorPacienteAntes)}). ` +
+          `[diagnóstico] console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-15))} | ` +
+          `HTML do elemento: ${String(htmlAreaHorario).slice(0, 800)}`
+        );
+      }
+      await dispensarBannerCookies(page);
+      const cliqueAvancar = await page
+        .getByRole('button', { name: 'Avançar um dia' })
+        .click({ timeout: 4000, force: true })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!cliqueAvancar) {
+        throw new Error('Não foi possível clicar em "Avançar um dia" -- algo pode estar bloqueando o botão (ex: banner de cookies).');
+      }
+
+      await page.waitForTimeout(500);
+      apareceuSugestao = await aparece(sugestao, 2000);
+      tentativas++;
+    }
+
+    if (!apareceuSugestao) {
+      throw new Error('Nenhuma sugestão de horário apareceu em 14 dias -- não foi possível destravar os campos de data/hora.');
+    }
+    await clicarComRetry(sugestao);
+    await clicarComRetry(page.getByRole('button', { name: 'Escolher horário' }));
+
+    // Restringe as buscas seguintes ao diálogo aberto (em vez da página
+    // inteira) -- evita ambiguidade com elementos parecidos que existem
+    // "por baixo", como o filtro de data lá no topo da agenda.
+    const dialogo = page.locator('mat-dialog-container');
+
+    // 6. Sobrescreve com os valores reais desejados (digitando caractere
+    // por caractere, já que esses campos têm máscara de formatação)
     await preencherCampoComMascara(dialogo.locator('[data-testid="inputData"]'), data);
     await preencherCampoComMascara(dialogo.locator('input[formcontrolname="hour"]'), hora);
     await preencherCampoComMascara(dialogo.locator('sd-minutes-autocomplete input[type="number"]'), duracao);
