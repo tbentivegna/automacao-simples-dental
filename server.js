@@ -1420,30 +1420,18 @@ async function criarAgendamento({
 
     // 4. Procura horário livre -- abre o diálogo de sugestão
     await dispensarBannerCookies(page);
-    // Achado real 15/09 (caso Valentina, várias tentativas): esse clique
-    // às vezes não abre o diálogo "Sugestão de horários" a tempo -- não é
-    // o mesmo problema de interceptação de outros cliques (esse nunca deu
-    // erro), só timing variável dependendo de quão longo o resto do fluxo
-    // já foi até aqui. Retry de até 3 tentativas em vez de só uma espera
-    // maior, com print de diagnóstico a cada uma.
-    let dialogoAbriu = false;
-    for (let tentativaHorario = 1; tentativaHorario <= 3 && !dialogoAbriu; tentativaHorario++) {
-      if (tentativaHorario > 1) {
-        await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 15000 });
-      } else {
-        await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 30000 });
-      }
-      await page.waitForTimeout(1000);
-      await page
-        .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
-        .catch(() => {});
-      dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 6000);
-      if (!dialogoAbriu) {
-        console.warn(
-          `[criarAgendamento] "Sugestão de horários" não abriu (tentativa ${tentativaHorario}/3 de "Encontrar horário livre").`
-        );
-      }
-    }
+    // Achado real 15/09 (caso Valentina, texto do botão E do título já
+    // confirmados corretos pelo Tiago -- não é problema de seletor).
+    // Mesma lição do "Cadastrar novo paciente": reclicar quando o
+    // primeiro clique pode só estar demorando (não falhando) arrisca
+    // interferir num diálogo que já está no meio de abrir -- por isso UM
+    // clique só, com espera bem mais generosa, em vez de retry.
+    await clicarComRetry(page.getByText('Encontrar horário livre'), { timeoutMs: 30000 });
+    await page.waitForTimeout(1000);
+    await page
+      .screenshot({ path: path.join(SCREENSHOTS_DIR, `debug-sugestao-${Date.now()}.png`), fullPage: true })
+      .catch(() => {});
+    const dialogoAbriu = await aparece(page.getByText('Sugestão de horários'), 15000);
 
     // 5. Seleciona qualquer sugestão de horário, só para destravar os
     // campos de data/hora (vamos sobrescrever com os valores reais logo
