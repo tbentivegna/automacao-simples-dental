@@ -68,6 +68,20 @@ async function cenarioB(n) {
       '15/03/1990\n109.824.568-75\n13348-724, Rua senhora marines de menezes, 114 - jardins do império - Indaiatuba\nalessandra.saito@icloud.com',
       (e) => eventos.push(e)
     );
+    // Atualização 15/09/2026: duas trocas a mais, ambas por comportamento
+    // legítimo que o teste antes não respondia (verificado rodando este
+    // mesmo cenário contra o prompt ANTERIOR: já falhava 2/3 pelo mesmo
+    // motivo, então não é regressão de nenhuma mudança de prompt -- era o
+    // script do teste que terminava antes da conversa acabar).
+    //   1. O modelo pergunta pelo CPF da criança e espera uma resposta
+    //      explícita (a regra é "não insista", mas ele confirma uma vez).
+    //   2. A regra nova de CONFIRMAÇÃO ESTRUTURADA faz a Lumi listar os
+    //      dados e esperar um "sim" antes de chamar a tool.
+    // Nenhuma das duas afrouxa o que este cenário mede: a asserção segue
+    // sendo o mapeamento dos campos (nomePaciente = criança,
+    // nomeResponsavel = quem conversa).
+    await sessao.enviarMensagemPaciente('Ela ainda não tem CPF', (e) => eventos.push(e));
+    await sessao.enviarMensagemPaciente('Sim, está tudo certo', (e) => eventos.push(e));
 
     const criados = sessao.estadoFake._agenda;
     const ultimo = criados[criados.length - 1];
