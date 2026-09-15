@@ -1533,13 +1533,24 @@ async function criarAgendamento({
       // Agora: exige o fechamento REAL do diálogo de cadastro. Se não
       // fechar, o motivo está escrito na tela (validação) -- captura e
       // reporta em vez de seguir às cegas.
-      const cadastroFechou = await dialogoCadastro
+      // Cuidado real 15/09 (26ª tentativa): NÃO dá pra esperar
+      // `dialogoCadastro` (= mat-dialog-container.last()) "detachar" --
+      // `.last()` é reavaliado a cada chamada, então no instante em que o
+      // diálogo de cadastro fecha, `.last()` passa a apontar pro
+      // formulário de AGENDAMENTO, que nunca fecha. Falso negativo
+      // garantido (o espelho exato do falso positivo que este bloco veio
+      // corrigir). A referência estável é o campo Nome, que só existe
+      // dentro do diálogo de cadastro: quando NENHUM diálogo tiver mais
+      // esse campo, o cadastro fechou de verdade.
+      const campoNomeDoCadastro = page.locator('mat-dialog-container [data-testid="inputNome"]');
+      const cadastroFechou = await campoNomeDoCadastro
         .waitFor({ state: 'detached', timeout: 20000 })
         .then(() => true)
         .catch(() => false);
 
       if (!cadastroFechou) {
-        const motivo = await dialogoCadastro
+        const motivo = await page
+          .locator('mat-dialog-container', { has: page.locator('[data-testid="inputNome"]') })
           .evaluate((raiz) => ({
             errosDeCampo: Array.from(raiz.querySelectorAll('mat-error'))
               .map((e) => e.textContent.trim())
