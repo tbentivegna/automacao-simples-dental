@@ -1179,6 +1179,8 @@ async function criarAgendamento({
     const encontrouPaciente = !!opcaoPaciente;
 
     let pacienteNovo = false;
+    let cadastroIncompleto = false;
+    let motivoCadastroIncompleto = null;
     if (encontrouPaciente) {
       await opcaoPaciente.click();
     } else {
@@ -1211,19 +1213,33 @@ async function criarAgendamento({
 
       // Cadastro completo (data de nascimento, CPF, e-mail, endereço, e
       // dados do responsável se for menor de idade) -- exigido pela Dra.
-      // Aline pra todo paciente novo, não só nome+telefone.
-      await preencherCadastroCompleto(dialogoCadastro, {
-        dataNascimentoPaciente,
-        cpfPaciente,
-        email,
-        cep,
-        numero,
-        complemento,
-        nomeResponsavel,
-        dataNascimentoResponsavel,
-        cpfResponsavel,
-        celularResponsavel,
-      });
+      // Aline pra todo paciente novo, não só nome+telefone. Mas o Simples
+      // Dental em si SALVA com só nome+celular (confirmado 14/09) -- então
+      // se esse preenchimento falhar (o campo mais frágil é Data de
+      // Nascimento), não derrubamos o agendamento inteiro: seguimos com o
+      // básico já preenchido e registramos pendência com os dados que a
+      // paciente já informou, pra equipe completar manualmente depois.
+      try {
+        await preencherCadastroCompleto(dialogoCadastro, {
+          dataNascimentoPaciente,
+          cpfPaciente,
+          email,
+          cep,
+          numero,
+          complemento,
+          nomeResponsavel,
+          dataNascimentoResponsavel,
+          cpfResponsavel,
+          celularResponsavel,
+        });
+      } catch (erroCadastro) {
+        cadastroIncompleto = true;
+        motivoCadastroIncompleto = erroCadastro.message;
+        console.warn(
+          '[criarAgendamento] falha ao preencher cadastro completo -- seguindo só com nome+celular, pendência será registrada:',
+          erroCadastro.message
+        );
+      }
 
       // Contorno extra, caso o banner de cookies ainda esteja de pé
       await dispensarBannerCookies(page);
@@ -1529,12 +1545,33 @@ async function criarAgendamento({
 
     cacheAgenda.clear();
 
+    if (cadastroIncompleto) {
+      await registrarPendenciaCadastroIncompleto({
+        telefone,
+        nomePaciente,
+        dados: {
+          dataNascimentoPaciente,
+          cpfPaciente,
+          email,
+          cep,
+          numero,
+          complemento,
+          nomeResponsavel,
+          dataNascimentoResponsavel,
+          cpfResponsavel,
+          celularResponsavel,
+        },
+        motivo: motivoCadastroIncompleto,
+      });
+    }
+
     return {
       sucesso: true,
       pacienteNovo,
       data,
       hora,
       duracaoMinutos: duracao,
+      cadastroIncompleto,
     };
   } catch (erro) {
     await page
@@ -1639,6 +1676,39 @@ async function registrarPendenciaBuscaFalhou({ telefone, nomeBuscado }) {
     );
   } catch (erro) {
     console.error('[buscarAgendamentosPaciente] falha ao registrar pendência automática:', erro.message);
+  }
+}
+
+// Fallback determinístico (achado real 14/09, caso Valentina): antes disso,
+// qualquer falha ao preencher o cadastro completo (CPF/nascimento/endereço/
+// e-mail) derrubava o agendamento inteiro -- mesmo já tendo nome+celular
+// preenchidos e o horário real escolhido pelo paciente. A Dra. Aline
+// confirmou que o Simples Dental aceita salvar um paciente novo só com
+// nome+celular (os outros campos não são obrigatórios pro formulário,
+// só pela política de "cadastro completo" da clínica). Então: se o
+// preenchimento do cadastro completo falhar por qualquer motivo (o campo
+// mais frágil de longe é Data de Nascimento, ver preencherCampoComMascara),
+// não perdemos o agendamento -- seguimos só com o básico e registramos
+// pendência com TODOS os dados que o paciente já informou, pra equipe
+// completar o cadastro manualmente depois (sem precisar catar isso de
+// volta na conversa do WhatsApp).
+async function registrarPendenciaCadastroIncompleto({ telefone, nomePaciente, dados, motivo }) {
+  if (!pool) return;
+  const campos = Object.entries(dados)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(' | ');
+  try {
+    await pool.query(
+      `INSERT INTO public.agent_actions (from_phone, action, domain, detail)
+       VALUES ($1, 'OUTROS', 'Agenda', $2)`,
+      [
+        jidDeLocal(telefone) || telefone,
+        `[Auto-detectado] Agendamento de "${nomePaciente}" foi criado só com nome+celular -- o preenchimento do cadastro completo falhou (${motivo}). Completar manualmente no Simples Dental com os dados que a paciente já informou: ${campos || '(nenhum dado adicional foi informado)'}`,
+      ]
+    );
+  } catch (erro) {
+    console.error('[criarAgendamento] falha ao registrar pendência de cadastro incompleto:', erro.message);
   }
 }
 
