@@ -1460,8 +1460,21 @@ async function criarAgendamento({
     let tentativas = 0;
     while (!apareceuSugestao && tentativas < 14) {
       if (!dialogoAbriu) {
+        // Mesmo diagnóstico rico que resolveu "Cadastrar novo paciente":
+        // console da página + HTML do que existe de verdade na tela.
+        const htmlAreaHorario = await page
+          .locator('body')
+          .evaluate((el) => {
+            const alvo = Array.from(el.querySelectorAll('*')).find(
+              (n) => n.textContent && n.textContent.trim() === 'Encontrar horário livre'
+            );
+            return alvo ? alvo.outerHTML : '(elemento "Encontrar horário livre" não encontrado no DOM)';
+          })
+          .catch((e) => `erro ao capturar HTML: ${e.message}`);
         throw new Error(
-          `O diálogo "Sugestão de horários" não abriu depois do clique em "Encontrar horário livre" (valorPacienteAntes: ${JSON.stringify(valorPacienteAntes)}).`
+          `O diálogo "Sugestão de horários" não abriu depois do clique em "Encontrar horário livre" (valorPacienteAntes: ${JSON.stringify(valorPacienteAntes)}). ` +
+          `[diagnóstico] console da página (últimas ${mensagensConsolePagina.length}): ${JSON.stringify(mensagensConsolePagina.slice(-15))} | ` +
+          `HTML do elemento: ${String(htmlAreaHorario).slice(0, 800)}`
         );
       }
       await dispensarBannerCookies(page);
