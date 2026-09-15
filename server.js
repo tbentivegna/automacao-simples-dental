@@ -1031,7 +1031,28 @@ async function preencherCadastroCompleto(dialogo, dados) {
   // reflow assentar antes de seguir pro próximo campo -- risco real de
   // instabilidade (posição dos campos seguintes pode mudar) além dos
   // problemas de clique já corrigidos. Pequena espera de segurança aqui.
-  if (dados.dataNascimentoPaciente) {
+  // CAUSA RAIZ CONFIRMADA 15/09 (caso Valentina, 25ª tentativa, com
+  // diagnóstico real da tela): preencher a data de nascimento de um MENOR
+  // faz o Simples Dental revelar a seção "Dados do responsável", e
+  // "Nome do responsável" vira OBRIGATÓRIO. Sem ele, o "Salvar" trava em
+  // silêncio (diálogo não fecha, nenhum erro lançado) -- foi exatamente
+  // o que derrubou todas as tentativas desta sessão. Diagnóstico literal
+  // capturado: camposInvalidos ["Nome do responsável"], errosDeCampo
+  // ["Este campo é obrigatório"], secoesVisiveis ["Dados do paciente",
+  // "Dados do responsável"].
+  //
+  // Decisão de produto (mesma linha do fallback que o Tiago já pediu em
+  // 14/09: "se não conseguir preencher tudo, marcar só com o que
+  // conseguir e um atendente completa depois"): se o paciente é menor e
+  // NÃO temos o nome do responsável, é melhor NÃO preencher a data de
+  // nascimento -- sem ela a seção do responsável nem aparece, o cadastro
+  // salva com o resto, a consulta é marcada, e a pendência avisa a
+  // equipe do que falta. O contrário (preencher a data e travar tudo)
+  // perde a consulta inteira por causa de um campo.
+  const menorSemResponsavel =
+    dados.dataNascimentoPaciente && ehMenorDeIdade(dados.dataNascimentoPaciente) && !dados.nomeResponsavel;
+
+  if (dados.dataNascimentoPaciente && !menorSemResponsavel) {
     await preencherCampoComMascara(
       dialogo.locator('[data-testid="inputDtNascimento"]'),
       dados.dataNascimentoPaciente
@@ -1091,6 +1112,35 @@ async function preencherCadastroCompleto(dialogo, dados) {
       await dialogo.locator('[data-testid="inputComplemento"]').fill(dados.complemento);
     }
   }
+
+  // Sinaliza (sem derrubar o agendamento) que a data de nascimento foi
+  // deixada em branco de propósito -- ver comentário no topo da função.
+  // O chamador transforma isso em pendência pra equipe completar.
+  if (menorSemResponsavel) {
+    return {
+      avisoCadastroIncompleto:
+        `Paciente é menor de idade (nascimento ${dados.dataNascimentoPaciente}) e o nome do responsável não foi informado. ` +
+        `A data de nascimento foi deixada em branco de propósito: preenchê-la torna "Nome do responsável" obrigatório no ` +
+        `Simples Dental e impediria salvar o cadastro (e perder a consulta). Falta cadastrar: data de nascimento do ` +
+        `paciente e os dados do responsável (nome, data de nascimento, CPF e celular).`,
+    };
+  }
+  return {};
+}
+
+// Menor de idade pela data de nascimento em "DD/MM/AAAA". Usado pra
+// decidir se o Simples Dental vai exigir a seção "Dados do responsável"
+// (ver preencherCadastroCompleto).
+function ehMenorDeIdade(dataNascimentoBR) {
+  const partes = String(dataNascimentoBR || '').split('/');
+  if (partes.length !== 3) return false;
+  const nascimento = new Date(`${partes[2]}-${partes[1]}-${partes[0]}T00:00:00${OFFSET_BRASILIA}`);
+  if (Number.isNaN(nascimento.getTime())) return false;
+  const agora = new Date();
+  let idade = agora.getFullYear() - nascimento.getFullYear();
+  const mes = agora.getMonth() - nascimento.getMonth();
+  if (mes < 0 || (mes === 0 && agora.getDate() < nascimento.getDate())) idade--;
+  return idade < 18;
 }
 
 // Busca o paciente pelo telefone no autocomplete de "novo agendamento" e
@@ -1430,7 +1480,7 @@ async function criarAgendamento({
       // básico já preenchido e registramos pendência com os dados que a
       // paciente já informou, pra equipe completar manualmente depois.
       try {
-        await preencherCadastroCompleto(dialogoCadastro, {
+        const resultadoCadastro = await preencherCadastroCompleto(dialogoCadastro, {
           dataNascimentoPaciente,
           cpfPaciente,
           email,
@@ -1442,6 +1492,14 @@ async function criarAgendamento({
           cpfResponsavel,
           celularResponsavel,
         });
+        // Cadastro preencheu sem erro, mas deixou algo de propósito
+        // (menor de idade sem dados do responsável) -- vira pendência
+        // igual, sem derrubar a consulta.
+        if (resultadoCadastro && resultadoCadastro.avisoCadastroIncompleto) {
+          cadastroIncompleto = true;
+          motivoCadastroIncompleto = resultadoCadastro.avisoCadastroIncompleto;
+          console.warn('[criarAgendamento] cadastro salvo parcialmente de propósito:', motivoCadastroIncompleto);
+        }
       } catch (erroCadastro) {
         cadastroIncompleto = true;
         motivoCadastroIncompleto = erroCadastro.message;
