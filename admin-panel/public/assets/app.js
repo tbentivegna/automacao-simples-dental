@@ -1929,7 +1929,7 @@ document.getElementById('buscaConversas').addEventListener('input', (evento) => 
   temporizadorBuscaConversas = setTimeout(() => carregarConversas(valor), 300);
 });
 
-function bolhaMensagem(m) {
+function bolhaMensagem(m, indiceAbsoluto) {
   const chamouTool = m.tipo === 'ai' && (!m.conteudo || m.conteudo === '[]') && m.tool_chamada;
   if (chamouTool) {
     return `
@@ -1942,16 +1942,44 @@ function bolhaMensagem(m) {
   const daEquipe = m.tipo === 'ai' && (m.conteudo || '').startsWith(prefixoEquipe);
   const texto = daEquipe ? m.conteudo.slice(prefixoEquipe.length) : m.conteudo || '';
   const classe = m.tipo === 'human' ? 'bolha-mensagem--paciente' : daEquipe ? 'bolha-mensagem--equipe' : 'bolha-mensagem--lumi';
+  // Transcrição de áudio vem como um parágrafo único enorme -- sozinha já
+  // estourava a altura da conversa. Acima do limite, a bolha nasce recolhida
+  // (~6 linhas via CSS) com um "ver mais" pra abrir. O limite é por
+  // caracteres porque é o que dá pra medir antes de renderizar.
+  const LIMITE_TEXTO_LONGO = 320;
+  const ehLongo = texto.length > LIMITE_TEXTO_LONGO;
+  // A thread inteira é re-renderizada a cada poll (6s). Sem lembrar quais
+  // bolhas estavam abertas, uma transcrição que a pessoa acabou de expandir
+  // se fecharia sozinha em segundos. O índice é o da lista cronológica
+  // completa (mensagem nova entra no fim), então se mantém estável.
+  const aberta = bolhasExpandidas.has(indiceAbsoluto);
   return `
     <div class="bolha-mensagem ${classe}">
-      <div class="bolha-mensagem__texto">${escapar(texto)}</div>
+      <div class="bolha-mensagem__texto${ehLongo ? ' bolha-mensagem__texto--longo' : ''}${aberta ? ' aberto' : ''}">${escapar(texto)}</div>
+      ${ehLongo ? `<button type="button" class="bolha-mensagem__ver-mais" data-ver-mais="${indiceAbsoluto}">${aberta ? 'ver menos' : 'ver mais'}</button>` : ''}
       <div class="bolha-mensagem__hora">${escapar(m.enviado_em_formatado || '')}</div>
     </div>`;
 }
 
+// Quantas mensagens a thread mostra de cara, e quantas revela a cada clique
+// em "ver mensagens anteriores". As demais já estão carregadas (a API traz
+// 50) -- ficam só escondidas, pra conversa longa não nascer com um scroll
+// gigantesco.
+const MENSAGENS_VISIVEIS_INICIAL = 10;
+const MENSAGENS_POR_CLIQUE = 10;
+let mensagensVisiveisThread = MENSAGENS_VISIVEIS_INICIAL;
+// Última lista cronológica renderizada -- o botão "ver anteriores" precisa
+// dela pra re-renderizar sem refazer a chamada à API.
+let mensagensThreadAtual = [];
+// Índices (na lista cronológica completa) das bolhas longas que a pessoa
+// abriu -- sobrevive ao re-render do poll.
+let bolhasExpandidas = new Set();
+
 async function abrirConversa(telefone, nome) {
   conversaAtivaTelefone = telefone;
   conversaAtivaNome = nome;
+  mensagensVisiveisThread = MENSAGENS_VISIVEIS_INICIAL;
+  bolhasExpandidas = new Set();
   document.querySelectorAll('#listaConversas [data-telefone]').forEach((el) => {
     el.classList.toggle('lista-conversas__item--ativo', el.dataset.telefone === telefone);
   });
@@ -1988,9 +2016,49 @@ function preencherCorpoThread(mensagensCronologicas, forcarScroll) {
   const corpo = document.getElementById('threadMensagensCorpo');
   if (!corpo) return;
   const pertoDoFim = corpo.scrollHeight - corpo.scrollTop - corpo.clientHeight < 80;
-  corpo.innerHTML = mensagensCronologicas.map(bolhaMensagem).join('') || vazioDetalhe('Sem mensagens registradas pra esse paciente.');
+
+  mensagensThreadAtual = mensagensCronologicas;
+  const total = mensagensCronologicas.length;
+  const ocultas = Math.max(0, total - mensagensVisiveisThread);
+  const visiveis = ocultas ? mensagensCronologicas.slice(ocultas) : mensagensCronologicas;
+  // Mostra quantas vêm no próximo clique (nunca mais do que ainda resta).
+  const proximas = Math.min(ocultas, MENSAGENS_POR_CLIQUE);
+  const botaoMais = ocultas
+    ? `<button type="button" class="thread-mensagens__mais" data-ver-anteriores>↑ Ver mais ${proximas} (${ocultas} anterior${ocultas === 1 ? '' : 'es'})</button>`
+    : '';
+
+  corpo.innerHTML =
+    total === 0
+      ? vazioDetalhe('Sem mensagens registradas pra esse paciente.')
+      : botaoMais + visiveis.map((m, i) => bolhaMensagem(m, ocultas + i)).join('');
   if (forcarScroll || pertoDoFim) corpo.scrollTop = corpo.scrollHeight;
 }
+
+// Um listener só no container (delegação) em vez de um por bolha: a thread
+// é re-renderizada inteira a cada poll, então listener por elemento vazaria
+// a cada atualização.
+document.getElementById('threadMensagens').addEventListener('click', (evento) => {
+  const verMais = evento.target.closest('[data-ver-mais]');
+  if (verMais) {
+    const indice = Number(verMais.dataset.verMais);
+    const texto = verMais.parentElement.querySelector('.bolha-mensagem__texto');
+    const abrindo = !texto.classList.contains('aberto');
+    if (abrindo) bolhasExpandidas.add(indice);
+    else bolhasExpandidas.delete(indice);
+    texto.classList.toggle('aberto', abrindo);
+    verMais.textContent = abrindo ? 'ver menos' : 'ver mais';
+    return;
+  }
+  if (evento.target.closest('[data-ver-anteriores]')) {
+    mensagensVisiveisThread += MENSAGENS_POR_CLIQUE;
+    // Mantém a posição de leitura: sem isto, revelar as antigas empurraria
+    // o conteúdo e jogaria a pessoa pro topo da conversa.
+    const corpo = document.getElementById('threadMensagensCorpo');
+    const alturaAntes = corpo ? corpo.scrollHeight : 0;
+    preencherCorpoThread(mensagensThreadAtual, false);
+    if (corpo) corpo.scrollTop = corpo.scrollHeight - alturaAntes;
+  }
+});
 
 // true enquanto um envio está em andamento (da chamada à Evolution API até a
 // reconciliação da bolha otimista, ~2.5s depois) -- o poll em segundo plano
