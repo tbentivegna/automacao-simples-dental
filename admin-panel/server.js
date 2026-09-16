@@ -32,6 +32,7 @@ const {
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
+  resolverPendenciasEmLote,
   criarPendenciaManual,
   buscarOportunidades,
   reativarOportunidade,
@@ -346,6 +347,22 @@ app.post('/api/pendencias', exigirAutenticacaoApi, async (req, res) => {
   } catch (erro) {
     console.error('Erro em /api/pendencias (criar):', erro);
     res.status(500).json({ erro: 'Falha ao criar pendência.', detalhe: erro.message });
+  }
+});
+
+// Lote ("Concluir todas"). Rota separada e ANTES da de id único só por
+// clareza -- não há conflito de match (esta tem um segmento, a outra dois).
+app.post('/api/pendencias/resolver-lote', exigirAutenticacaoApi, async (req, res) => {
+  try {
+    const { ids, resolvidoPor } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ erro: 'Informe os ids das pendências a resolver.' });
+    }
+    const quantidade = await resolverPendenciasEmLote(ids, resolvidoPor);
+    res.json({ ok: true, quantidade });
+  } catch (erro) {
+    console.error('Erro em POST /api/pendencias/resolver-lote:', erro);
+    res.status(500).json({ erro: 'Falha ao concluir as pendências.', detalhe: erro.message });
   }
 });
 

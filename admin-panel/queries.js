@@ -433,6 +433,30 @@ async function decidirLicaoAprendida(id, decisao, comentario) {
   return rows.length > 0;
 }
 
+// Resolve várias de uma vez ("Concluir todas" no painel).
+//
+// Recebe os IDs EXPLICITAMENTE, em vez de fazer "todas onde resolved_at IS
+// NULL": entre a tela carregar e a pessoa clicar, uma pendência nova pode
+// ter chegado -- e fechá-la sem ninguém ter lido seria pior que o problema
+// que este botão resolve. Só encerra o que estava visível na tela.
+//
+// O `AND resolved_at IS NULL` continua valendo por linha, então nada é
+// reaberto nem tem o resolvido_por sobrescrito se outra pessoa já fechou.
+async function resolverPendenciasEmLote(ids, resolvidoPor) {
+  const limpos = (ids || []).map(Number).filter(Number.isInteger);
+  if (limpos.length === 0) return 0;
+  const { rows } = await pool.query(
+    `UPDATE public.agent_actions
+     SET resolved_at = now(),
+         status = 'resolvido',
+         assigned_to = COALESCE($2, assigned_to)
+     WHERE id = ANY($1::int[]) AND resolved_at IS NULL
+     RETURNING id;`,
+    [limpos, resolvidoPor || null]
+  );
+  return rows.length;
+}
+
 // Sugestões pro autocomplete do campo "Paciente" ao criar pendência manual
 // -- só dispara com 2+ caracteres, retorna poucos resultados. Não é pra
 // travar quem quer digitar algo que não é paciente nenhum (ex: "Comprar
@@ -1076,6 +1100,7 @@ module.exports = {
   buscarSuspensos,
   buscarPendencias,
   resolverPendencia,
+  resolverPendenciasEmLote,
   criarPendenciaManual,
   buscarOportunidades,
   reativarOportunidade,

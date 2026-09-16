@@ -212,7 +212,10 @@
             <h2>Pendências</h2>
             <p>Situações que a Lumi encaminhou para a equipe. Urgências aparecem primeiro.</p>
           </div>
-          <button class="botao botao-primario" id="botaoNovaPendencia">+ Nova pendência</button>
+          <div class="cabecalho-secao__acoes">
+            <button class="botao" id="botaoConcluirTodas" hidden>✓ Concluir todas</button>
+            <button class="botao botao-primario" id="botaoNovaPendencia">+ Nova pendência</button>
+          </div>
         </div>
         <form class="form-nova-pendencia" id="formNovaPendencia" hidden>
           <input type="text" id="novaPendenciaPaciente" list="sugestoesPacientePendencia" autocomplete="off" placeholder="Paciente (nome ou telefone) — opcional, ou descreva livremente" />

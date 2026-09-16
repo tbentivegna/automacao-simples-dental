@@ -554,6 +554,60 @@ document.getElementById('conteudoSuspensos').addEventListener('click', async (ev
 // Pendências
 // ============================================================
 
+// Lista exibida no momento -- o "Concluir todas" manda estes IDs, não um
+// "resolva tudo que estiver aberto": se uma pendência nova chegar entre o
+// carregamento e o clique, ela NÃO é encerrada sem alguém ter lido.
+let pendenciasNaTela = [];
+
+function atualizarBotaoConcluirTodas() {
+  const botao = document.getElementById('botaoConcluirTodas');
+  if (!botao) return;
+  botao.hidden = pendenciasNaTela.length === 0;
+  botao.textContent = `✓ Concluir todas (${pendenciasNaTela.length})`;
+  botao.disabled = false;
+}
+
+async function concluirTodasPendencias() {
+  const botao = document.getElementById('botaoConcluirTodas');
+  const total = pendenciasNaTela.length;
+  if (total === 0) return;
+
+  // Urgência encerrada por engano é o erro caro aqui -- a confirmação diz
+  // quantas são, em vez de um "tem certeza?" genérico.
+  const urgentes = pendenciasNaTela.filter((p) => p.urgente).length;
+  const aviso = urgentes
+    ? `
+
+ATENÇÃO: ${urgentes} ${urgentes === 1 ? 'é uma urgência' : 'são urgências'}.`
+    : '';
+  if (!confirm(`Marcar ${total} pendência${total === 1 ? '' : 's'} como concluída${total === 1 ? '' : 's'}?${aviso}`)) return;
+
+  botao.disabled = true;
+  botao.textContent = 'Concluindo…';
+  try {
+    const resposta = await chamarApi('/api/pendencias/resolver-lote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: pendenciasNaTela.map((p) => p.id),
+        resolvidoPor: 'painel administrativo (em lote)',
+      }),
+    });
+    // Recarrega em vez de limpar a tela na mão: se alguma já tinha sido
+    // resolvida por outra pessoa, ou se chegou uma nova nesse meio tempo,
+    // a lista precisa refletir o estado real, não o que supomos.
+    await carregarPendencias();
+    if (resposta && typeof resposta.quantidade === 'number' && resposta.quantidade < total) {
+      alert(`${resposta.quantidade} de ${total} concluída(s) — o restante já havia sido resolvido por outra pessoa.`);
+    }
+  } catch (erro) {
+    alert(`Não foi possível concluir: ${erro.message}`);
+    atualizarBotaoConcluirTodas();
+  }
+}
+
+document.getElementById('botaoConcluirTodas').addEventListener('click', concluirTodasPendencias);
+
 async function carregarPendencias() {
   const alvo = document.getElementById('conteudoPendencias');
   try {
@@ -561,6 +615,8 @@ async function carregarPendencias() {
     if (lista.length === 0) {
       alvo.innerHTML = '<div class="estado-vazio"><span class="estado-vazio__emoji">✅</span>Nenhuma pendência em aberto.</div>';
       atualizarBadgePendencias(0);
+      pendenciasNaTela = [];
+      atualizarBotaoConcluirTodas();
       return;
     }
     const linhas = lista
@@ -587,6 +643,8 @@ async function carregarPendencias() {
         </table>
       </div>`;
     atualizarBadgePendencias(lista.length);
+    pendenciasNaTela = lista;
+    atualizarBotaoConcluirTodas();
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }

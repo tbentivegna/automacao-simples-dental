@@ -475,6 +475,15 @@ html, body {
   flex-wrap: wrap;
 }
 
+/* Agrupa os botões de ação do cabeçalho da seção (ex: Pendências tem
+   "Concluir todas" + "Nova pendência"). */
+.cabecalho-secao__acoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .cabecalho-secao h2 {
   font-size: 1.95rem;
   color: var(--cor-secundaria);
@@ -2468,8 +2477,14 @@ html, body {
     flex-wrap: wrap;
   }
 
-  .cabecalho-secao > .botao {
+  .cabecalho-secao > .botao,
+  .cabecalho-secao__acoes {
     width: 100%;
+  }
+
+  /* Dois botões lado a lado dividem a largura; sozinho, ocupa tudo. */
+  .cabecalho-secao__acoes .botao {
+    flex: 1 1 140px;
   }
 
   .cabecalho-secao h2 {
