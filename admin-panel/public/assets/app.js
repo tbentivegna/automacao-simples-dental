@@ -567,21 +567,21 @@ async function carregarPendencias() {
       .map(
         (p) => `
           <tr data-linha-pendencia="${p.id}">
-            <td>${p.urgente ? '<span class="selo selo-urgente">Urgência</span>' : `<span class="selo selo-neutro">${escapar(p.action || '—')}</span>`}</td>
-            <td>
+            <td class="cel-selo">${p.urgente ? '<span class="selo selo-urgente">Urgência</span>' : `<span class="selo selo-neutro">${escapar(p.action || '—')}</span>`}</td>
+            <td class="cel-paciente">
               ${nomeExibicao(p.paciente_nome, p.paciente_apelido_whatsapp, '(paciente não identificado)')}
               <div class="texto-fraco">${escapar(p.from_phone || '')}</div>
             </td>
-            <td>${escapar(p.domain || '—')}</td>
-            <td style="max-width:320px;">${escapar(p.detail || '')}</td>
-            <td>${escapar(p.criado_em_formatado || '—')}<br><span class="texto-fraco">${formatarHoras(p.horas_em_aberto)} atrás</span></td>
-            <td><button class="botao botao-primario" data-resolver="${p.id}">Marcar concluída</button></td>
+            <td class="cel-dominio">${escapar(p.domain || '—')}</td>
+            <td class="cel-detalhe" style="max-width:320px;">${escapar(p.detail || '')}</td>
+            <td class="cel-tempo">${escapar(p.criado_em_formatado || '—')}<br><span class="texto-fraco">${formatarHoras(p.horas_em_aberto)} atrás</span></td>
+            <td class="cel-acao"><button class="botao botao-primario" data-resolver="${p.id}">Marcar concluída</button></td>
           </tr>`
       )
       .join('');
     alvo.innerHTML = `
       <div class="tabela-scroll-x">
-        <table class="tabela">
+        <table class="tabela tabela--cards-no-mobile">
           <thead><tr><th></th><th>Paciente</th><th>Domínio</th><th>Detalhe</th><th>Aberta em</th><th></th></tr></thead>
           <tbody>${linhas}</tbody>
         </table>

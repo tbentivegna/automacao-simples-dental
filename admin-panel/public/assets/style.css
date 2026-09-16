@@ -2357,6 +2357,121 @@ html, body {
     display: none;
   }
 
+  /* ----------------------------------------------------------------
+     Tabela -> cards no celular (.tabela--cards-no-mobile)
+     ----------------------------------------------------------------
+     Uma tabela de 6 colunas dentro de .tabela-scroll-x obriga a rolar de
+     lado pra ler cada campo de uma pendência -- inutilizável no celular.
+     Cada linha vira um cartão, com as colunas reorganizadas em áreas
+     nomeadas: selo e tempo dividem a primeira faixa, paciente/detalhe/
+     domínio empilham, e a ação ocupa a largura toda (alvo de toque).
+     No desktop nada disto vale: segue tabela normal. */
+  .tabela--cards-no-mobile,
+  .tabela--cards-no-mobile tbody,
+  .tabela--cards-no-mobile tr,
+  .tabela--cards-no-mobile td {
+    display: block;
+    width: auto;
+    height: auto;
+  }
+
+  .tabela--cards-no-mobile thead {
+    display: none;
+  }
+
+  .tabela--cards-no-mobile tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'selo tempo'
+      'paciente paciente'
+      'detalhe detalhe'
+      'dominio dominio'
+      'acao acao';
+    gap: 8px 10px;
+    align-items: start;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    background: var(--cor-cartao);
+  }
+
+  .tabela--cards-no-mobile tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .tabela--cards-no-mobile td {
+    padding: 0;
+    border: none;
+    /* O max-width:320px inline da célula de detalhe atrapalha no card. */
+    max-width: none !important;
+  }
+
+  .tabela--cards-no-mobile .cel-selo { grid-area: selo; }
+  .tabela--cards-no-mobile .cel-paciente { grid-area: paciente; font-weight: 600; }
+  .tabela--cards-no-mobile .cel-dominio { grid-area: dominio; }
+  .tabela--cards-no-mobile .cel-detalhe { grid-area: detalhe; }
+  .tabela--cards-no-mobile .cel-tempo { grid-area: tempo; }
+  .tabela--cards-no-mobile .cel-acao { grid-area: acao; }
+
+  /* Hora fica discreta, alinhada à direita do selo, numa linha só. */
+  .tabela--cards-no-mobile .cel-tempo {
+    text-align: right;
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+    line-height: 1.35;
+  }
+
+  .tabela--cards-no-mobile .cel-detalhe {
+    font-size: 14.5px;
+    line-height: 1.45;
+    /* Detalhe de pendência pode trazer link ou texto colado -- mesma
+       proteção contra rolagem lateral das bolhas de mensagem. */
+    overflow-wrap: anywhere;
+  }
+
+  /* Domínio vira uma etiqueta discreta, não uma linha de texto solta. */
+  .tabela--cards-no-mobile .cel-dominio {
+    justify-self: start;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+    background: var(--cor-fundo-alt);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  .tabela--cards-no-mobile .cel-acao .botao {
+    width: 100%;
+  }
+
+  /* O wrapper de rolagem perde a função quando não há mais tabela larga --
+     e mantido ele ainda permitia arrastar de lado à toa. */
+  .tabela-scroll-x:has(.tabela--cards-no-mobile) {
+    overflow-x: visible;
+  }
+
+  /* Cada linha já virou um cartão com borda e fundo próprios -- manter a
+     moldura do .painel por volta cria caixa dentro de caixa e ainda come
+     largura útil numa tela estreita. Some com a moldura de fora. */
+  .painel:has(.tabela--cards-no-mobile) {
+    border: none;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  /* Cabeçalho da seção: o botão de ação ao lado do título fica espremido
+     em tela estreita -- passa pra baixo, ocupando a largura toda. */
+  .cabecalho-secao {
+    flex-wrap: wrap;
+  }
+
+  .cabecalho-secao > .botao {
+    width: 100%;
+  }
+
   .cabecalho-secao h2 {
     font-size: 1.5rem;
   }
