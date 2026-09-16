@@ -1108,6 +1108,9 @@ html, body {
 
 .bolha-mensagem {
   max-width: 70%;
+  /* Sem isto, uma URL ou palavra longa sem espaço não quebra e fura a
+     largura da bolha -- outra fonte de rolagem lateral no celular. */
+  overflow-wrap: anywhere;
   padding: 10px 14px;
   border-radius: 14px;
   font-size: 14px;
@@ -1228,12 +1231,47 @@ html, body {
    Mensagens (chat direto com o paciente)
    ============================================================ */
 
+/* Seletor de conversa -- só existe no celular (ver media query abaixo). */
+.seletor-conversa {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.seletor-conversa__rotulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.seletor-conversa select {
+  width: 100%;
+  max-width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-cartao);
+  color: var(--cor-texto);
+  font-family: inherit;
+  font-size: 15px;
+}
+
 .mensagens-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 16px;
   height: calc(100vh - 220px);
   min-height: 420px;
+}
+
+/* Scroll lateral no celular vinha daqui: todo item de grid nasce com
+   `min-width: auto`, ou seja, se recusa a ficar menor que o conteúdo --
+   uma mensagem com link ou palavra longa esticava a coluna e a página
+   inteira passava a rolar de lado. `min-width: 0` autoriza o encolhimento
+   e a quebra de linha assume. */
+.mensagens-layout > * {
+  min-width: 0;
 }
 
 .lista-conversas {
@@ -1327,6 +1365,7 @@ html, body {
   flex: 1;
   padding: 16px 20px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1369,10 +1408,20 @@ html, body {
      fica de fallback pra navegador antigo. */
   .mensagens-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 132px 1fr;
-    height: calc(100vh - 176px);
-    height: calc(100dvh - 176px);
-    min-height: 360px;
+    /* A lista de conversas dá lugar ao <select> (fora deste grid), então
+       sobra uma linha só -- e toda a altura dela vai pra conversa. */
+    grid-template-rows: 1fr;
+    height: calc(100vh - 232px);
+    height: calc(100dvh - 232px);
+    min-height: 340px;
+  }
+
+  .seletor-conversa {
+    display: flex;
+  }
+
+  .lista-conversas {
+    display: none;
   }
 }
 

@@ -238,6 +238,15 @@
           <input type="search" class="campo-busca" id="buscaConversas" placeholder="Buscar por nome ou telefone…" />
         </div>
 
+        <!-- Seletor de conversa: só aparece no celular, no lugar da lista
+             lateral (que ali ocupava muito espaço vertical). O <select>
+             nativo abre o seletor do próprio sistema, ocupa uma linha e é
+             bem melhor de operar com o dedo. -->
+        <label class="seletor-conversa" for="seletorConversa">
+          <span class="seletor-conversa__rotulo">Conversa</span>
+          <select id="seletorConversa" aria-label="Escolher conversa"></select>
+        </label>
+
         <div class="mensagens-layout">
           <div class="lista-conversas" id="listaConversas">
             <div class="carregando">Carregando…</div>

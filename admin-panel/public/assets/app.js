@@ -1911,10 +1911,48 @@ async function carregarConversas(termo) {
           </button>`;
       })
       .join('');
+
+    preencherSeletorConversas(conversas);
+
+    // Abre sozinha a conversa mais recente na primeira vez que a seção é
+    // carregada -- no celular isso evita a tela "Selecione uma conversa"
+    // com um passo a mais pra dar. Só na PRIMEIRA vez: carregarConversas
+    // também roda no poll de fundo, e repetir isso sequestraria a conversa
+    // que a pessoa estivesse lendo.
+    if (!jaAbriuConversaInicial && !conversaAtivaTelefone) {
+      jaAbriuConversaInicial = true;
+      const recente = conversas[0];
+      abrirConversa(recente.telefone, recente.nome || recente.apelido_whatsapp || recente.telefone);
+    }
   } catch (erro) {
     alvo.innerHTML = elementoErro(erro.message);
   }
 }
+
+// Espelha a lista de conversas no <select> do celular. A lista continua
+// sendo renderizada (o desktop usa ela); o CSS é que decide qual das duas
+// aparece em cada largura.
+function preencherSeletorConversas(conversas) {
+  const seletor = document.getElementById('seletorConversa');
+  if (!seletor) return;
+  seletor.innerHTML = conversas
+    .map((c) => {
+      const nome = c.nome || c.apelido_whatsapp || c.telefone;
+      // "●" marca quem está esperando resposta -- é o sinal que a lista dá
+      // pela cor, e que se perderia ao virar uma linha de texto só.
+      const aguardando = c.ultimo_tipo === 'human' ? '● ' : '';
+      const pausada = c.bot_disabled ? ' 🤖' : '';
+      const hora = c.ultima_em_formatada ? ` — ${c.ultima_em_formatada}` : '';
+      const selecionado = c.telefone === conversaAtivaTelefone ? ' selected' : '';
+      return `<option value="${escapar(c.telefone)}" data-nome="${escapar(nome)}"${selecionado}>${escapar(aguardando + nome + pausada + hora)}</option>`;
+    })
+    .join('');
+}
+
+document.getElementById('seletorConversa').addEventListener('change', (evento) => {
+  const opcao = evento.target.selectedOptions[0];
+  if (opcao) abrirConversa(opcao.value, opcao.dataset.nome);
+});
 
 document.getElementById('listaConversas').addEventListener('click', (evento) => {
   const item = evento.target.closest('[data-telefone]');
@@ -1974,6 +2012,9 @@ let mensagensThreadAtual = [];
 // Índices (na lista cronológica completa) das bolhas longas que a pessoa
 // abriu -- sobrevive ao re-render do poll.
 let bolhasExpandidas = new Set();
+// Trava pra a abertura automática da conversa mais recente acontecer uma
+// vez só, e não a cada poll de fundo.
+let jaAbriuConversaInicial = false;
 
 async function abrirConversa(telefone, nome) {
   conversaAtivaTelefone = telefone;
@@ -1983,6 +2024,9 @@ async function abrirConversa(telefone, nome) {
   document.querySelectorAll('#listaConversas [data-telefone]').forEach((el) => {
     el.classList.toggle('lista-conversas__item--ativo', el.dataset.telefone === telefone);
   });
+
+  const seletor = document.getElementById('seletorConversa');
+  if (seletor && seletor.value !== telefone) seletor.value = telefone;
 
   const alvo = document.getElementById('threadMensagens');
   alvo.innerHTML = '<div class="carregando">Carregando…</div>';
