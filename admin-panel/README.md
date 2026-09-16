@@ -9,6 +9,29 @@ Lê do mesmo Postgres que o n8n e o `server.js` já usam -- não mexe em nada
 do Simples Dental nem do WhatsApp diretamente. A única escrita que faz é
 marcar uma pendência (`agent_actions`) como resolvida.
 
+## No ar
+
+**Produção (clínica da Dra. Aline): https://painel.tbentivegna.com.br**
+
+Hospedado no Easypanel, no mesmo VPS do resto. O redeploy tem webhook
+próprio (registrado na memória do projeto, não versionado aqui junto com a
+chave) -- `POST` nele depois de pushar mudança em `admin-panel/` e esperar
+~3 min pro build terminar. Cuidado conhecido: `/health` respondendo 200
+NÃO prova que o código novo subiu. O jeito confiável de conferir é pedir um
+asset e procurar um marcador da mudança, já que `/assets` é servido sem
+autenticação:
+
+```bash
+curl -s -L https://painel.tbentivegna.com.br/assets/style.css | grep -c "<trecho-novo>"
+```
+
+O `-L` é obrigatório: `http://` redireciona pra `https://`, e sem seguir o
+redirect você acaba testando o corpo do 301 em vez do arquivo.
+
+> Existe mais de um serviço de painel rodando este MESMO código (produção e
+> Standalone) -- um deploy cobre só um deles. Conferir qual antes de dar a
+> mudança por publicada em todos.
+
 ## Rodando local (pra testar antes de subir)
 
 ```bash
