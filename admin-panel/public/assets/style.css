@@ -2471,6 +2471,102 @@ html, body {
     border-radius: 0;
   }
 
+  /* Rótulo do campo dentro do cartão, pra célula que sozinha não se explica
+     (dois interruptores soltos não dizem qual é Atendimento e qual é
+     Lembrete -- na tabela quem dizia era o cabeçalho, que aqui some). */
+  .tabela--cards-no-mobile td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cor-texto-fraco);
+    margin-bottom: 3px;
+  }
+
+  /* ---- Pacientes ---- */
+  .tabela--cards-pacientes tr {
+    grid-template-areas:
+      'nome data'
+      'telefone telefone'
+      'atendimento atendimento'
+      'lembrete lembrete';
+  }
+
+  .tabela--cards-pacientes .cel-nome { grid-area: nome; font-weight: 600; }
+  .tabela--cards-pacientes .cel-data { grid-area: data; }
+  .tabela--cards-pacientes .cel-telefone { grid-area: telefone; }
+  .tabela--cards-pacientes .cel-atendimento { grid-area: atendimento; }
+  .tabela--cards-pacientes .cel-lembrete { grid-area: lembrete; }
+
+  .tabela--cards-pacientes .cel-data {
+    text-align: right;
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+  }
+
+  .tabela--cards-pacientes .cel-telefone {
+    color: var(--cor-texto-suave);
+  }
+
+  /* ---- Oportunidades ---- */
+  .tabela--cards-oportunidades tr {
+    grid-template-areas:
+      'nome interacao'
+      'etapa status'
+      'proximo proximo'
+      'acoes acoes';
+    grid-template-columns: 1fr auto;
+  }
+
+  .tabela--cards-oportunidades .cel-nome { grid-area: nome; font-weight: 600; }
+  .tabela--cards-oportunidades .cel-interacao { grid-area: interacao; }
+  .tabela--cards-oportunidades .cel-etapa { grid-area: etapa; }
+  .tabela--cards-oportunidades .cel-status { grid-area: status; }
+  .tabela--cards-oportunidades .cel-proximo { grid-area: proximo; }
+
+  /* "Ver mensagem" e "Reativar" dividem a última faixa. */
+  .tabela--cards-oportunidades .cel-mensagem,
+  .tabela--cards-oportunidades .cel-reativar {
+    grid-area: acoes;
+  }
+
+  .tabela--cards-oportunidades .cel-mensagem { justify-self: start; }
+  .tabela--cards-oportunidades .cel-reativar { justify-self: end; }
+
+  .tabela--cards-oportunidades .cel-interacao {
+    text-align: right;
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+  }
+
+  .tabela--cards-oportunidades .cel-status {
+    justify-self: end;
+    text-align: right;
+  }
+
+  .tabela--cards-oportunidades .cel-proximo {
+    overflow-wrap: anywhere;
+  }
+
+  /* table-layout:fixed + min-width:720px + colgroup existem pra segurar as
+     7 colunas no desktop -- no cartão eles forçariam a largura de volta e
+     trariam a rolagem lateral junto. */
+  .tabela--cards-oportunidades {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .tabela--cards-oportunidades colgroup {
+    display: none;
+  }
+
+  .tabela--cards-oportunidades td,
+  .tabela--cards-oportunidades th {
+    width: auto !important;
+  }
+
   /* Cabeçalho da seção: o botão de ação ao lado do título fica espremido
      em tela estreita -- passa pra baixo, ocupando a largura toda. */
   .cabecalho-secao {

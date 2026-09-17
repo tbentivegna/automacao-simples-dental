@@ -841,19 +841,19 @@ function renderizarOportunidades() {
         : '<span class="texto-fraco">—</span>';
       return `
         <tr data-linha-oportunidade="${o.id}">
-          <td>${escapar(nomeCurto)}</td>
-          <td>${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
-          <td>${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
-          <td>${verMensagem}</td>
-          <td>${escapar(o.ultima_interacao_formatado || '—')}</td>
-          <td>${escapar(proximoPassoOportunidade(o))}</td>
-          <td>${botaoReativar}</td>
+          <td class="cel-nome">${escapar(nomeCurto)}</td>
+          <td class="cel-etapa" data-rotulo="Etapa">${ETAPA_LEGIVEL[o.etapa] || escapar(o.etapa || '—')}</td>
+          <td class="cel-status" data-rotulo="Status">${STATUS_OPORTUNIDADE_LEGIVEL[o.status] || escapar(o.status || '—')}</td>
+          <td class="cel-mensagem">${verMensagem}</td>
+          <td class="cel-interacao">${escapar(o.ultima_interacao_formatado || '—')}</td>
+          <td class="cel-proximo" data-rotulo="Próximo passo">${escapar(proximoPassoOportunidade(o))}</td>
+          <td class="cel-reativar">${botaoReativar}</td>
         </tr>`;
     })
     .join('');
   alvo.innerHTML = `
     <div class="tabela-scroll-x">
-      <table class="tabela tabela--oportunidades">
+      <table class="tabela tabela--oportunidades tabela--cards-no-mobile tabela--cards-oportunidades">
         <colgroup>
           <col style="width:18%"><col style="width:11%"><col style="width:11%">
           <col style="width:8%"><col style="width:16%"><col style="width:22%"><col style="width:14%">
@@ -2421,13 +2421,13 @@ function renderizarPacientes(resultado) {
     .map(
       (p) => `
         <tr>
-          <td>
+          <td class="cel-nome">
             ${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}
             ${p.email ? `<div class="texto-fraco">${escapar(p.email)}</div>` : ''}
           </td>
-          <td>${escapar(p.telefone || '—')}</td>
-          <td>${escapar(p.criado_em_formatado || '—')}</td>
-          <td>
+          <td class="cel-telefone">${escapar(p.telefone || '—')}</td>
+          <td class="cel-data">${escapar(p.criado_em_formatado || '—')}</td>
+          <td class="cel-atendimento" data-rotulo="Atendimento">
             <div class="atendimento-toggle">
               <label class="switch-atendimento" title="${p.bot_disabled ? 'Devolver pra Lumi' : 'Pausar a Lumi pra esse paciente'}">
                 <input type="checkbox" data-toggle-paciente="${p.id}" ${p.bot_disabled ? '' : 'checked'} />
@@ -2436,7 +2436,7 @@ function renderizarPacientes(resultado) {
               <span class="selo ${p.bot_disabled ? 'selo-alerta' : 'selo-sucesso'}" data-selo-atendimento>${p.bot_disabled ? 'Com a equipe' : 'Lumi ativa'}</span>
             </div>
           </td>
-          <td>
+          <td class="cel-lembrete" data-rotulo="Lembrete">
             <div class="atendimento-toggle">
               <label class="switch-atendimento" title="${p.consentimento_lembrete === true ? 'Desativar lembrete' : 'Ativar lembrete'}">
                 <input type="checkbox" data-toggle-consentimento="${p.id}" ${p.consentimento_lembrete === true ? 'checked' : ''} />
@@ -2454,7 +2454,7 @@ function renderizarPacientes(resultado) {
     .join('');
   alvo.innerHTML = `
     <div class="tabela-scroll">
-      <table class="tabela">
+      <table class="tabela tabela--cards-no-mobile tabela--cards-pacientes">
         <thead><tr><th>Paciente</th><th>Telefone</th><th>Cadastrado em</th><th>Atendimento</th><th>Lembrete</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
