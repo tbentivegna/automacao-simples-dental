@@ -503,20 +503,20 @@ async function carregarSuspensos() {
         else if (horas >= 3) selo = '<span class="selo selo-alerta">há um tempo</span>';
         return `
           <tr data-linha-suspenso="${p.id}">
-            <td>
+            <td class="cel-nome">
               ${nomeExibicao(p.nome, p.apelido_whatsapp, '(sem nome)')}
               <div class="texto-fraco">${escapar(p.telefone || '')}</div>
             </td>
-            <td>${p.human_assigned ? '<span class="selo selo-info">com a equipe</span>' : '<span class="selo selo-neutro">—</span>'}</td>
-            <td>${escapar(p.last_handoff_formatado || '—')}</td>
-            <td>${formatarHoras(p.horas_desde_handoff)} ${selo}</td>
-            <td><button class="botao" data-retomar-paciente="${p.id}">Devolver pra Lumi</button></td>
+            <td class="cel-status">${p.human_assigned ? '<span class="selo selo-info">com a equipe</span>' : '<span class="selo selo-neutro">—</span>'}</td>
+            <td class="cel-data">${escapar(p.last_handoff_formatado || '—')}</td>
+            <td class="cel-tempo" data-rotulo="Tempo parado">${formatarHoras(p.horas_desde_handoff)} ${selo}</td>
+            <td class="cel-acao"><button class="botao" data-retomar-paciente="${p.id}">Devolver pra Lumi</button></td>
           </tr>`;
       })
       .join('');
     alvo.innerHTML = `
       <div class="tabela-scroll-x">
-        <table class="tabela">
+        <table class="tabela tabela--cards-no-mobile tabela--cards-suspensos">
           <thead><tr><th>Paciente</th><th>Status</th><th>Assumido em</th><th>Tempo parado</th><th></th></tr></thead>
           <tbody>${linhas}</tbody>
         </table>
@@ -637,7 +637,7 @@ async function carregarPendencias() {
       .join('');
     alvo.innerHTML = `
       <div class="tabela-scroll-x">
-        <table class="tabela tabela--cards-no-mobile">
+        <table class="tabela tabela--cards-no-mobile tabela--cards-pendencias">
           <thead><tr><th></th><th>Paciente</th><th>Domínio</th><th>Detalhe</th><th>Aberta em</th><th></th></tr></thead>
           <tbody>${linhas}</tbody>
         </table>
@@ -954,7 +954,14 @@ let agendaAtualizadoEm = null;
 let consultaSelecionada = null;
 
 // Grade visual (Dia/Semana/Mês/Lista) -- ver plano "Agenda em grade visual".
-let visualizacaoAgenda = 'semana'; // 'dia' | 'semana' | 'mes' | 'lista'
+// A grade de Semana/Mês precisa de largura por definição: 7 colunas num
+// celular de 375px dariam ~50px por dia, o que não dá pra ler nem tocar --
+// nesse caso a rolagem lateral é legítima, é como calendário funciona. O
+// que dá pra melhorar é ONDE a pessoa cai ao abrir: no celular, a visão do
+// Dia é a única que cabe de verdade, então é ela que abre por padrão.
+// Trocar pra Semana continua a um toque, e no desktop nada muda.
+const TELA_ESTREITA = typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
+let visualizacaoAgenda = TELA_ESTREITA ? 'dia' : 'semana'; // 'dia' | 'semana' | 'mes' | 'lista'
 let diaAtualAgenda = inicioDoDiaLocal(new Date()); // meia-noite local, dia mostrado no modo Dia
 let configuracaoHorariosCache = null; // cache do GET /api/configuracoes/horarios (eixo de horas da grade)
 
@@ -1136,17 +1143,17 @@ function renderizarAgenda() {
       const horario = c.fimFormatado ? `${escapar(c.inicioFormatado || '—')} – ${escapar(c.fimFormatado)}` : escapar(c.inicioFormatado || '—');
       return `
         <tr data-consulta-id="${escapar(c.id || '')}"${classes ? ` class="${classes}"` : ''}>
-          <td>${horario}</td>
-          <td>${escapar(c.paciente || '(sem nome)')}</td>
-          <td><span class="selo selo-neutro">${escapar(c.status || '—')}</span></td>
-          <td>${rotulo}</td>
+          <td class="cel-horario">${horario}</td>
+          <td class="cel-nome">${escapar(c.paciente || '(sem nome)')}</td>
+          <td class="cel-status"><span class="selo selo-neutro">${escapar(c.status || '—')}</span></td>
+          <td class="cel-rotulo">${rotulo}</td>
         </tr>`;
     })
     .join('');
 
   alvo.innerHTML = `
     <div class="tabela-scroll-x">
-      <table class="tabela">
+      <table class="tabela tabela--cards-no-mobile tabela--cards-agenda">
         <thead><tr><th>Horário</th><th>Paciente</th><th>Status</th><th>Rótulo</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
@@ -1589,6 +1596,13 @@ document.getElementById('agendaGrade').addEventListener('click', (evento) => {
   if (celulaDiaMes && !celulaDiaMes.classList.contains('agenda-mes__dia--bloqueada')) {
     abrirFormNovaConsultaPreenchido(celulaDiaMes.dataset.slotData, null);
   }
+});
+
+// O HTML marca "Semana" como ativo; se o padrão mudou por causa da largura
+// da tela, o destaque precisa acompanhar -- senão a barra diz uma coisa e a
+// tela mostra outra.
+document.querySelectorAll('#seletorVisualizacaoAgenda button[data-visualizacao]').forEach((b) => {
+  b.classList.toggle('ativo', b.dataset.visualizacao === visualizacaoAgenda);
 });
 
 document.getElementById('seletorVisualizacaoAgenda').addEventListener('click', (evento) => {

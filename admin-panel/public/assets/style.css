@@ -2388,15 +2388,12 @@ html, body {
     display: none;
   }
 
+  /* Só o que é comum a TODO cartão fica aqui. As áreas nomeadas são
+     específicas de cada tabela e vivem no modificador de cada uma --
+     deixá-las aqui fazia a de Pendências valer como padrão pras outras. */
   .tabela--cards-no-mobile tr {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'selo tempo'
-      'paciente paciente'
-      'detalhe detalhe'
-      'dominio dominio'
-      'acao acao';
     gap: 8px 10px;
     align-items: start;
     padding: 14px;
@@ -2417,22 +2414,32 @@ html, body {
     max-width: none !important;
   }
 
-  .tabela--cards-no-mobile .cel-selo { grid-area: selo; }
-  .tabela--cards-no-mobile .cel-paciente { grid-area: paciente; font-weight: 600; }
-  .tabela--cards-no-mobile .cel-dominio { grid-area: dominio; }
-  .tabela--cards-no-mobile .cel-detalhe { grid-area: detalhe; }
-  .tabela--cards-no-mobile .cel-tempo { grid-area: tempo; }
-  .tabela--cards-no-mobile .cel-acao { grid-area: acao; }
+  /* ---- Pendências ---- */
+  .tabela--cards-pendencias tr {
+    grid-template-areas:
+      'selo tempo'
+      'paciente paciente'
+      'detalhe detalhe'
+      'dominio dominio'
+      'acao acao';
+  }
+
+  .tabela--cards-pendencias .cel-selo { grid-area: selo; }
+  .tabela--cards-pendencias .cel-paciente { grid-area: paciente; font-weight: 600; }
+  .tabela--cards-pendencias .cel-dominio { grid-area: dominio; }
+  .tabela--cards-pendencias .cel-detalhe { grid-area: detalhe; }
+  .tabela--cards-pendencias .cel-tempo { grid-area: tempo; }
+  .tabela--cards-pendencias .cel-acao { grid-area: acao; }
 
   /* Hora fica discreta, alinhada à direita do selo, numa linha só. */
-  .tabela--cards-no-mobile .cel-tempo {
+  .tabela--cards-pendencias .cel-tempo {
     text-align: right;
     font-size: 12px;
     color: var(--cor-texto-suave);
     line-height: 1.35;
   }
 
-  .tabela--cards-no-mobile .cel-detalhe {
+  .tabela--cards-pendencias .cel-detalhe {
     font-size: 14.5px;
     line-height: 1.45;
     /* Detalhe de pendência pode trazer link ou texto colado -- mesma
@@ -2441,7 +2448,7 @@ html, body {
   }
 
   /* Domínio vira uma etiqueta discreta, não uma linha de texto solta. */
-  .tabela--cards-no-mobile .cel-dominio {
+  .tabela--cards-pendencias .cel-dominio {
     justify-self: start;
     font-size: 12px;
     font-weight: 600;
@@ -2451,7 +2458,7 @@ html, body {
     padding: 3px 10px;
   }
 
-  .tabela--cards-no-mobile .cel-acao .botao {
+  .tabela--cards-pendencias .cel-acao .botao {
     width: 100%;
   }
 
@@ -2566,6 +2573,65 @@ html, body {
   .tabela--cards-oportunidades th {
     width: auto !important;
   }
+
+  /* ---- Atendimento humano ---- */
+  .tabela--cards-suspensos tr {
+    grid-template-areas:
+      'nome data'
+      'tempo status'
+      'acao acao';
+  }
+
+  .tabela--cards-suspensos .cel-nome { grid-area: nome; font-weight: 600; }
+  .tabela--cards-suspensos .cel-data { grid-area: data; }
+  .tabela--cards-suspensos .cel-tempo { grid-area: tempo; }
+  .tabela--cards-suspensos .cel-status { grid-area: status; }
+  .tabela--cards-suspensos .cel-acao { grid-area: acao; }
+
+  .tabela--cards-suspensos .cel-data {
+    text-align: right;
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+  }
+
+  .tabela--cards-suspensos .cel-status {
+    justify-self: end;
+    align-self: end;
+  }
+
+  .tabela--cards-suspensos .cel-acao .botao {
+    width: 100%;
+  }
+
+  /* ---- Agenda (visão Lista) ---- */
+  .tabela--cards-agenda tr {
+    grid-template-areas:
+      'horario status'
+      'nome nome'
+      'rotulo rotulo';
+    /* A linha inteira abre o detalhe da consulta -- no cartão isso precisa
+       parecer tocável. */
+    cursor: pointer;
+  }
+
+  .tabela--cards-agenda .cel-horario { grid-area: horario; font-weight: 600; }
+  .tabela--cards-agenda .cel-nome { grid-area: nome; }
+  .tabela--cards-agenda .cel-status { grid-area: status; }
+  .tabela--cards-agenda .cel-rotulo { grid-area: rotulo; }
+
+  .tabela--cards-agenda .cel-status {
+    justify-self: end;
+  }
+
+  .tabela--cards-agenda .cel-rotulo {
+    font-size: 12.5px;
+    color: var(--cor-texto-suave);
+  }
+
+  /* Consulta cancelada/passada NÃO precisa de regra nova aqui: o estilo
+     existente mira `td` (opacity .55 + line-through), e td continua
+     existindo no cartão. Repetir no `tr` multiplicaria as opacidades
+     (.6 x .55 = .33) e deixaria o cartão quase ilegível.  */
 
   /* Cabeçalho da seção: o botão de ação ao lado do título fica espremido
      em tela estreita -- passa pra baixo, ocupando a largura toda. */
